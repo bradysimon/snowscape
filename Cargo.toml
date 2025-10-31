@@ -5,6 +5,14 @@ edition = "2024"
 
 [dependencies]
 iced = "0.14.0-dev"
+inventory = "0.3"
+snowscape-macros = { path = "snowscape-macros" }
+
+[workspace]
+members = ["snowscape-macros", "examples/demo"]
+
+[workspace.dependencies]
+iced = "0.14.0-dev"
 
 [patch.crates-io]
 iced.git = "https://github.com/iced-rs/iced.git"

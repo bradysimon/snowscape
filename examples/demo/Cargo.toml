@@ -1,8 +1,9 @@
 [package]
-name = "preview"
+name = "demo"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
 [dependencies]
+snowscape = { path = "../.." }
 iced.workspace = true
