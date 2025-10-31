@@ -66,7 +66,7 @@ pub fn preview(attr: TokenStream, item: TokenStream) -> TokenStream {
                 create: || {
                     Box::new(::snowscape::StatelessPreview::new(|| {
                         use ::iced::Element;
-                        (#fn_call).map(|_| ::snowscape::PreviewMessage::Noop)
+                        (#fn_call).map(|_| ::snowscape::Message::Noop)
                     }))
                 },
             }

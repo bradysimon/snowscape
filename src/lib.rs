@@ -2,7 +2,7 @@ mod message;
 mod widget;
 
 use iced_anim::{Animated, Animation, Easing};
-pub use message::PreviewMessage;
+pub use message::Message;
 pub use snowscape_macros::preview;
 
 // Re-export inventory for use in generated code
@@ -30,10 +30,10 @@ inventory::collect!(PreviewDescriptor);
 /// Trait for preview components that can be displayed in the preview window.
 pub trait Preview: Send {
     /// Update the preview state with a message.
-    fn update(&mut self, message: PreviewMessage) -> Task<PreviewMessage>;
+    fn update(&mut self, message: Message) -> Task<Message>;
 
     /// Render the preview.
-    fn view(&self) -> Element<'_, PreviewMessage>;
+    fn view(&self) -> Element<'_, Message>;
 
     /// Get the label for this preview.
     fn label(&self) -> &str;
@@ -50,7 +50,7 @@ impl fmt::Debug for dyn Preview {
 /// A stateless preview that renders a view function.
 pub struct StatelessPreview<F>
 where
-    F: Fn() -> Element<'static, PreviewMessage> + Send + 'static,
+    F: Fn() -> Element<'static, Message> + Send + 'static,
 {
     view_fn: F,
     label: String,
@@ -58,7 +58,7 @@ where
 
 impl<F> StatelessPreview<F>
 where
-    F: Fn() -> Element<'static, PreviewMessage> + Send + 'static,
+    F: Fn() -> Element<'static, Message> + Send + 'static,
 {
     pub fn new(view_fn: F) -> Self {
         Self {
@@ -75,13 +75,13 @@ where
 
 impl<F> Preview for StatelessPreview<F>
 where
-    F: Fn() -> Element<'static, PreviewMessage> + Send + 'static,
+    F: Fn() -> Element<'static, Message> + Send + 'static,
 {
-    fn update(&mut self, _message: PreviewMessage) -> Task<PreviewMessage> {
+    fn update(&mut self, _message: Message) -> Task<Message> {
         Task::none()
     }
 
-    fn view(&self) -> Element<'_, PreviewMessage> {
+    fn view(&self) -> Element<'_, Message> {
         (self.view_fn)()
     }
 
@@ -131,14 +131,14 @@ where
     State: Send + 'static,
     Msg: Send + Sync + std::any::Any + Clone + 'static,
 {
-    fn update(&mut self, _message: PreviewMessage) -> Task<PreviewMessage> {
+    fn update(&mut self, _message: Message) -> Task<Message> {
         // For now, stateful previews don't handle messages from the UI
         // This would require more complex message routing
         Task::none()
     }
 
-    fn view(&self) -> Element<'_, PreviewMessage> {
-        (self.view_fn)(&self.state).map(|_msg| PreviewMessage::Noop)
+    fn view(&self) -> Element<'_, Message> {
+        (self.view_fn)(&self.state).map(|_msg| Message::Noop)
     }
 
     fn label(&self) -> &str {
@@ -214,8 +214,8 @@ impl PreviewApp {
     }
 
     /// Gets a task that retrieves the theme mode.
-    pub fn initial_theme() -> Task<PreviewMessage> {
-        system::theme().map(PreviewMessage::ChangeThemeMode)
+    pub fn initial_theme() -> Task<Message> {
+        system::theme().map(Message::ChangeThemeMode)
     }
 
     /// The theme that the application is using.
@@ -223,23 +223,21 @@ impl PreviewApp {
         self.theme.as_ref().map(|t| t.value().clone())
     }
 
-    fn update(&mut self, message: PreviewMessage) -> Task<PreviewMessage> {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            PreviewMessage::SelectPreview(index) => {
+            Message::SelectPreview(index) => {
                 if index < self.descriptors.len() && index != self.selected_index {
                     self.selected_index = index;
                     self.current_preview = (self.descriptors[index].create)();
                 }
                 Task::none()
             }
-            PreviewMessage::PreviewComponent => {
+            Message::PreviewComponent => {
                 // Forward to the current preview
-                self.current_preview
-                    .update(PreviewMessage::PreviewComponent)
+                self.current_preview.update(Message::PreviewComponent)
             }
-            PreviewMessage::Noop => Task::none(),
-            PreviewMessage::UpdateTheme(event) => {
-                println!("Updating theme... {event:?}");
+            Message::Noop => Task::none(),
+            Message::UpdateTheme(event) => {
                 let theme = self.theme.get_or_insert_with(|| {
                     Animated::new(
                         Theme::default(self.theme_mode),
@@ -249,18 +247,18 @@ impl PreviewApp {
                 theme.update(event);
                 Task::none()
             }
-            PreviewMessage::ChangeThemeMode(mode) => {
+            Message::ChangeThemeMode(mode) => {
                 self.theme_mode = mode;
                 Task::none()
             }
         }
     }
 
-    fn subscription(&self) -> Subscription<PreviewMessage> {
-        system::theme_changes().map(PreviewMessage::ChangeThemeMode)
+    fn subscription(&self) -> Subscription<Message> {
+        system::theme_changes().map(Message::ChangeThemeMode)
     }
 
-    fn view(&self) -> Element<'_, PreviewMessage> {
+    fn view(&self) -> Element<'_, Message> {
         use iced::widget::{button, column, container, row, scrollable, text};
         use iced::{Alignment, Length};
 
@@ -288,7 +286,7 @@ impl PreviewApp {
 
             let btn = button(text(descriptor.label).size(14))
                 .width(Length::Fill)
-                .on_press(PreviewMessage::SelectPreview(index))
+                .on_press(Message::SelectPreview(index))
                 .style(move |theme, status| {
                     let base = button::primary(theme, status);
                     if is_selected {
@@ -366,7 +364,7 @@ impl PreviewApp {
 
         if let Some(theme) = self.theme.as_ref() {
             Animation::new(theme, page)
-                .on_update(PreviewMessage::UpdateTheme)
+                .on_update(Message::UpdateTheme)
                 .into()
         } else {
             page.into()

@@ -2,7 +2,7 @@ use iced::{Theme, theme};
 
 /// Message type for the preview system.
 #[derive(Debug, Clone)]
-pub enum PreviewMessage {
+pub enum Message {
     /// No-op message.
     Noop,
     /// Select a different preview by index.

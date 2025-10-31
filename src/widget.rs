@@ -1,12 +1,12 @@
 use iced::{Element, Theme, overlay::menu, widget::pick_list};
 
-use crate::message::PreviewMessage;
+use crate::message::Message;
 
 /// A picker allowing the user to select a theme, emitting a `Message` when the
 /// selection changes.
-pub fn theme_picker<'a>(theme: Option<Theme>) -> Element<'a, PreviewMessage> {
+pub fn theme_picker<'a>(theme: Option<Theme>) -> Element<'a, Message> {
     pick_list(Theme::ALL, theme, |theme| {
-        PreviewMessage::UpdateTheme(theme.into())
+        Message::UpdateTheme(theme.into())
     })
     .text_size(14)
     .placeholder("System theme")
