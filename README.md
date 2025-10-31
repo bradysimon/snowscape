@@ -6,9 +6,32 @@ A preview system for [Iced](https://github.com/iced-rs/iced) UI components, insp
 
 - ✨ **Zero Boilerplate** - Automatic preview discovery with no manual registration
 - 🎯 **Parameterized Previews** - Test components with different inputs
-- 🔄 **Multiple Variants** - Stack preview attributes for different scenarios  
+- 🔄 **Multiple Variants** - Stack preview attributes for different scenarios
+- 📱 **Sidebar Navigation** - Browse and switch between previews with a clean UI
 - 🎨 **Type Safe** - Works with any message type automatically
 - 🚀 **Simple API** - Just add `#[snowscape::preview]` to your view functions
+
+## Preview UI
+
+The preview application features a **sidebar with all your previews** listed, allowing you to:
+- See all available previews at a glance
+- Click any preview to view it instantly
+- Identify selected preview with visual highlighting
+- View preview labels including parameter values
+
+```
+┌────────────────┬─────────────────────────────────────┐
+│   Previews     │  Current Preview: button_column     │
+│ ──────────────│─────────────────────────────────────│
+│                │                                     │
+│ button_column  │      [Your Component Here]          │
+│ text("Hello")  │                                     │
+│ text("World")  │                                     │
+│ text("Rust")   │                                     │
+│ simple_text    │                                     │
+│                │                                     │
+└────────────────┴─────────────────────────────────────┘
+```
 
 ## Quick Start
 
@@ -140,20 +163,22 @@ pub fn status_badge(status: &str) -> Element<'_, Message> {
 }
 ```
 
-## Current Limitations
+## Current Features
 
-- **Single Preview Display**: Currently shows only the first registered preview
-- **Message Handling**: Messages from previewed components are discarded
-- **No State**: Preview components are stateless (state support planned)
+- ✅ **Sidebar Preview Selector** - Switch between previews with a visual sidebar
+- ✅ **Parameterized Previews** - Test components with different inputs
+- ✅ **Automatic Registration** - No manual registration required
+- ✅ **Multiple Preview Variants** - Stack preview attributes
+- ✅ **Message Type Handling** - Works with any user-defined message type
 
 ## Roadmap
 
-- [ ] Preview selector UI to switch between previews
 - [ ] Stateful preview support with full update/view cycle
 - [ ] Theme customization
 - [ ] Hot reload support
 - [ ] Preview metadata (descriptions, categories)
 - [ ] Layout options (centered, fullscreen, grid)
+- [ ] Search/filter previews
 
 ## Requirements
 

@@ -15,6 +15,7 @@
 
 ### Key Features Implemented
 
+✅ **Sidebar Preview Selector** - Interactive UI to browse and switch between previews
 ✅ **Parameterized Previews** - Support for preview functions with parameters
 ✅ **Automatic Registration** - No manual registration required
 ✅ **Multiple Preview Variants** - Stack multiple `#[preview]` attributes with different parameters
@@ -105,6 +106,43 @@ This allows for both stateless and stateful previews:
 
 - **StatelessPreview**: For simple view functions
 - **StatefulPreview**: For components needing state (future enhancement)
+
+### 5. Sidebar Preview Selector UI
+
+**Challenge**: Allow users to browse and switch between multiple previews at runtime.
+
+**Solution**: Implement a sidebar navigation system:
+
+```rust
+struct PreviewApp {
+    descriptors: Vec<&'static PreviewDescriptor>,
+    selected_index: usize,
+    current_preview: Box<dyn Preview>,
+}
+
+enum PreviewMessage {
+    SelectPreview(usize),  // Switch to a different preview
+    PreviewComponent,      // Messages from the current preview
+    Noop,
+}
+```
+
+**UI Layout**:
+- **Left Sidebar** (250px): Scrollable list of preview buttons
+  - Shows all preview labels
+  - Highlights the selected preview
+  - Click to switch previews
+- **Right Content Area**: Displays the selected preview
+  - Header showing current preview name
+  - Centered preview content with padding
+
+**Preview Switching**:
+When a user clicks a preview in the sidebar:
+1. `SelectPreview(index)` message is sent
+2. Update handler creates a new preview instance
+3. View is refreshed to show the new preview
+
+This provides a seamless browsing experience similar to Storybook.
 
 ## Usage Examples
 
@@ -217,10 +255,7 @@ fn main() -> iced::Result {
 
 ## Future Enhancements
 
-### 1. Preview Selector UI
-Build a sidebar or dropdown to switch between previews at runtime.
-
-### 2. Stateful Previews
+### 1. Stateful Previews
 Support components that need state:
 
 ```rust
@@ -234,10 +269,10 @@ pub fn counter() -> impl snowscape::Preview {
 }
 ```
 
-### 3. Hot Reload
+### 2. Hot Reload
 Watch for file changes and reload previews without recompiling.
 
-### 4. Theme Support
+### 3. Theme Support
 Allow previews to specify themes:
 
 ```rust
@@ -245,8 +280,11 @@ Allow previews to specify themes:
 pub fn dark_ui() -> Element<'_, Message> { ... }
 ```
 
-### 5. Layout Options
+### 4. Layout Options
 Support different preview layouts (centered, full-width, grid, etc.).
+
+### 5. Search and Filter
+Add search functionality to filter previews by name or tags.
 
 ### 6. Preview Metadata
 Add descriptions, categories, and tags:
@@ -296,10 +334,11 @@ fn main() { snowscape::run() }
 
 ## Conclusion
 
-Snowscape provides a elegant solution for previewing Iced components by:
+Snowscape provides an elegant solution for previewing Iced components by:
 1. Using proc macros for zero-boilerplate registration
 2. Leveraging `inventory` for automatic discovery
 3. Handling message type erasure transparently
 4. Supporting parameterized preview variants
+5. Providing an interactive sidebar UI for browsing previews
 
-The architecture is extensible for future enhancements like stateful previews, theme support, and a full preview selector UI.
+The architecture is extensible for future enhancements like stateful previews, theme support, and hot reload functionality.

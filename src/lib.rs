@@ -5,7 +5,7 @@ pub use snowscape_macros::preview;
 #[doc(hidden)]
 pub use inventory;
 
-use iced::{Element, Task};
+use iced::{Border, Element, Task, Theme};
 use std::fmt;
 
 /// A descriptor for a preview component that can be registered.
@@ -41,6 +41,10 @@ impl fmt::Debug for dyn Preview {
 pub enum PreviewMessage {
     /// No-op message.
     Noop,
+    /// Select a different preview by index.
+    SelectPreview(usize),
+    /// Message from the active preview component.
+    PreviewComponent,
 }
 
 /// A stateless preview that renders a view function.
@@ -169,35 +173,143 @@ pub fn run() -> iced::Result {
         return Ok(());
     }
 
-    // For now, just run the first preview
-    // TODO: Build a selector UI
-    let descriptor = preview_list[0];
-
-    PreviewApp::run(descriptor)
+    PreviewApp::run(preview_list)
 }
 
-/// The preview application wrapper.
+/// The preview application wrapper with sidebar selector.
 struct PreviewApp {
-    preview: Box<dyn Preview>,
+    descriptors: Vec<&'static PreviewDescriptor>,
+    selected_index: usize,
+    current_preview: Box<dyn Preview>,
 }
 
 impl PreviewApp {
-    fn run(descriptor: &'static PreviewDescriptor) -> iced::Result {
+    fn run(descriptors: Vec<&'static PreviewDescriptor>) -> iced::Result {
         iced::application(
-            || Self {
-                preview: (descriptor.create)(),
+            move || Self {
+                current_preview: (descriptors[0].create)(),
+                descriptors: descriptors.clone(),
+                selected_index: 0,
             },
             Self::update,
             Self::view,
         )
+        .window_size((1200.0, 800.0))
         .run()
     }
 
     fn update(&mut self, message: PreviewMessage) -> Task<PreviewMessage> {
-        self.preview.update(message)
+        match message {
+            PreviewMessage::SelectPreview(index) => {
+                if index < self.descriptors.len() && index != self.selected_index {
+                    self.selected_index = index;
+                    self.current_preview = (self.descriptors[index].create)();
+                }
+                Task::none()
+            }
+            PreviewMessage::PreviewComponent => {
+                // Forward to the current preview
+                self.current_preview
+                    .update(PreviewMessage::PreviewComponent)
+            }
+            PreviewMessage::Noop => Task::none(),
+        }
     }
 
     fn view(&self) -> Element<'_, PreviewMessage> {
-        self.preview.view()
+        use iced::widget::{button, column, container, row, scrollable, text};
+        use iced::{Alignment, Length};
+
+        // Build sidebar with preview list
+        let mut sidebar_items = column![
+            text("Previews").size(18),
+            container(row![]).height(1).style(|theme: &Theme| {
+                container::Style {
+                    border: iced::Border {
+                        color: theme.extended_palette().background.strong.color,
+                        width: 1.0,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            })
+        ]
+        .spacing(10)
+        .padding(10);
+
+        for (index, descriptor) in self.descriptors.iter().enumerate() {
+            let is_selected = index == self.selected_index;
+
+            let btn = button(text(descriptor.label).size(14))
+                .width(Length::Fill)
+                .on_press(PreviewMessage::SelectPreview(index))
+                .style(move |theme, status| {
+                    let base = button::primary(theme, status);
+                    if is_selected {
+                        button::Style {
+                            background: Some(theme.extended_palette().primary.base.color.into()),
+                            text_color: theme.extended_palette().primary.base.text,
+                            border: Border::default().rounded(8),
+                            ..base
+                        }
+                    } else {
+                        button::Style {
+                            background: Some(
+                                theme.extended_palette().background.strong.color.into(),
+                            ),
+                            ..button::text(theme, status)
+                        }
+                    }
+                });
+
+            sidebar_items = sidebar_items.push(btn);
+        }
+
+        let sidebar = container(scrollable(sidebar_items))
+            .width(250)
+            .height(Length::Fill)
+            .style(|theme: &Theme| container::Style {
+                background: Some(theme.extended_palette().background.weak.color.into()),
+                border: iced::Border {
+                    color: theme.extended_palette().background.strong.color,
+                    width: 1.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+
+        // Build preview area
+        let preview_content = container(
+            column![
+                container(text(self.descriptors[self.selected_index].label).size(16))
+                    .padding(10)
+                    .width(Length::Fill)
+                    .style(|theme: &Theme| {
+                        container::Style {
+                            border: iced::Border {
+                                color: theme.extended_palette().background.strong.color,
+                                width: 1.0,
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }
+                    }),
+                container(self.current_preview.view())
+                    .padding(20)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .center_x(Length::Fill)
+                    .center_y(Length::Fill)
+            ]
+            .spacing(0),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+        // Combine sidebar and preview
+        row![sidebar, preview_content]
+            .spacing(0)
+            .align_y(Alignment::Start)
+            .into()
     }
 }
