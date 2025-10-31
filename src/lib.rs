@@ -1,12 +1,23 @@
-// Re-export the proc macro
+mod message;
+mod widget;
+
+use iced_anim::{Animated, Animation, Easing};
+pub use message::PreviewMessage;
 pub use snowscape_macros::preview;
 
 // Re-export inventory for use in generated code
 #[doc(hidden)]
 pub use inventory;
 
-use iced::{Border, Element, Task, Theme};
-use std::fmt;
+use iced::{
+    Alignment::Center,
+    Border, Element, Subscription, Task, Theme, system,
+    theme::{self, Base},
+    widget::{rule, space},
+};
+use std::{fmt, time::Duration};
+
+use crate::widget::theme_picker;
 
 /// A descriptor for a preview component that can be registered.
 pub struct PreviewDescriptor {
@@ -34,17 +45,6 @@ impl fmt::Debug for dyn Preview {
             .field("label", &self.label())
             .finish()
     }
-}
-
-/// Message type for the preview system.
-#[derive(Debug, Clone)]
-pub enum PreviewMessage {
-    /// No-op message.
-    Noop,
-    /// Select a different preview by index.
-    SelectPreview(usize),
-    /// Message from the active preview component.
-    PreviewComponent,
 }
 
 /// A stateless preview that renders a view function.
@@ -178,24 +178,49 @@ pub fn run() -> iced::Result {
 
 /// The preview application wrapper with sidebar selector.
 struct PreviewApp {
+    /// The list of available preview descriptors.
     descriptors: Vec<&'static PreviewDescriptor>,
     selected_index: usize,
+    /// The preview the user has selected.
     current_preview: Box<dyn Preview>,
+    /// The theme used by the application.
+    theme: Option<Animated<Theme>>,
+    /// The initial theme mode used by the application.
+    theme_mode: theme::Mode,
 }
 
 impl PreviewApp {
     fn run(descriptors: Vec<&'static PreviewDescriptor>) -> iced::Result {
         iced::application(
-            move || Self {
-                current_preview: (descriptors[0].create)(),
-                descriptors: descriptors.clone(),
-                selected_index: 0,
+            move || {
+                (
+                    Self {
+                        current_preview: (descriptors[0].create)(),
+                        descriptors: descriptors.clone(),
+                        selected_index: 0,
+                        theme: None,
+                        theme_mode: Default::default(),
+                    },
+                    PreviewApp::initial_theme(),
+                )
             },
             Self::update,
             Self::view,
         )
-        .window_size((1200.0, 800.0))
+        .title("Snowscape")
+        .theme(PreviewApp::theme)
+        .subscription(PreviewApp::subscription)
         .run()
+    }
+
+    /// Gets a task that retrieves the theme mode.
+    pub fn initial_theme() -> Task<PreviewMessage> {
+        system::theme().map(PreviewMessage::ChangeThemeMode)
+    }
+
+    /// The theme that the application is using.
+    pub fn theme(&self) -> Option<Theme> {
+        self.theme.as_ref().map(|t| t.value().clone())
     }
 
     fn update(&mut self, message: PreviewMessage) -> Task<PreviewMessage> {
@@ -213,7 +238,26 @@ impl PreviewApp {
                     .update(PreviewMessage::PreviewComponent)
             }
             PreviewMessage::Noop => Task::none(),
+            PreviewMessage::UpdateTheme(event) => {
+                println!("Updating theme... {event:?}");
+                let theme = self.theme.get_or_insert_with(|| {
+                    Animated::new(
+                        Theme::default(self.theme_mode),
+                        Easing::EASE.with_duration(Duration::from_millis(300)),
+                    )
+                });
+                theme.update(event);
+                Task::none()
+            }
+            PreviewMessage::ChangeThemeMode(mode) => {
+                self.theme_mode = mode;
+                Task::none()
+            }
         }
+    }
+
+    fn subscription(&self) -> Subscription<PreviewMessage> {
+        system::theme_changes().map(PreviewMessage::ChangeThemeMode)
     }
 
     fn view(&self) -> Element<'_, PreviewMessage> {
@@ -221,7 +265,7 @@ impl PreviewApp {
         use iced::{Alignment, Length};
 
         // Build sidebar with preview list
-        let mut sidebar_items = column![
+        let mut sidebar = column![
             text("Previews").size(18),
             container(row![]).height(1).style(|theme: &Theme| {
                 container::Style {
@@ -237,6 +281,8 @@ impl PreviewApp {
         .spacing(10)
         .padding(10);
 
+        let mut sidebar_items = column![];
+
         for (index, descriptor) in self.descriptors.iter().enumerate() {
             let is_selected = index == self.selected_index;
 
@@ -249,15 +295,25 @@ impl PreviewApp {
                         button::Style {
                             background: Some(theme.extended_palette().primary.base.color.into()),
                             text_color: theme.extended_palette().primary.base.text,
-                            border: Border::default().rounded(8),
+                            border: Border::default().rounded(4),
                             ..base
                         }
                     } else {
+                        let default = button::text(theme, status);
+                        let pair: Option<theme::palette::Pair> = match status {
+                            button::Status::Hovered => {
+                                Some(theme.extended_palette().background.stronger)
+                            }
+                            button::Status::Pressed => {
+                                Some(theme.extended_palette().background.strongest)
+                            }
+                            _ => None,
+                        };
                         button::Style {
-                            background: Some(
-                                theme.extended_palette().background.strong.color.into(),
-                            ),
-                            ..button::text(theme, status)
+                            background: pair.map(|p| p.color.into()),
+                            text_color: pair.map(|p| p.text).unwrap_or(default.text_color),
+                            border: Border::default().rounded(4),
+                            ..default
                         }
                     }
                 });
@@ -265,7 +321,8 @@ impl PreviewApp {
             sidebar_items = sidebar_items.push(btn);
         }
 
-        let sidebar = container(scrollable(sidebar_items))
+        sidebar = sidebar.push(sidebar_items);
+        let sidebar = container(scrollable(sidebar))
             .width(250)
             .height(Length::Fill)
             .style(|theme: &Theme| container::Style {
@@ -281,19 +338,15 @@ impl PreviewApp {
         // Build preview area
         let preview_content = container(
             column![
-                container(text(self.descriptors[self.selected_index].label).size(16))
-                    .padding(10)
-                    .width(Length::Fill)
-                    .style(|theme: &Theme| {
-                        container::Style {
-                            border: iced::Border {
-                                color: theme.extended_palette().background.strong.color,
-                                width: 1.0,
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        }
-                    }),
+                row![
+                    container(text(self.descriptors[self.selected_index].label).size(16))
+                        .width(Length::Fill),
+                    space::horizontal(),
+                    theme_picker(self.theme())
+                ]
+                .align_y(Center)
+                .padding(10),
+                rule::horizontal(1).style(rule::weak),
                 container(self.current_preview.view())
                     .padding(20)
                     .width(Length::Fill)
@@ -307,9 +360,16 @@ impl PreviewApp {
         .height(Length::Fill);
 
         // Combine sidebar and preview
-        row![sidebar, preview_content]
+        let page = row![sidebar, preview_content]
             .spacing(0)
-            .align_y(Alignment::Start)
-            .into()
+            .align_y(Alignment::Start);
+
+        if let Some(theme) = self.theme.as_ref() {
+            Animation::new(theme, page)
+                .on_update(PreviewMessage::UpdateTheme)
+                .into()
+        } else {
+            page.into()
+        }
     }
 }
