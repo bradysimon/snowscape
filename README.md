@@ -1,37 +1,12 @@
-# Snowscape 🏔️
+# Snowscape
 
 A preview system for [Iced](https://github.com/iced-rs/iced) UI components, inspired by Storybook and SwiftUI previews.
 
 ## Features
 
-- ✨ **Zero Boilerplate** - Automatic preview discovery with no manual registration
-- 🎯 **Parameterized Previews** - Test components with different inputs
-- 🔄 **Multiple Variants** - Stack preview attributes for different scenarios
-- 📱 **Sidebar Navigation** - Browse and switch between previews with a clean UI
-- 🎨 **Type Safe** - Works with any message type automatically
-- 🚀 **Simple API** - Just add `#[snowscape::preview]` to your view functions
-
-## Preview UI
-
-The preview application features a **sidebar with all your previews** listed, allowing you to:
-- See all available previews at a glance
-- Click any preview to view it instantly
-- Identify selected preview with visual highlighting
-- View preview labels including parameter values
-
-```
-┌────────────────┬─────────────────────────────────────┐
-│   Previews     │  Current Preview: button_column     │
-│ ──────────────│─────────────────────────────────────│
-│                │                                     │
-│ button_column  │      [Your Component Here]          │
-│ text("Hello")  │                                     │
-│ text("World")  │                                     │
-│ text("Rust")   │                                     │
-│ simple_text    │                                     │
-│                │                                     │
-└────────────────┴─────────────────────────────────────┘
-```
+- Register functions that return elements for previewing
+- Parameterize previews to see how they look with different inputs
+- See all previewable views in your app
 
 ## Quick Start
 
@@ -59,7 +34,7 @@ pub enum Message {
 
 // Simple preview
 #[snowscape::preview]
-pub fn hello_world() -> Element<'static, Message> {
+pub fn hello_world<'a>() -> Element<'a, Message> {
     text("Hello, World!").into()
 }
 
@@ -71,19 +46,6 @@ pub fn custom_button(label: &str) -> Element<'_, Message> {
     button(text(label))
         .on_press(Message::ButtonClicked)
         .into()
-}
-
-// Complex layout preview
-#[snowscape::preview]
-pub fn button_column() -> Element<'static, Message> {
-    column![
-        text("Welcome!").size(24),
-        button("Click Me").on_press(Message::ButtonClicked),
-        text("Some description text").size(12),
-    ]
-    .spacing(10)
-    .padding(20)
-    .into()
 }
 ```
 
@@ -108,94 +70,16 @@ Snowscape uses procedural macros and compile-time registration to automatically 
 
 1. The original function remains unchanged
 2. A preview registration is generated automatically
-3. Message types are converted transparently
-4. The preview becomes available in the preview runner
+3. Messages are currently ignored due to previews being stateless
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed implementation notes.
 
-## Examples
-
-### Stateless Preview
-
-Perfect for simple, non-interactive components:
-
-```rust
-#[snowscape::preview]
-pub fn loading_spinner() -> Element<'static, Message> {
-    text("Loading...").into()
-}
-```
-
-### Parameterized Preview
-
-Test your component with different inputs:
-
-```rust
-#[snowscape::preview(16)]
-#[snowscape::preview(24)]
-#[snowscape::preview(32)]
-pub fn sized_text(size: u16) -> Element<'_, Message> {
-    text("Hello").size(size).into()
-}
-```
-
-### String Parameters
-
-```rust
-#[snowscape::preview("Success")]
-#[snowscape::preview("Warning")]  
-#[snowscape::preview("Error")]
-pub fn status_badge(status: &str) -> Element<'_, Message> {
-    let color = match status {
-        "Success" => iced::Color::from_rgb(0.0, 1.0, 0.0),
-        "Warning" => iced::Color::from_rgb(1.0, 1.0, 0.0),
-        "Error" => iced::Color::from_rgb(1.0, 0.0, 0.0),
-        _ => iced::Color::WHITE,
-    };
-    
-    container(text(status))
-        .style(|_| container::Style {
-            background: Some(Background::Color(color)),
-            ..Default::default()
-        })
-        .padding(10)
-        .into()
-}
-```
-
-## Current Features
-
-- ✅ **Sidebar Preview Selector** - Switch between previews with a visual sidebar
-- ✅ **Parameterized Previews** - Test components with different inputs
-- ✅ **Automatic Registration** - No manual registration required
-- ✅ **Multiple Preview Variants** - Stack preview attributes
-- ✅ **Message Type Handling** - Works with any user-defined message type
-
 ## Roadmap
 
-- [ ] Stateful preview support with full update/view cycle
-- [ ] Theme customization
-- [ ] Hot reload support
-- [ ] Preview metadata (descriptions, categories)
-- [ ] Layout options (centered, fullscreen, grid)
+- [X] Preview stateless components
+- [X] See all available previewable components
+- [ ] Improved preview metadata (names, descriptions, categories)
 - [ ] Search/filter previews
-
-## Requirements
-
-- Rust 2024 edition
-- Iced master branch (0.14.0-dev)
-
-## Contributing
-
-Contributions welcome! Please see [ARCHITECTURE.md](ARCHITECTURE.md) for implementation details.
-
-## License
-
-MIT OR Apache-2.0
-
-## Acknowledgments
-
-Inspired by:
-- [Storybook](https://storybook.js.org/) - Component development for web
-- SwiftUI Previews - Xcode's preview system
-- [iced](https://github.com/iced-rs/iced) - The wonderful Rust GUI framework
+- [ ] Custom themes
+- [ ] Layout options (centered, fullscreen, grid)
+- [ ] Stateful preview support
