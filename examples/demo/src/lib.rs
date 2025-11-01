@@ -23,40 +23,32 @@ impl App {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        column![
-            text(format!("Count: {}", self.count)).size(32),
-            button("Increment").on_press(Message::Increment),
-            button("Decrement").on_press(Message::Decrement),
-        ]
-        .spacing(10)
-        .padding(20)
-        .into()
+        counter(self.count)
     }
 }
 
-// Stateless preview with no parameters
 #[snowscape::preview]
-pub fn simple_text() -> Element<'static, Message> {
-    text("Hello, Snowscape!").into()
+fn add_button<'a>() -> Element<'a, Message> {
+    button("Increment").on_press(Message::Increment).into()
 }
 
-// Stateless preview with parameters
-#[snowscape::preview("Hello")]
-#[snowscape::preview("World")]
-#[snowscape::preview("Rust")]
-pub fn parameterized_text(content: &str) -> Element<'_, Message> {
-    text(content).size(32).into()
+#[snowscape::preview]
+fn minus_button<'a>() -> Element<'a, Message> {
+    button("Decrement").on_press(Message::Decrement).into()
+}
+
+#[snowscape::preview(0)]
+#[snowscape::preview(5)]
+#[snowscape::preview(10)]
+fn label<'a>(count: i32) -> Element<'a, Message> {
+    text(format!("Count: {}", count)).size(32).into()
 }
 
 // Stateless preview returning a more complex layout
-#[snowscape::preview]
-pub fn button_column() -> Element<'static, Message> {
-    column![
-        text("Click the buttons:").size(20),
-        button("Increment").on_press(Message::Increment),
-        button("Decrement").on_press(Message::Decrement),
-    ]
-    .spacing(10)
-    .padding(20)
-    .into()
+#[snowscape::preview(0)]
+pub fn counter(count: i32) -> Element<'static, Message> {
+    column![label(count), add_button(), minus_button()]
+        .spacing(10)
+        .padding(20)
+        .into()
 }
