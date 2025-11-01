@@ -173,7 +173,7 @@ impl App {
                     container(text(self.descriptors[self.selected_index].label).size(16))
                         .width(Length::Fill),
                     space::horizontal(),
-                    theme_picker(self.theme())
+                    theme_picker(self.theme.as_ref().map(|t| t.target().clone())),
                 ]
                 .align_y(Center)
                 .padding(10),
