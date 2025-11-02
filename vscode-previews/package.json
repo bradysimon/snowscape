@@ -37,6 +37,12 @@
           "type": "boolean",
           "default": true,
           "description": "Enable 'Run Preview' code lenses above preview functions"
+        },
+        "snowscape.previewSelectionMethod": {
+          "type": "string",
+          "enum": ["environment", "argument"],
+          "default": "environment",
+          "description": "How to pass the selected preview name: 'environment' uses SNOWSCAPE_PREVIEW env var, 'argument' uses --preview= flag"
         }
       }
     }

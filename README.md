@@ -106,11 +106,22 @@ Snowscape uses procedural macros and compile-time registration to automatically 
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed implementation notes.
 
+## VS Code Integration
+
+The `vscode-previews/` directory contains a VS Code extension that adds "▶ Run Preview" buttons above your preview functions. Simply:
+
+1. Build the extension: `cd vscode-previews && npm run package`
+2. Install: `code --install-extension snowscape-previews-0.0.1.vsix`
+3. Click "▶ Run Preview" to launch specific previews!
+
+The extension automatically detects workspace structure and can target specific previews.
+
 ## Roadmap
 
 - [X] Preview stateless components
 - [X] See all available previewable components
 - [X] Stateful preview support
+- [X] VS Code extension with targeted preview launching
 - [ ] Improved preview metadata (names, descriptions, categories)
 - [ ] Search/filter previews
 - [ ] Custom themes

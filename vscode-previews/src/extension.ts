@@ -80,9 +80,25 @@ async function runPreview(
     });
   }
 
-  // Show the terminal and run the command
+  // Show the terminal and run the command with preview selection
   terminal.show(true); // true = preserve focus on editor
-  terminal.sendText(command);
+
+  // Get the preview selection method from configuration
+  const selectionMethod = config.get<string>(
+    "previewSelectionMethod",
+    "environment"
+  );
+
+  let finalCommand: string;
+  if (selectionMethod === "argument") {
+    // Use command-line argument: cargo run --bin preview --preview=functionName
+    finalCommand = `${command} --preview=${functionName}`;
+  } else {
+    // Use environment variable: SNOWSCAPE_PREVIEW="functionName" cargo run --bin preview
+    finalCommand = `SNOWSCAPE_PREVIEW="${functionName}" ${command}`;
+  }
+
+  terminal.sendText(finalCommand);
 
   // Show a notification
   vscode.window.showInformationMessage(

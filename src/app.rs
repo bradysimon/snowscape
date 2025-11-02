@@ -29,12 +29,15 @@ impl App {
     pub fn run(descriptors: Vec<&'static Descriptor>) -> iced::Result {
         iced::application(
             move || {
+                // Check for environment variable to auto-select a specific preview
+                let selected_index = Self::find_preview_by_env(&descriptors);
+
                 (
                     Self {
                         search: String::new(),
-                        current_preview: (descriptors[0].create)(),
+                        current_preview: (descriptors[selected_index].create)(),
                         descriptors: descriptors.clone(),
-                        selected_index: 0,
+                        selected_index,
                         theme: None,
                         theme_mode: Default::default(),
                     },
@@ -48,6 +51,32 @@ impl App {
         .theme(App::theme)
         .subscription(App::subscription)
         .run()
+    }
+
+    /// Find a preview by name from the `SNOWSCAPE_PREVIEW` environment variable.
+    ///
+    /// This first looks for exact matches, and if none are found, it looks for partial matches.
+    /// Partial matches may happen when there are multiple stateless previews on the same function.
+    fn find_preview_by_env(descriptors: &[&'static Descriptor]) -> usize {
+        if let Ok(preview_name) = std::env::var("SNOWSCAPE_PREVIEW") {
+            let mut partial_match: Option<usize> = None;
+            for (i, descriptor) in descriptors.iter().enumerate() {
+                if descriptor.metadata.label == preview_name {
+                    return i;
+                } else if descriptor.metadata.label.starts_with(&preview_name)
+                    && partial_match.is_none()
+                {
+                    // Try checking for partial starting matches if no exact match is found.
+                    partial_match = Some(i);
+                }
+            }
+
+            // Use partial match if found
+            if let Some(index) = partial_match {
+                return index;
+            }
+        }
+        0
     }
 
     /// Gets a task that retrieves the theme mode.
