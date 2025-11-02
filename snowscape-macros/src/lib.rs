@@ -52,6 +52,23 @@ pub fn preview(attr: TokenStream, item: TokenStream) -> TokenStream {
         (label, call)
     };
 
+    // Generate a unique function name for the preview creator
+    // Include a hash of the parameters to make it unique for each preview variant
+    let param_hash = if has_params {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        attr_str.hash(&mut hasher);
+        hasher.finish()
+    } else {
+        0
+    };
+
+    let preview_fn_name = syn::Ident::new(
+        &format!("__snowscape_preview_create_{}_{:x}", fn_name, param_hash),
+        fn_name.span(),
+    );
+
     // Keep the original function and add preview registration
     let expanded = quote! {
         #(#fn_attrs)*
@@ -59,16 +76,19 @@ pub fn preview(attr: TokenStream, item: TokenStream) -> TokenStream {
             #fn_block
         }
 
-        // Generate the preview registration
+        // Generate a standalone function for creating the preview
+        fn #preview_fn_name() -> Box<dyn ::snowscape::Preview> {
+            Box::new(::snowscape::preview::StatelessPreview::new(|| {
+                use ::iced::Element;
+                (#fn_call).map(|_| ::snowscape::Message::Noop)
+            }))
+        }
+
+        // Generate the preview registration using a function pointer
         ::snowscape::inventory::submit! {
-            ::snowscape::PreviewDescriptor {
-                label: #preview_label,
-                create: || {
-                    Box::new(::snowscape::StatelessPreview::new(|| {
-                        use ::iced::Element;
-                        (#fn_call).map(|_| ::snowscape::Message::Noop)
-                    }))
-                },
+            ::snowscape::preview::Descriptor {
+                metadata: ::snowscape::Metadata::new(#preview_label),
+                create: #preview_fn_name,
             }
         }
     };

@@ -1,5 +1,5 @@
 pub use crate::message::Message;
-use crate::{Preview, PreviewDescriptor, widget::theme_picker};
+use crate::{Preview, preview::Descriptor, widget::theme_picker};
 use iced::{
     Alignment::Center,
     Border, Element, Subscription, Task, Theme, system,
@@ -12,7 +12,7 @@ use std::time::Duration;
 /// The preview app that shows registered previews.
 pub struct App {
     /// The list of available preview descriptors.
-    descriptors: Vec<&'static PreviewDescriptor>,
+    descriptors: Vec<&'static Descriptor>,
     selected_index: usize,
     /// The preview the user has selected.
     current_preview: Box<dyn Preview>,
@@ -23,7 +23,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn run(descriptors: Vec<&'static PreviewDescriptor>) -> iced::Result {
+    pub fn run(descriptors: Vec<&'static Descriptor>) -> iced::Result {
         iced::application(
             move || {
                 (
@@ -117,7 +117,7 @@ impl App {
         for (index, descriptor) in self.descriptors.iter().enumerate() {
             let is_selected = index == self.selected_index;
 
-            let btn = button(text(descriptor.label).size(14))
+            let btn = button(text(descriptor.metadata.label).size(14))
                 .width(Length::Fill)
                 .on_press(Message::SelectPreview(index))
                 .style(move |theme, status| {
@@ -170,7 +170,7 @@ impl App {
         let preview_content = container(
             column![
                 row![
-                    container(text(self.descriptors[self.selected_index].label).size(16))
+                    container(text(self.descriptors[self.selected_index].metadata.label).size(16))
                         .width(Length::Fill),
                     space::horizontal(),
                     theme_picker(self.theme.as_ref().map(|t| t.target().clone())),
