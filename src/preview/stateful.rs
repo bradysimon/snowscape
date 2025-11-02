@@ -2,24 +2,26 @@ use crate::{Message, Preview};
 use iced::{Element, Task};
 
 /// A stateful preview with full update/view cycle.
-pub struct StatefulPreview<State, Msg>
+pub struct StatefulPreview<State, Msg, IntoTask>
 where
     State: Send + 'static,
     Msg: Send + Sync + std::any::Any + 'static,
+    IntoTask: Into<Task<Msg>>,
 {
     state: State,
-    update_fn: fn(&mut State, Msg) -> Task<Msg>,
+    update_fn: fn(&mut State, Msg) -> IntoTask,
     view_fn: fn(&State) -> Element<'_, Msg>,
 }
 
-impl<State, Msg> StatefulPreview<State, Msg>
+impl<State, Msg, IntoTask> StatefulPreview<State, Msg, IntoTask>
 where
     State: Send + 'static,
     Msg: Send + Sync + std::any::Any + Clone + 'static,
+    IntoTask: Into<Task<Msg>>,
 {
     pub fn new(
         state: State,
-        update_fn: fn(&mut State, Msg) -> Task<Msg>,
+        update_fn: fn(&mut State, Msg) -> IntoTask,
         view_fn: fn(&State) -> Element<'_, Msg>,
     ) -> Self {
         Self {
@@ -30,10 +32,11 @@ where
     }
 }
 
-impl<State, Msg> Preview for StatefulPreview<State, Msg>
+impl<State, Msg, UpdateRet> Preview for StatefulPreview<State, Msg, UpdateRet>
 where
     State: Send + 'static,
     Msg: Send + Sync + std::any::Any + Clone + 'static,
+    UpdateRet: Into<Task<Msg>>,
 {
     fn update(&mut self, message: Message) -> Task<Message> {
         // Try to downcast the message to the component's message type
@@ -41,7 +44,8 @@ where
             if let Some(component_msg) = boxed_msg.as_any().downcast_ref::<Msg>() {
                 // Call the update function with the component's message
                 let component_msg = component_msg.clone();
-                let task = (self.update_fn)(&mut self.state, component_msg);
+                let result = (self.update_fn)(&mut self.state, component_msg);
+                let task: Task<Msg> = result.into();
 
                 // Map the task's messages back to the preview's Message type
                 return task.map(|msg| Message::Component(Box::new(msg)));

@@ -51,7 +51,6 @@ pub fn counter(count: i32) -> Element<'static, Message> {
 
 mod previews {
     use super::*;
-    use iced::Task;
 
     #[snowscape::preview]
     fn add_button_preview<'a>() -> Element<'a, Message> {
@@ -70,17 +69,7 @@ mod previews {
         label(n)
     }
 
-    // Wrapper functions to match the stateful preview signature
-    fn update_wrapper(state: &mut App, message: Message) -> Task<Message> {
-        state.update(message);
-        Task::none()
-    }
-
-    fn view_wrapper(state: &App) -> Element<'_, Message> {
-        state.view()
-    }
-
-    #[snowscape::preview(App::default, update_wrapper, view_wrapper)]
+    #[snowscape::preview(App::default, App::update, App::view)]
     fn stateful_counter_preview() -> Element<'static, Message> {
         // This function body is ignored for stateful previews
         // The preview is created using the boot/update/view functions
