@@ -4,15 +4,18 @@ use iced::{
     Alignment::Center,
     Border, Element, Subscription, Task, Theme, system,
     theme::{self, Base},
-    widget::{rule, space},
+    widget::{rule, space, text_input},
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
 
 /// The preview app that shows registered previews.
 pub struct App {
+    /// The current search query that filters previews.
+    search: String,
     /// The list of available preview descriptors.
     descriptors: Vec<&'static Descriptor>,
+    /// The index of the selected `descriptor` in the list.
     selected_index: usize,
     /// The preview the user has selected.
     current_preview: Box<dyn Preview>,
@@ -28,6 +31,7 @@ impl App {
             move || {
                 (
                     Self {
+                        search: String::new(),
                         current_preview: (descriptors[0].create)(),
                         descriptors: descriptors.clone(),
                         selected_index: 0,
@@ -69,6 +73,10 @@ impl App {
                 // Forward to the current preview
                 self.current_preview.update(Message::PreviewComponent)
             }
+            Message::ChangeSearch(text) => {
+                self.search = text;
+                Task::none()
+            }
             Message::Component(msg) => {
                 // Forward component messages to the current preview
                 self.current_preview.update(Message::Component(msg))
@@ -102,22 +110,31 @@ impl App {
         // Build sidebar with preview list
         let mut sidebar = column![
             text("Previews").size(18),
-            container(row![]).height(1).style(|theme: &Theme| {
-                container::Style {
-                    border: iced::Border {
-                        color: theme.extended_palette().background.strong.color,
-                        width: 1.0,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }
-            })
+            text_input("Search previews", &self.search)
+                .on_input(Message::ChangeSearch)
+                .style(|theme, status| {
+                    let default = text_input::default(theme, status);
+                    let pair = theme.extended_palette().background.stronger;
+                    text_input::Style {
+                        border: match status {
+                            text_input::Status::Active => {
+                                default.border.rounded(4).color(pair.color)
+                            }
+                            _ => default.border.rounded(4),
+                        },
+                        value: pair.text,
+                        background: pair.color.into(),
+                        placeholder: pair.text.scale_alpha(0.6),
+                        ..default
+                    }
+                }),
         ]
         .spacing(10)
         .padding(10);
 
         let mut sidebar_items = column![];
 
+        // TODO: Filter descriptors based on search query
         for (index, descriptor) in self.descriptors.iter().enumerate() {
             let is_selected = index == self.selected_index;
 

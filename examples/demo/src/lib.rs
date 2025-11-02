@@ -65,7 +65,7 @@ mod previews {
     #[snowscape::stateless(0)]
     #[snowscape::stateless(5)]
     #[snowscape::stateless(10)]
-    fn label_preview(n: i32) -> Element<'static, Message> {
+    fn label_preview<'a>(n: i32) -> Element<'a, Message> {
         label(n)
     }
 
