@@ -18,14 +18,21 @@ use syn::{ItemFn, parse_macro_input};
 /// #[snowscape::preview("Hello")]
 /// #[snowscape::preview("World")]
 /// pub fn my_text(text: &str) -> Element<'_, Message> { ... }
+///
+/// // Stateful preview with boot, update, and view functions
+/// #[snowscape::preview(MyState::default, MyState::update, MyState::view)]
+/// pub fn stateful_preview() -> Element<'_, Message> { ... }
 /// ```
 #[proc_macro_attribute]
 pub fn preview(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
 
-    // Parse attributes - for now just check if empty
+    // Parse attributes - check if empty or if it's a stateful preview (3 comma-separated args)
     let attr_str = attr.to_string();
     let has_params = !attr_str.trim().is_empty();
+
+    // Check if this is a stateful preview (has 3 comma-separated function paths)
+    let is_stateful = attr_str.matches(',').count() == 2;
 
     // Extract the function details
     let fn_name = &input.sig.ident;
@@ -36,7 +43,59 @@ pub fn preview(attr: TokenStream, item: TokenStream) -> TokenStream {
     let fn_block = &input.block;
     let fn_attrs = &input.attrs;
 
-    // Generate a unique preview name and label
+    // Handle stateful previews differently
+    if is_stateful {
+        // Parse the three function paths: boot, update, view
+        let parts: Vec<&str> = attr_str.split(',').map(|s| s.trim()).collect();
+        if parts.len() != 3 {
+            return syn::Error::new_spanned(
+                &input.sig.ident,
+                "Stateful preview requires exactly 3 arguments: boot, update, view",
+            )
+            .to_compile_error()
+            .into();
+        }
+
+        let boot_tokens: proc_macro2::TokenStream = parts[0].parse().unwrap();
+        let update_tokens: proc_macro2::TokenStream = parts[1].parse().unwrap();
+        let view_tokens: proc_macro2::TokenStream = parts[2].parse().unwrap();
+
+        let preview_label = format!("{}", fn_name);
+
+        // Generate a unique function name for the preview creator
+        let preview_fn_name = syn::Ident::new(
+            &format!("__snowscape_preview_create_stateful_{}", fn_name),
+            fn_name.span(),
+        );
+
+        let expanded = quote! {
+            #(#fn_attrs)*
+            #fn_vis fn #fn_name #fn_generics(#fn_inputs) #fn_output {
+                #fn_block
+            }
+
+            // Generate a standalone function for creating the stateful preview
+            fn #preview_fn_name() -> Box<dyn ::snowscape::Preview> {
+                Box::new(::snowscape::preview::StatefulPreview::new(
+                    #boot_tokens(),
+                    #update_tokens,
+                    #view_tokens
+                ))
+            }
+
+            // Generate the preview registration using a function pointer
+            ::snowscape::inventory::submit! {
+                ::snowscape::preview::Descriptor {
+                    metadata: ::snowscape::Metadata::new(#preview_label),
+                    create: #preview_fn_name,
+                }
+            }
+        };
+
+        return TokenStream::from(expanded);
+    }
+
+    // Generate a unique preview name and label for stateless previews
     let (preview_label, fn_call) = if !has_params {
         let label = format!("{}", fn_name);
         let call = quote! { #fn_name() };

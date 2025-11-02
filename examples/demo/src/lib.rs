@@ -1,4 +1,5 @@
 use iced::{
+    Alignment::Center,
     Element,
     widget::{button, column, text},
 };
@@ -42,6 +43,7 @@ pub fn label<'a>(count: i32) -> Element<'a, Message> {
 // Stateless preview returning a more complex layout
 pub fn counter(count: i32) -> Element<'static, Message> {
     column![label(count), add_button(), minus_button()]
+        .align_x(Center)
         .spacing(10)
         .padding(20)
         .into()
@@ -49,6 +51,7 @@ pub fn counter(count: i32) -> Element<'static, Message> {
 
 mod previews {
     use super::*;
+    use iced::Task;
 
     #[snowscape::preview]
     fn add_button_preview<'a>() -> Element<'a, Message> {
@@ -67,9 +70,20 @@ mod previews {
         label(n)
     }
 
-    #[snowscape::preview(0)]
-    #[snowscape::preview(5)]
-    fn counter_preview(count: i32) -> Element<'static, Message> {
-        counter(count)
+    // Wrapper functions to match the stateful preview signature
+    fn update_wrapper(state: &mut App, message: Message) -> Task<Message> {
+        state.update(message);
+        Task::none()
+    }
+
+    fn view_wrapper(state: &App) -> Element<'_, Message> {
+        state.view()
+    }
+
+    #[snowscape::preview(App::default, update_wrapper, view_wrapper)]
+    fn stateful_counter_preview() -> Element<'static, Message> {
+        // This function body is ignored for stateful previews
+        // The preview is created using the boot/update/view functions
+        text("This won't be shown").into()
     }
 }

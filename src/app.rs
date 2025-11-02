@@ -69,6 +69,10 @@ impl App {
                 // Forward to the current preview
                 self.current_preview.update(Message::PreviewComponent)
             }
+            Message::Component(msg) => {
+                // Forward component messages to the current preview
+                self.current_preview.update(Message::Component(msg))
+            }
             Message::Noop => Task::none(),
             Message::UpdateTheme(event) => {
                 let theme = self.theme.get_or_insert_with(|| {
