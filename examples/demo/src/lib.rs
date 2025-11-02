@@ -52,27 +52,30 @@ pub fn counter(count: i32) -> Element<'static, Message> {
 mod previews {
     use super::*;
 
-    #[snowscape::preview]
+    #[snowscape::stateless]
     fn add_button_preview<'a>() -> Element<'a, Message> {
         add_button()
     }
 
-    #[snowscape::preview]
+    #[snowscape::stateless]
     fn minus_button_preview() -> Element<'static, Message> {
         minus_button()
     }
 
-    #[snowscape::preview(0)]
-    #[snowscape::preview(5)]
-    #[snowscape::preview(10)]
+    #[snowscape::stateless(0)]
+    #[snowscape::stateless(5)]
+    #[snowscape::stateless(10)]
     fn label_preview(n: i32) -> Element<'static, Message> {
         label(n)
     }
 
-    #[snowscape::preview(App::default, App::update, App::view)]
-    fn stateful_counter_preview() -> Element<'static, Message> {
-        // This function body is ignored for stateful previews
-        // The preview is created using the boot/update/view functions
-        text("This won't be shown").into()
+    #[snowscape::stateful(App::update, App::view)]
+    fn stateful_counter() -> App {
+        App::default()
+    }
+
+    #[snowscape::stateful(App::update, App::view)]
+    fn stateful_counter_custom() -> App {
+        App { count: 100 }
     }
 }

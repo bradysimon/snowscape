@@ -9,8 +9,8 @@ pub use message::Message;
 pub use metadata::Metadata;
 pub use preview::Preview;
 
-// Re-export the attribute macro with a different name to avoid conflict
-pub use snowscape_macros::preview;
+// Re-export the attribute macros
+pub use snowscape_macros::{stateful, stateless};
 
 // Re-export inventory for use in generated code
 #[doc(hidden)]
@@ -28,7 +28,9 @@ pub fn run() -> iced::Result {
     let preview_list = previews();
 
     if preview_list.is_empty() {
-        eprintln!("No previews found. Add #[snowscape::preview] to your functions.");
+        eprintln!(
+            "No previews found. Add #[snowscape::stateless] or #[snowscape::stateful] to your functions."
+        );
         return Ok(());
     }
 
