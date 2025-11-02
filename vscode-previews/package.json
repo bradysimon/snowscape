@@ -1,0 +1,61 @@
+{
+  "name": "snowscape-previews",
+  "displayName": "Snowscape Previews",
+  "description": "Preview Snowscape components in VS Code",
+  "version": "0.0.1",
+  "publisher": "snowscape",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/snowscape"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:rust"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "snowscape.runPreview",
+        "title": "Run Snowscape Preview"
+      }
+    ],
+    "configuration": {
+      "title": "Snowscape",
+      "properties": {
+        "snowscape.previewCommand": {
+          "type": "string",
+          "default": "cargo run --bin preview",
+          "description": "Base command to run previews (will auto-detect package with -p flag for workspaces)"
+        },
+        "snowscape.enableCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable 'Run Preview' code lenses above preview functions"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.41.0",
+    "typescript": "^5.0.4",
+    "@vscode/vsce": "^2.19.0"
+  }
+}
