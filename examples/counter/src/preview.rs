@@ -4,7 +4,8 @@ use snowscape::{stateful, stateless};
 pub fn main() -> iced::Result {
     snowscape::run(|app| {
         app.title("My previews")
-            .preview(stateless("Label", || label(42)))
+            .preview(stateless("Label (0)", || label(0)))
+            .preview(stateless("Label (42)", || label(42)))
             .preview(stateless("Increment", add_button).group("Button"))
             .preview(stateless("Decrement", minus_button).group("Button"))
             .preview(
