@@ -32,8 +32,6 @@ pub enum Message {
     Noop,
     /// Select a different preview by index.
     SelectPreview(usize),
-    /// Message from the active preview component.
-    PreviewComponent,
     /// Change the search query.
     ChangeSearch(String),
     /// Updates the current theme.
@@ -49,7 +47,6 @@ impl std::fmt::Debug for Message {
         match self {
             Self::Noop => write!(f, "Noop"),
             Self::SelectPreview(arg0) => f.debug_tuple("SelectPreview").field(arg0).finish(),
-            Self::PreviewComponent => write!(f, "PreviewComponent"),
             Self::ChangeSearch(text) => f.debug_tuple("ChangeSearch").field(text).finish(),
             Self::UpdateTheme(event) => write!(f, "UpdateTheme({event:?})"),
             Self::ChangeThemeMode(arg0) => f.debug_tuple("ChangeThemeMode").field(arg0).finish(),

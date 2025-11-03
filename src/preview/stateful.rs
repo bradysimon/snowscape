@@ -1,42 +1,71 @@
-use crate::{Message, Preview};
+use crate::{Message, Metadata, Preview};
 use iced::{Element, Task};
 
 /// A stateful preview with full update/view cycle.
-pub struct StatefulPreview<State, Msg, IntoTask>
+pub struct Stateful<Boot, State, Msg, IntoTask>
 where
+    Boot: Fn() -> State,
     State: Send + 'static,
     Msg: Send + Sync + std::any::Any + 'static,
     IntoTask: Into<Task<Msg>>,
 {
+    boot: Boot,
     state: State,
     update_fn: fn(&mut State, Msg) -> IntoTask,
     view_fn: fn(&State) -> Element<'_, Msg>,
+    pub(crate) metadata: Metadata,
 }
 
-impl<State, Msg, IntoTask> StatefulPreview<State, Msg, IntoTask>
+impl<Boot, State, Msg, IntoTask> Stateful<Boot, State, Msg, IntoTask>
 where
+    Boot: Fn() -> State + Send,
     State: Send + 'static,
     Msg: Send + Sync + std::any::Any + Clone + 'static,
     IntoTask: Into<Task<Msg>>,
 {
     pub fn new(
-        state: State,
+        boot: Boot,
         update_fn: fn(&mut State, Msg) -> IntoTask,
         view_fn: fn(&State) -> Element<'_, Msg>,
+        metadata: Metadata,
     ) -> Self {
+        let state = boot();
         Self {
+            boot,
             state,
             update_fn,
             view_fn,
+            metadata,
         }
+    }
+
+    /// Add a description to the preview.
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        self.metadata = self.metadata.description(description);
+        self
+    }
+
+    /// Add a group to the preview.
+    pub fn group(mut self, group: impl Into<String>) -> Self {
+        self.metadata = self.metadata.group(group);
+        self
+    }
+
+    /// Add tags to the preview.
+    pub fn tags(mut self, tags: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.metadata = self
+            .metadata
+            .tags(tags.into_iter().map(Into::into).collect());
+        self
     }
 }
 
-impl<State, Msg, UpdateRet> Preview for StatefulPreview<State, Msg, UpdateRet>
+impl<Boot, State, Msg, IntoTask> Preview for Stateful<Boot, State, Msg, IntoTask>
 where
+    Boot: Fn() -> State + Send,
     State: Send + 'static,
     Msg: Send + Sync + std::any::Any + Clone + 'static,
-    UpdateRet: Into<Task<Msg>>,
+    IntoTask: Into<Task<Msg>>,
 {
     fn update(&mut self, message: Message) -> Task<Message> {
         // Try to downcast the message to the component's message type
@@ -55,7 +84,6 @@ where
     }
 
     fn view(&self) -> Element<'_, Message> {
-        // Render the view and map messages to wrap them in Message::Component
         (self.view_fn)(&self.state).map(|msg| Message::Component(Box::new(msg)))
     }
 }

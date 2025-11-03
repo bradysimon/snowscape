@@ -12,27 +12,10 @@ pub use preview::Preview;
 // Re-export the attribute macros
 pub use snowscape_macros::{stateful, stateless};
 
-// Re-export inventory for use in generated code
-#[doc(hidden)]
-pub use inventory;
-
-use crate::preview::Descriptor;
-
-/// Get all registered previews.
-pub fn previews() -> Vec<&'static Descriptor> {
-    inventory::iter::<Descriptor>().collect()
-}
-
-/// Run the preview application.
-pub fn run() -> iced::Result {
-    let preview_list = previews();
-
-    if preview_list.is_empty() {
-        eprintln!(
-            "No previews found. Add #[snowscape::stateless] or #[snowscape::stateful] to your functions."
-        );
-        return Ok(());
-    }
-
-    App::run(preview_list)
+pub fn run(configure: fn(App) -> App) -> iced::Result {
+    iced::application(move || App::setup(configure), App::update, App::view)
+        .title(|app: &App| app.title.clone().unwrap_or("Snowscape Previews".to_owned()))
+        .theme(App::theme)
+        .subscription(App::subscription)
+        .run()
 }

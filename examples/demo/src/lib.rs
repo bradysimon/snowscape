@@ -16,6 +16,10 @@ pub struct App {
 }
 
 impl App {
+    pub fn new(count: i32) -> Self {
+        Self { count }
+    }
+
     pub fn update(&mut self, message: Message) {
         match message {
             Message::Increment => self.count += 1,
@@ -49,33 +53,33 @@ pub fn counter(count: i32) -> Element<'static, Message> {
         .into()
 }
 
-mod previews {
-    use super::*;
+// mod previews {
+//     use super::*;
 
-    #[snowscape::stateless]
-    fn add_button_preview<'a>() -> Element<'a, Message> {
-        add_button()
-    }
+//     #[snowscape::stateless]
+//     fn add_button_preview<'a>() -> Element<'a, Message> {
+//         add_button()
+//     }
 
-    #[snowscape::stateless]
-    fn minus_button_preview() -> Element<'static, Message> {
-        minus_button()
-    }
+//     #[snowscape::stateless]
+//     fn minus_button_preview() -> Element<'static, Message> {
+//         minus_button()
+//     }
 
-    #[snowscape::stateless(0)]
-    #[snowscape::stateless(5)]
-    #[snowscape::stateless(10)]
-    fn label_preview<'a>(n: i32) -> Element<'a, Message> {
-        label(n)
-    }
+//     #[snowscape::stateless(0)]
+//     #[snowscape::stateless(5)]
+//     #[snowscape::stateless(10)]
+//     fn label_preview<'a>(n: i32) -> Element<'a, Message> {
+//         label(n)
+//     }
 
-    #[snowscape::stateful(App::update, App::view)]
-    fn stateful_counter() -> App {
-        App::default()
-    }
+//     #[snowscape::stateful(App::update, App::view)]
+//     fn stateful_counter() -> App {
+//         App::default()
+//     }
 
-    #[snowscape::stateful(App::update, App::view)]
-    fn stateful_counter_custom() -> App {
-        App { count: 100 }
-    }
-}
+//     #[snowscape::stateful(App::update, App::view)]
+//     fn stateful_counter_custom() -> App {
+//         App { count: 100 }
+//     }
+// }

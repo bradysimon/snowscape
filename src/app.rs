@@ -10,15 +10,16 @@ use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
 
 /// The preview app that shows registered previews.
+#[derive(Default)]
 pub struct App {
+    /// A custom title for the application window.
+    pub(crate) title: Option<String>,
     /// The current search query that filters previews.
     search: String,
-    /// The list of available preview descriptors.
-    descriptors: Vec<&'static Descriptor>,
+    /// The list of registered previewable elements.
+    descriptors: Vec<Descriptor>,
     /// The index of the selected `descriptor` in the list.
-    selected_index: usize,
-    /// The preview the user has selected.
-    current_preview: Box<dyn Preview>,
+    selected_index: Option<usize>,
     /// The theme used by the application.
     theme: Option<Animated<Theme>>,
     /// The initial theme mode used by the application.
@@ -26,38 +27,23 @@ pub struct App {
 }
 
 impl App {
-    pub fn run(descriptors: Vec<&'static Descriptor>) -> iced::Result {
-        iced::application(
-            move || {
-                // Check for environment variable to auto-select a specific preview
-                let selected_index = Self::find_preview_by_env(&descriptors);
+    /// Adds a custom title to the application.
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
 
-                (
-                    Self {
-                        search: String::new(),
-                        current_preview: (descriptors[selected_index].create)(),
-                        descriptors: descriptors.clone(),
-                        selected_index,
-                        theme: None,
-                        theme_mode: Default::default(),
-                    },
-                    App::initial_theme(),
-                )
-            },
-            Self::update,
-            Self::view,
-        )
-        .title("Snowscape")
-        .theme(App::theme)
-        .subscription(App::subscription)
-        .run()
+    /// Adds a preview to the application.
+    pub fn preview(mut self, preview: impl Into<Descriptor>) -> Self {
+        self.descriptors.push(preview.into());
+        self
     }
 
     /// Find a preview by name from the `SNOWSCAPE_PREVIEW` environment variable.
     ///
     /// This first looks for exact matches, and if none are found, it looks for partial matches.
     /// Partial matches may happen when there are multiple stateless previews on the same function.
-    fn find_preview_by_env(descriptors: &[&'static Descriptor]) -> usize {
+    fn find_preview_by_env(descriptors: &[Descriptor]) -> usize {
         if let Ok(preview_name) = std::env::var("SNOWSCAPE_PREVIEW") {
             let mut partial_match: Option<usize> = None;
             for (i, descriptor) in descriptors.iter().enumerate() {
@@ -85,22 +71,41 @@ impl App {
     }
 
     /// The theme that the application is using.
-    pub fn theme(&self) -> Option<Theme> {
+    pub(crate) fn theme(&self) -> Option<Theme> {
         self.theme.as_ref().map(|t| t.value().clone())
     }
 
-    fn update(&mut self, message: Message) -> Task<Message> {
+    /// The currently selected preview.
+    fn current_preview(&self) -> Option<&dyn Preview> {
+        self.selected_index
+            .and_then(|index| self.descriptors.get(index))
+            .map(|descriptor| descriptor.preview.as_ref())
+    }
+
+    pub(crate) fn setup<F>(configure: F) -> (Self, Task<Message>)
+    where
+        F: Fn(App) -> App,
+    {
+        let app = configure(App::default());
+        // Check for environment variable to auto-select a specific preview
+        let selected_index = App::find_preview_by_env(&app.descriptors);
+
+        (
+            Self {
+                selected_index: Some(selected_index),
+                ..app
+            },
+            App::initial_theme(),
+        )
+    }
+
+    pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::SelectPreview(index) => {
-                if index < self.descriptors.len() && index != self.selected_index {
-                    self.selected_index = index;
-                    self.current_preview = (self.descriptors[index].create)();
+                if index < self.descriptors.len() {
+                    self.selected_index = Some(index);
                 }
                 Task::none()
-            }
-            Message::PreviewComponent => {
-                // Forward to the current preview
-                self.current_preview.update(Message::PreviewComponent)
             }
             Message::ChangeSearch(text) => {
                 self.search = text;
@@ -108,7 +113,14 @@ impl App {
             }
             Message::Component(msg) => {
                 // Forward component messages to the current preview
-                self.current_preview.update(Message::Component(msg))
+                if let Some(descriptor) = self
+                    .selected_index
+                    .and_then(|index| self.descriptors.get_mut(index))
+                {
+                    descriptor.preview.update(Message::Component(msg))
+                } else {
+                    Task::none()
+                }
             }
             Message::Noop => Task::none(),
             Message::UpdateTheme(event) => {
@@ -128,11 +140,11 @@ impl App {
         }
     }
 
-    fn subscription(&self) -> Subscription<Message> {
+    pub(crate) fn subscription(&self) -> Subscription<Message> {
         system::theme_changes().map(Message::ChangeThemeMode)
     }
 
-    fn view(&self) -> Element<'_, Message> {
+    pub(crate) fn view(&self) -> Element<'_, Message> {
         use iced::widget::{button, column, container, row, scrollable, text};
         use iced::{Alignment, Length};
 
@@ -165,9 +177,9 @@ impl App {
 
         // TODO: Filter descriptors based on search query
         for (index, descriptor) in self.descriptors.iter().enumerate() {
-            let is_selected = index == self.selected_index;
+            let is_selected = Some(index) == self.selected_index;
 
-            let btn = button(text(descriptor.metadata.label).size(14))
+            let btn = button(text(&descriptor.metadata.label).size(14))
                 .width(Length::Fill)
                 .on_press(Message::SelectPreview(index))
                 .style(move |theme, status| {
@@ -220,20 +232,31 @@ impl App {
         let preview_content = container(
             column![
                 row![
-                    container(text(self.descriptors[self.selected_index].metadata.label).size(16))
-                        .width(Length::Fill),
+                    if let Some(index) = self.selected_index {
+                        Some(
+                            container(text(&self.descriptors[index].metadata.label))
+                                .width(Length::Fill),
+                        )
+                    } else {
+                        None
+                    },
                     space::horizontal(),
                     theme_picker(self.theme.as_ref().map(|t| t.target().clone())),
                 ]
                 .align_y(Center)
                 .padding(10),
                 rule::horizontal(1).style(rule::weak),
-                container(self.current_preview.view())
-                    .padding(20)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .center_x(Length::Fill)
-                    .center_y(Length::Fill)
+                container(if let Some(preview) = &self.current_preview() {
+                    preview.view()
+                } else {
+                    // TODO: Improve placeholder view
+                    text("No preview selected").into()
+                })
+                .padding(20)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
             ]
             .spacing(0),
         )
@@ -252,5 +275,16 @@ impl App {
         } else {
             page.into()
         }
+    }
+}
+
+impl std::fmt::Debug for App {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("App")
+            .field("search", &self.search)
+            .field("selected_index", &self.selected_index)
+            .field("theme", &self.theme)
+            .field("theme_mode", &self.theme_mode)
+            .finish()
     }
 }

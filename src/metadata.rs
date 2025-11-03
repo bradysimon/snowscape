@@ -1,41 +1,41 @@
 /// Metadata associated with a preview.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Metadata {
     /// A label displaying the name of the preview.
-    pub label: &'static str,
+    pub label: String,
     /// An optional description of the preview.
-    pub description: Option<&'static str>,
+    pub description: Option<String>,
     /// A way to categorize related previews together in the UI.
-    pub group: Option<&'static str>,
+    pub group: Option<String>,
     /// Tags associated with the preview for filtering.
-    pub tags: &'static [&'static str],
+    pub tags: Vec<String>,
 }
 
 impl Metadata {
     /// Creates a [`Metadata`] instance with the given `label` and default values for other fields.
-    pub const fn new(label: &'static str) -> Self {
+    pub fn new(label: impl Into<String>) -> Self {
         Self {
-            label,
+            label: label.into(),
             description: None,
             group: None,
-            tags: &[],
+            tags: Vec::new(),
         }
     }
 
     /// Sets the description for the metadata.
-    pub const fn description(mut self, description: &'static str) -> Self {
-        self.description = Some(description);
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
         self
     }
 
     /// Sets the group for the metadata.
-    pub const fn group(mut self, group: &'static str) -> Self {
-        self.group = Some(group);
+    pub fn group(mut self, group: impl Into<String>) -> Self {
+        self.group = Some(group.into());
         self
     }
 
     /// Sets the tags for the metadata.
-    pub const fn tags(mut self, tags: &'static [&'static str]) -> Self {
+    pub fn tags(mut self, tags: Vec<String>) -> Self {
         self.tags = tags;
         self
     }
