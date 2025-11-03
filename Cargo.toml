@@ -5,12 +5,10 @@ edition = "2024"
 
 [dependencies]
 iced = "0.14.0-dev"
-inventory = "0.3"
-snowscape-macros = { path = "snowscape-macros" }
 iced_anim = { git = "https://github.com/bradysimon/iced_anim", branch = "iced/master" }
 
 [workspace]
-members = ["snowscape-macros", "examples/demo"]
+members = ["examples/demo"]
 
 [workspace.dependencies]
 iced = "0.14.0-dev"

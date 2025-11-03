@@ -52,34 +52,3 @@ pub fn counter(count: i32) -> Element<'static, Message> {
         .padding(20)
         .into()
 }
-
-// mod previews {
-//     use super::*;
-
-//     #[snowscape::stateless]
-//     fn add_button_preview<'a>() -> Element<'a, Message> {
-//         add_button()
-//     }
-
-//     #[snowscape::stateless]
-//     fn minus_button_preview() -> Element<'static, Message> {
-//         minus_button()
-//     }
-
-//     #[snowscape::stateless(0)]
-//     #[snowscape::stateless(5)]
-//     #[snowscape::stateless(10)]
-//     fn label_preview<'a>(n: i32) -> Element<'a, Message> {
-//         label(n)
-//     }
-
-//     #[snowscape::stateful(App::update, App::view)]
-//     fn stateful_counter() -> App {
-//         App::default()
-//     }
-
-//     #[snowscape::stateful(App::update, App::view)]
-//     fn stateful_counter_custom() -> App {
-//         App { count: 100 }
-//     }
-// }
