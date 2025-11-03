@@ -3,7 +3,7 @@ name = "demo"
 version = "0.1.0"
 edition = "2024"
 publish = false
-default-run = "demo"
+default-run = "main"
 
 [lib]
 name = "demo"
@@ -14,7 +14,7 @@ snowscape = { path = "../.." }
 iced.workspace = true
 
 [[bin]]
-name = "demo"
+name = "main"
 path = "src/main.rs"
 
 [[bin]]

@@ -2,127 +2,79 @@
 
 A preview system for [Iced](https://github.com/iced-rs/iced) UI components, inspired by Storybook and SwiftUI previews.
 
-## Features
-
-- Register functions that return elements for previewing
-- Parameterize previews to see how they look with different inputs
-- See all previewable views in your app
-
 ## Quick Start
+
+The following assumes you have an existing Iced application and are using the
+master version of Iced. There isn't a usable crates.io release of Snowscape yet
+due to Iced not having a recent release.
 
 ### 1. Add to your `Cargo.toml`
 
+Update your `Cargo.toml` to include Snowscape as a dependency. You'll also be
+setting up multiple binaries for your main app and previews if you don't
+already have that set up.
+
 ```toml
+[package]
+default-run = "main" # Ensures `cargo run` runs your main app
+
 [dependencies]
-snowscape = "0.1.0"
+snowscape = { git = "https://github.com/bradysimon/snowscape", branch = "main" }
 iced = "0.14.0-dev"
 
-[[example]]
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+# Preview UI components
+[[bin]]
 name = "preview"
-path = "examples/preview.rs"
+path = "src/preview.rs"
 ```
 
-### 2. Mark functions with `#[snowscape::stateless]` or `#[snowscape::stateful]`
+### 2. Create `preview.rs`
+
+This file will be the binary hosting all your previews. Feel free to use a
+different name other than `preview.rs`: just make sure it matches the name in
+your `Cargo.toml`.
 
 ```rust
-use iced::{Element, widget::{button, column, text}};
+// preview.rs
+use iced::widget::text;
+use snowscape::stateless;
 
-#[derive(Debug, Clone)]
-pub enum Message {
-    ButtonClicked,
-    Increment,
-    Decrement,
+fn label(name: &str) -> iced::Element<'_, ()> {
+    text(format!("Hello, {}!", name)).into()
 }
 
-// Simple stateless preview
-#[snowscape::stateless]
-pub fn hello_world<'a>() -> Element<'a, Message> {
-    text("Hello, World!").into()
+fn goodbye<'a>() -> iced::Element<'a, ()> {
+    text("Goodbye").into()
 }
 
-// Parameterized stateless preview - test with different inputs
-#[snowscape::stateless("Click Me")]
-#[snowscape::stateless("Press Here")]
-#[snowscape::stateless("Tap This")]
-pub fn custom_button(label: &str) -> Element<'_, Message> {
-    button(text(label))
-        .on_press(Message::ButtonClicked)
-        .into()
-}
-
-// Stateful preview - interactive components
-#[derive(Debug, Clone, Default)]
-pub struct Counter {
-    count: i32,
-}
-
-impl Counter {
-    pub fn update(&mut self, message: Message) {
-        match message {
-            Message::Increment => self.count += 1,
-            Message::Decrement => self.count -= 1,
-            _ => {}
-        }
-    }
-
-    pub fn view(&self) -> Element<'_, Message> {
-        column![
-            text(format!("Count: {}", self.count)),
-            button("Increment").on_press(Message::Increment),
-            button("Decrement").on_press(Message::Decrement),
-        ]
-        .into()
-    }
-}
-
-#[snowscape::stateful(Counter::update, Counter::view)]
-pub fn interactive_counter() -> Counter {
-    Counter::default()
-}
-```
-
-### 3. Create a preview runner
-
-```rust
-// examples/preview.rs
 fn main() -> iced::Result {
-    snowscape::run()
+    snowscape::run(|app| {
+        app.preview(stateless("Hello world", || label("world")))
+            .preview(stateless("Goodbye", goodbye))
+    })
 }
 ```
 
 ### 4. Run your previews
 
 ```bash
-cargo run --example preview
+cargo run --bin preview
 ```
-
-## How It Works
-
-Snowscape uses procedural macros and compile-time registration to automatically discover and display your preview functions. When you add `#[snowscape::stateless]` or `#[snowscape::stateful]` to a function:
-
-1. The original function remains unchanged (or becomes the boot function for stateful previews)
-2. A preview registration is generated automatically
-3. Stateless previews ignore messages; stateful previews handle them with your update function
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed implementation notes.
-
-## VS Code Integration
-
-The `vscode-previews/` directory contains a VS Code extension that adds "▶ Run Preview" buttons above your preview functions. Simply:
-
-1. Build the extension: `cd vscode-previews && npm run package`
-2. Install: `code --install-extension snowscape-previews-0.0.1.vsix`
-3. Click "▶ Run Preview" to launch specific previews!
-
-The extension automatically detects workspace structure and can target specific previews.
 
 ## Roadmap
 
 - [X] Preview stateless components
-- [X] See all available previewable components
-- [X] Stateful preview support
-- [X] VS Code extension with targeted preview launching
-- [ ] Improved preview metadata (names, descriptions, categories)
+- [X] Preview stateful components
+- [X] Improved preview metadata (descriptions, groups, tags)
 - [ ] Search/filter previews
 - [ ] Custom themes
 - [ ] Layout options (centered, fullscreen, grid)
+- [ ] More I haven't thought of yet :)
+
+## License
+
+Snowscape is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
