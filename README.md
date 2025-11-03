@@ -61,6 +61,8 @@ fn main() -> iced::Result {
 
 ### 4. Run your previews
 
+This will launch an Iced app that will allow you to preview your components.
+
 ```bash
 cargo run --bin preview
 ```
