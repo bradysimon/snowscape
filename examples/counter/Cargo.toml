@@ -1,12 +1,12 @@
 [package]
-name = "demo"
+name = "counter"
 version = "0.1.0"
 edition = "2024"
 publish = false
 default-run = "main"
 
 [lib]
-name = "demo"
+name = "counter"
 path = "src/lib.rs"
 
 [dependencies]

@@ -1,4 +1,4 @@
-use demo::{App, add_button, label, minus_button};
+use counter::{App, add_button, label, minus_button};
 use snowscape::{stateful, stateless};
 
 pub fn main() -> iced::Result {
