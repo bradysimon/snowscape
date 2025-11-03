@@ -8,6 +8,7 @@ use app::App;
 use message::Message;
 use metadata::Metadata;
 use preview::Preview;
+pub use preview::{stateful, stateless};
 
 pub fn run(configure: fn(App) -> App) -> iced::Result {
     iced::application(move || App::setup(configure), App::update, App::view)

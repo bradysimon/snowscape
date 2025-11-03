@@ -1,5 +1,5 @@
 use demo::{App, add_button, label, minus_button};
-use snowscape::preview::{stateful, stateless};
+use snowscape::{stateful, stateless};
 
 pub fn main() -> iced::Result {
     snowscape::run(|app| {
