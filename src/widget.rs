@@ -1,3 +1,5 @@
+pub mod split;
+
 use iced::{Element, Theme, overlay::menu, widget::pick_list};
 
 use crate::message::Message;

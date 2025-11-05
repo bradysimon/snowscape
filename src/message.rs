@@ -34,6 +34,8 @@ pub enum Message {
     SelectPreview(usize),
     /// Change the search query.
     ChangeSearch(String),
+    /// Resize the sidebar to the given pixel size.
+    ResizeSidebar(f32),
     /// Updates the current theme.
     UpdateTheme(iced_anim::Event<Theme>),
     /// The theme mode of the system has changed.
@@ -48,6 +50,7 @@ impl std::fmt::Debug for Message {
             Self::Noop => write!(f, "Noop"),
             Self::SelectPreview(arg0) => f.debug_tuple("SelectPreview").field(arg0).finish(),
             Self::ChangeSearch(text) => f.debug_tuple("ChangeSearch").field(text).finish(),
+            Self::ResizeSidebar(arg0) => f.debug_tuple("ResizePreviewPane").field(arg0).finish(),
             Self::UpdateTheme(event) => write!(f, "UpdateTheme({event:?})"),
             Self::ChangeThemeMode(arg0) => f.debug_tuple("ChangeThemeMode").field(arg0).finish(),
             Self::Component(_) => write!(f, "Component(..)"),
