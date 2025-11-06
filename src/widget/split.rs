@@ -1,6 +1,6 @@
 /*
+Adjusted version of iced_split: https://github.com/edwloef/iced_split
 Copyright 2025 edwloef
-https://github.com/edwloef/iced_split
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -293,7 +293,7 @@ where
         match self.strategy {
             Strategy::Relative => layout_direction * self.split_at,
             Strategy::Start => self.split_at,
-            Strategy::End => layout_direction - self.split_at - self.handle_width,
+            Strategy::End => layout_direction - self.split_at,
         }
         .min(layout_direction - self.handle_width)
         .max(0.0)
@@ -341,12 +341,11 @@ where
         let (start_width, start_height) = self.direction.select(cross_direction, start_layout);
         let start_limits = Limits::new(Size::ZERO, Size::new(start_width, start_height));
 
-        let end_layout = layout_direction - start_layout - self.handle_width;
+        let end_layout = layout_direction - start_layout;
         let (end_width, end_height) = self.direction.select(cross_direction, end_layout);
         let end_limits = Limits::new(Size::ZERO, Size::new(end_width, end_height));
 
-        let (offset_width, offset_height) =
-            self.direction.select(0.0, start_layout + self.handle_width);
+        let (offset_width, offset_height) = self.direction.select(0.0, start_layout);
 
         let children = vec![
             self.children[0]
@@ -409,8 +408,7 @@ where
                     if let Some(on_drag) = &self.on_drag
                         && state.dragging
                     {
-                        let layout = self.direction.select(y - bounds.y, x - bounds.x).0
-                            - self.handle_width / 2.0;
+                        let layout = self.direction.select(y - bounds.y, x - bounds.x).0;
 
                         let split_at = match self.strategy {
                             Strategy::Relative => layout / layout_direction,
@@ -422,7 +420,7 @@ where
                         shell.capture_event();
                     }
 
-                    let layout = self.start_layout(layout_direction);
+                    let layout = self.start_layout(layout_direction) - self.handle_width / 2.0;
                     let (x, y) = self.direction.select(0.0, layout);
                     let (x, y) = (x + bounds.x, y + bounds.y);
                     let (width, height) = self.direction.select(cross_direction, self.handle_width);
@@ -532,8 +530,7 @@ where
         let (cross_direction, layout_direction) =
             self.direction.select(bounds.width, bounds.height);
 
-        let layout = self.start_layout(layout_direction);
-        let layout = layout + (self.handle_width - width) / 2.0;
+        let layout = self.start_layout(layout_direction) - width / 2.0;
         let (x, y) = self.direction.select(0.0, layout);
         let (x, y) = ((x + bounds.x).round(), (y + bounds.y).round());
         let (width, height) = self.direction.select(cross_direction, width);
