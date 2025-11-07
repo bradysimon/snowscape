@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use iced::{
-    Border, Element,
+    Element,
     Length::Fill,
     Subscription, Task, Theme, border, system,
     theme::{self, Base},
