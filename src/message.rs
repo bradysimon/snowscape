@@ -1,5 +1,7 @@
 use iced::{Theme, theme};
 
+use crate::config_tab::ConfigTab;
+
 /// Helper trait for cloneable, type-erased messages
 pub trait AnyClone: std::any::Any + Send + Sync {
     fn clone_box(&self) -> Box<dyn AnyClone>;
@@ -36,6 +38,10 @@ pub enum Message {
     ChangeSearch(String),
     /// Resize the sidebar to the given pixel size.
     ResizeSidebar(f32),
+    /// Resize the configuration pane underneath the preview to the given pixel size.
+    ResizeConfigPane(f32),
+    /// Change the currently selected configuration tab below the preview.
+    ChangeConfigTab(ConfigTab),
     /// Updates the current theme.
     UpdateTheme(iced_anim::Event<Theme>),
     /// The theme mode of the system has changed.
@@ -51,6 +57,8 @@ impl std::fmt::Debug for Message {
             Self::SelectPreview(arg0) => f.debug_tuple("SelectPreview").field(arg0).finish(),
             Self::ChangeSearch(text) => f.debug_tuple("ChangeSearch").field(text).finish(),
             Self::ResizeSidebar(arg0) => f.debug_tuple("ResizePreviewPane").field(arg0).finish(),
+            Self::ResizeConfigPane(arg0) => f.debug_tuple("ResizeConfigPane").field(arg0).finish(),
+            Self::ChangeConfigTab(arg0) => f.debug_tuple("ChangeConfigTab").field(arg0).finish(),
             Self::UpdateTheme(event) => write!(f, "UpdateTheme({event:?})"),
             Self::ChangeThemeMode(arg0) => f.debug_tuple("ChangeThemeMode").field(arg0).finish(),
             Self::Component(_) => write!(f, "Component(..)"),

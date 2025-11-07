@@ -1,19 +1,19 @@
 pub use crate::message::Message;
 use crate::{
     Preview,
+    config_tab::ConfigTab,
     preview::Descriptor,
     widget::{
-        split::{Strategy, vertical_split},
-        theme_picker,
+        config_pane, header, preview_area,
+        split::{Strategy, horizontal_split, vertical_split},
     },
 };
 use iced::{
-    Alignment::Center,
     Border, Element,
     Length::Fill,
     Subscription, Task, Theme, system,
     theme::{self, Base},
-    widget::{rule, space, text_input},
+    widget::{rule, text_input},
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
@@ -26,6 +26,10 @@ pub struct App {
     search: String,
     /// The width of the sidebar.
     sidebar_width: f32,
+    /// The currently selected configuration tab.
+    config_tab: ConfigTab,
+    /// The height of the configuration pane underneath the preview.
+    config_pane_height: f32,
     /// The list of registered previewable elements.
     descriptors: Vec<Descriptor>,
     /// The index of the selected `descriptor` in the list.
@@ -42,6 +46,8 @@ impl Default for App {
             title: None,
             search: String::new(),
             sidebar_width: 250.0,
+            config_tab: ConfigTab::default(),
+            config_pane_height: 200.0,
             descriptors: Vec::new(),
             selected_index: None,
             theme: None,
@@ -139,6 +145,14 @@ impl App {
                 self.sidebar_width = size;
                 Task::none()
             }
+            Message::ResizeConfigPane(size) => {
+                self.config_pane_height = size;
+                Task::none()
+            }
+            Message::ChangeConfigTab(tab) => {
+                self.config_tab = tab;
+                Task::none()
+            }
             Message::Component(msg) => {
                 // Forward component messages to the current preview
                 if let Some(descriptor) = self
@@ -173,7 +187,7 @@ impl App {
     }
 
     pub(crate) fn view(&self) -> Element<'_, Message> {
-        use iced::widget::{button, column, container, row, scrollable, text};
+        use iced::widget::{button, column, container, scrollable, text};
 
         let visible_previews: Vec<_> = self.visible_previews().collect();
         // Build sidebar with preview list
@@ -262,25 +276,21 @@ impl App {
         // Build preview area
         let preview_content = container(
             column![
-                row![
-                    self.selected_index.map(|index| container(text(
-                        &self.descriptors[index].metadata.label
-                    ))
-                    .width(Fill)),
-                    space::horizontal(),
-                    theme_picker(self.theme.as_ref().map(|t| t.target().clone())),
-                ]
-                .align_y(Center)
-                .padding(10),
+                header(
+                    self.selected_index
+                        .and_then(|index| self.descriptors.get(index)),
+                    &self.theme,
+                ),
                 rule::horizontal(1).style(rule::weak),
-                container(if let Some(preview) = &self.current_preview() {
-                    preview.view()
-                } else {
-                    // TODO: Improve placeholder view
-                    text("No preview selected").into()
-                })
-                .padding(20)
-                .center(Fill)
+                horizontal_split(
+                    preview_area(self.current_preview()),
+                    self.selected_index
+                        .and_then(|index| self.descriptors.get(index))
+                        .map(|descriptor| { config_pane(descriptor, self.config_tab) }),
+                    self.config_pane_height,
+                    Message::ResizeConfigPane,
+                )
+                .strategy(Strategy::End)
             ]
             .spacing(0),
         )
