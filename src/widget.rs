@@ -6,7 +6,7 @@ use iced::{
     Length::{Fill, Shrink},
     Theme, border,
     overlay::menu,
-    widget::{button, column, container, pick_list, row, space, text},
+    widget::{button, column, container, pick_list, row, space, text, text::IntoFragment},
 };
 use iced_anim::Animated;
 
@@ -148,8 +148,16 @@ fn config_tab<'a>(tab: ConfigTab, selected: bool) -> Element<'a, Message> {
 /// A pane shown in the configuration area displaying metadata about the preview.
 fn about_config_pane(metadata: &Metadata) -> Element<'_, Message> {
     column![
-        text(&metadata.label).size(18),
-        // TODO: Render group and tags
+        row![
+            text(&metadata.label).size(18),
+            space::horizontal().width(Shrink),
+            row(metadata.tags.iter().cloned().map(badge))
+                .spacing(4)
+                .wrap()
+        ]
+        .spacing(8)
+        .align_y(Center)
+        .wrap(),
         space::vertical().height(5),
         if let Some(description) = &metadata.description {
             text(description)
@@ -169,6 +177,18 @@ fn about_config_pane(metadata: &Metadata) -> Element<'_, Message> {
     ]
     .width(Fill)
     .into()
+}
+
+/// A small badge that shows some `content` within it.
+fn badge<'a>(contenxt: impl IntoFragment<'a>) -> Element<'a, Message> {
+    container(text(contenxt).size(14))
+        .padding([2, 6])
+        .style(|theme: &Theme| container::Style {
+            background: Some(theme.extended_palette().background.weak.color.into()),
+            border: border::rounded(4),
+            ..container::Style::default()
+        })
+        .into()
 }
 
 fn parameter_config_pane<'a>() -> Element<'a, Message> {
