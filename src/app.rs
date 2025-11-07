@@ -11,7 +11,7 @@ use crate::{
 use iced::{
     Border, Element,
     Length::Fill,
-    Subscription, Task, Theme, system,
+    Subscription, Task, Theme, border, system,
     theme::{self, Base},
     widget::{rule, text_input},
 };
@@ -229,7 +229,7 @@ impl App {
                         button::Style {
                             background: Some(theme.extended_palette().primary.base.color.into()),
                             text_color: theme.extended_palette().primary.base.text,
-                            border: Border::default().rounded(4),
+                            border: border::rounded(4),
                             ..base
                         }
                     } else {
@@ -246,7 +246,7 @@ impl App {
                         button::Style {
                             background: pair.map(|p| p.color.into()),
                             text_color: pair.map(|p| p.text).unwrap_or(default.text_color),
-                            border: Border::default().rounded(4),
+                            border: border::rounded(4),
                             ..default
                         }
                     }
