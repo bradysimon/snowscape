@@ -413,7 +413,7 @@ where
                         let split_at = match self.strategy {
                             Strategy::Relative => layout / layout_direction,
                             Strategy::Start => layout,
-                            Strategy::End => layout_direction - layout - self.handle_width,
+                            Strategy::End => layout_direction - layout,
                         };
 
                         shell.publish(on_drag(split_at));
