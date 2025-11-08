@@ -68,7 +68,7 @@ impl<Boot, State, Msg, IntoTask> From<Stateful<Boot, State, Msg, IntoTask>> for 
 where
     Boot: Fn() -> State + Send + 'static,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + 'static,
+    Msg: Send + Sync + std::any::Any + Clone + Debug + 'static,
     IntoTask: Into<iced::Task<Msg>> + 'static,
 {
     fn from(stateful: Stateful<Boot, State, Msg, IntoTask>) -> Self {

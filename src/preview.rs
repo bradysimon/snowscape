@@ -2,6 +2,8 @@ mod descriptor;
 mod stateful;
 mod stateless;
 
+use std::fmt::Debug;
+
 pub use descriptor::Descriptor;
 use iced::{Element, Task};
 pub use stateful::Stateful;
@@ -16,6 +18,12 @@ pub trait Preview: Send {
 
     /// Render the preview.
     fn view(&self) -> Element<'_, Message>;
+
+    /// Returns the history of the messages the preview has emitted.
+    /// `None` indicates the preview doesn't support message tracking.
+    fn history(&self) -> Option<Vec<String>> {
+        None
+    }
 }
 
 pub fn stateless<F, Message>(label: impl Into<String>, view_fn: F) -> Stateless<F, Message>
@@ -35,7 +43,7 @@ pub fn stateful<Boot, State, Msg, IntoTask>(
 where
     Boot: Fn() -> State + Send,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + 'static,
+    Msg: Send + Sync + std::any::Any + Clone + Debug + 'static,
     IntoTask: Into<Task<Msg>>,
 {
     let metadata = crate::Metadata::new(label);

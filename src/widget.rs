@@ -6,7 +6,9 @@ use iced::{
     Length::{Fill, Shrink},
     Theme, border,
     overlay::menu,
-    widget::{button, column, container, pick_list, row, space, text, text::IntoFragment},
+    widget::{
+        button, column, container, pick_list, row, scrollable, space, text, text::IntoFragment,
+    },
 };
 use iced_anim::Animated;
 
@@ -74,7 +76,7 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
     let content = match tab {
         ConfigTab::About => about_config_pane(&descriptor.metadata),
         ConfigTab::Parameters => parameter_config_pane(),
-        ConfigTab::Messages => message_config_pane(),
+        ConfigTab::Messages => message_config_pane(descriptor.preview.as_ref()),
         ConfigTab::Performance => performance_config_pane(),
     };
     container(column![config_tabs(tab), container(content).padding([2, 8])].spacing(4))
@@ -195,8 +197,28 @@ fn parameter_config_pane<'a>() -> Element<'a, Message> {
     text("Parameters").into()
 }
 
-fn message_config_pane<'a>() -> Element<'a, Message> {
-    text("Messages").into()
+fn message_config_pane<'a>(preview: &dyn Preview) -> Element<'a, Message> {
+    match preview.history() {
+        Some(messages) => {
+            if messages.is_empty() {
+                text("No messages emitted.").into()
+            } else {
+                scrollable(
+                    column(
+                        messages
+                            .iter()
+                            .enumerate()
+                            .map(|(i, msg)| text(format!("{}: {:?}", i + 1, msg)).into()),
+                    )
+                    .spacing(4)
+                    .width(Fill),
+                )
+                .anchor_bottom()
+                .into()
+            }
+        }
+        None => text("No messages available.").into(),
+    }
 }
 
 fn performance_config_pane<'a>() -> Element<'a, Message> {
