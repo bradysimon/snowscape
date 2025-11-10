@@ -79,27 +79,46 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
         ConfigTab::Messages => message_config_pane(descriptor.preview.as_ref()),
         ConfigTab::Performance => performance_config_pane(),
     };
-    container(column![config_tabs(tab), container(content).padding([2, 8])].spacing(4))
-        .padding(4)
-        .width(Fill)
-        .height(Fill)
-        .style(|theme: &Theme| {
-            container::background(theme.extended_palette().background.weakest.color)
-        })
-        .into()
+    container(
+        column![
+            config_tabs(
+                tab,
+                descriptor
+                    .preview
+                    .history()
+                    .map(|h| h.len())
+                    .unwrap_or_default()
+            ),
+            container(content).padding([2, 8])
+        ]
+        .spacing(4),
+    )
+    .padding(4)
+    .width(Fill)
+    .height(Fill)
+    .style(|theme: &Theme| container::background(theme.extended_palette().background.weakest.color))
+    .into()
 }
 
 /// The configuration tabs shown in the configuration pane.
-fn config_tabs<'a>(tab: ConfigTab) -> Element<'a, Message> {
+fn config_tabs<'a>(selected_tab: ConfigTab, messages: usize) -> Element<'a, Message> {
     row(ConfigTab::ALL.iter().map(|&variant| {
-        let is_selected = variant == tab;
-        config_tab(variant, is_selected)
+        let is_selected = variant == selected_tab;
+        config_tab(
+            variant,
+            is_selected,
+            if variant == ConfigTab::Messages {
+                Some(messages)
+            } else {
+                None
+            },
+        )
     }))
     .into()
 }
 
 /// A tab button used within [`config_tabs`].
-fn config_tab<'a>(tab: ConfigTab, selected: bool) -> Element<'a, Message> {
+fn config_tab<'a>(tab: ConfigTab, selected: bool, count: Option<usize>) -> Element<'a, Message> {
     let label = match tab {
         ConfigTab::About => "About",
         ConfigTab::Parameters => "Parameters",
@@ -109,7 +128,15 @@ fn config_tab<'a>(tab: ConfigTab, selected: bool) -> Element<'a, Message> {
 
     button(
         column![
-            container(text(label).size(14)).padding([2, 4]),
+            container(
+                row![
+                    text(label).size(14),
+                    count.filter(|&c| c > 0).map(round_badge)
+                ]
+                .spacing(4)
+                .align_y(Center)
+            )
+            .padding([2, 4]),
             container(space::horizontal())
                 .width(Fill)
                 .height(2)
@@ -182,8 +209,8 @@ fn about_config_pane(metadata: &Metadata) -> Element<'_, Message> {
 }
 
 /// A small badge that shows some `content` within it.
-fn badge<'a>(contenxt: impl IntoFragment<'a>) -> Element<'a, Message> {
-    container(text(contenxt).size(14))
+fn badge<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
+    container(text(content).size(14))
         .padding([2, 6])
         .style(|theme: &Theme| container::Style {
             background: Some(theme.extended_palette().background.weak.color.into()),
@@ -193,8 +220,24 @@ fn badge<'a>(contenxt: impl IntoFragment<'a>) -> Element<'a, Message> {
         .into()
 }
 
+/// A round badge typically showing a number, e.g. the number of emitted messages.
+fn round_badge<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
+    container(text(content).size(10))
+        .padding([2, 6])
+        .style(|theme: &Theme| {
+            let pair = theme.extended_palette().primary.base;
+            container::Style {
+                background: Some(pair.color.into()),
+                text_color: Some(pair.text),
+                border: border::rounded(16),
+                ..container::Style::default()
+            }
+        })
+        .into()
+}
+
 fn parameter_config_pane<'a>() -> Element<'a, Message> {
-    text("Parameters").into()
+    text("Coming soon!").into()
 }
 
 fn message_config_pane(preview: &dyn Preview) -> Element<'_, Message> {
@@ -238,5 +281,5 @@ fn mini_badge<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
 }
 
 fn performance_config_pane<'a>() -> Element<'a, Message> {
-    text("Performance").into()
+    text("Coming soon!").into()
 }
