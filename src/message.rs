@@ -41,6 +41,8 @@ impl Clone for Box<dyn AnyClone> {
 pub enum Message {
     /// No-op message.
     Noop,
+    /// Focuses the search input.
+    FocusInput,
     /// Select a different preview by index.
     SelectPreview(usize),
     /// Change the search query.
@@ -63,6 +65,7 @@ impl std::fmt::Debug for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Noop => write!(f, "Noop"),
+            Self::FocusInput => write!(f, "FocusInput"),
             Self::SelectPreview(arg0) => f.debug_tuple("SelectPreview").field(arg0).finish(),
             Self::ChangeSearch(text) => f.debug_tuple("ChangeSearch").field(text).finish(),
             Self::ResizeSidebar(arg0) => f.debug_tuple("ResizePreviewPane").field(arg0).finish(),

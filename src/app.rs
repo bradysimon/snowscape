@@ -11,12 +11,14 @@ use crate::{
 use iced::{
     Element,
     Length::Fill,
-    Subscription, Task, Theme, border, system,
+    Subscription, Task, Theme, border, keyboard, system,
     theme::{self, Base},
-    widget::{rule, text_input},
+    widget::{operation, rule, text_input},
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
+
+pub const SEARCH_INPUT_ID: &str = "search_input";
 
 /// The preview app that shows registered previews.
 pub struct App {
@@ -137,6 +139,7 @@ impl App {
                 }
                 Task::none()
             }
+            Message::FocusInput => operation::focus(SEARCH_INPUT_ID),
             Message::ChangeSearch(text) => {
                 self.search = text;
                 Task::none()
@@ -183,7 +186,13 @@ impl App {
     }
 
     pub(crate) fn subscription(&self) -> Subscription<Message> {
-        system::theme_changes().map(Message::ChangeThemeMode)
+        Subscription::batch([
+            system::theme_changes().map(Message::ChangeThemeMode),
+            keyboard::on_key_press(|key, _modifiers| match key.as_ref() {
+                keyboard::Key::Character("/") => Some(Message::FocusInput),
+                _ => None,
+            }),
+        ])
     }
 
     pub(crate) fn view(&self) -> Element<'_, Message> {
@@ -193,7 +202,8 @@ impl App {
         // Build sidebar with preview list
         let mut sidebar = column![
             text(format!("Previews ({})", visible_previews.len())).size(18),
-            text_input("Search previews", &self.search)
+            text_input("Search previews ('/' to focus)", &self.search)
+                .id(SEARCH_INPUT_ID)
                 .on_input(Message::ChangeSearch)
                 .style(|theme, status| {
                     let default = text_input::default(theme, status);
