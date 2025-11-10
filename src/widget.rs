@@ -204,12 +204,13 @@ fn message_config_pane<'a>(preview: &dyn Preview) -> Element<'a, Message> {
                 text("No messages emitted.").into()
             } else {
                 scrollable(
-                    column(
-                        messages
-                            .iter()
-                            .enumerate()
-                            .map(|(i, msg)| text(format!("{}: {:?}", i + 1, msg)).into()),
-                    )
+                    column(messages.iter().enumerate().map(|(i, msg)| {
+                        // TODO: Try removing `to_string()` by having `history` be a reference.
+                        row![mini_badge(i), text(msg.to_string())]
+                            .spacing(4)
+                            .align_y(Center)
+                            .into()
+                    }))
                     .spacing(4)
                     .width(Fill),
                 )
@@ -219,6 +220,22 @@ fn message_config_pane<'a>(preview: &dyn Preview) -> Element<'a, Message> {
         }
         None => text("No messages available.").into(),
     }
+}
+
+/// A very tiny badge typically shown within message history.
+fn mini_badge<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
+    container(text(content).size(12))
+        .center_x(32)
+        .style(|theme: &Theme| {
+            let pair = theme.extended_palette().background.weak;
+            container::Style {
+                background: Some(pair.color.into()),
+                text_color: Some(pair.text),
+                border: border::rounded(2),
+                ..container::Style::default()
+            }
+        })
+        .into()
 }
 
 fn performance_config_pane<'a>() -> Element<'a, Message> {

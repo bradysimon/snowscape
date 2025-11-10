@@ -1,12 +1,10 @@
-use std::{any::Any, fmt::Debug};
-
-use crate::{Metadata, Preview};
+use crate::{Metadata, Preview, message::AnyMessage};
 use iced::{Element, Task};
 
 /// A stateless preview that renders a view function.
 pub struct Stateless<F, Message>
 where
-    Message: Send + Sync + Any + Clone + Debug + 'static,
+    Message: AnyMessage,
     F: Fn() -> Element<'static, Message>,
 {
     view_fn: F,
@@ -17,7 +15,7 @@ where
 
 impl<F, Message> Stateless<F, Message>
 where
-    Message: Send + Sync + Any + Clone + Debug + 'static,
+    Message: AnyMessage,
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
     pub const fn new(view_fn: F, metadata: Metadata) -> Self {
@@ -51,7 +49,7 @@ where
 
 impl<F, Message> Preview for Stateless<F, Message>
 where
-    Message: Send + Sync + Any + Clone + Debug + 'static,
+    Message: AnyMessage,
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {

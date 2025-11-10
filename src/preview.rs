@@ -2,14 +2,12 @@ mod descriptor;
 mod stateful;
 mod stateless;
 
-use std::{any::Any, fmt::Debug};
-
 pub use descriptor::Descriptor;
 use iced::{Element, Task};
 pub use stateful::Stateful;
 pub use stateless::Stateless;
 
-use crate::Message;
+use crate::{Message, message::AnyMessage};
 
 /// Trait for preview components that can be displayed in the preview window.
 pub trait Preview: Send {
@@ -28,7 +26,7 @@ pub trait Preview: Send {
 
 pub fn stateless<F, Message>(label: impl Into<String>, view_fn: F) -> Stateless<F, Message>
 where
-    Message: Send + Sync + Any + Clone + Debug + 'static,
+    Message: AnyMessage,
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
     let metadata = crate::Metadata::new(label);
@@ -44,7 +42,7 @@ pub fn stateful<Boot, State, Msg, IntoTask>(
 where
     Boot: Fn() -> State + Send,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + Debug + 'static,
+    Msg: AnyMessage,
     IntoTask: Into<Task<Msg>>,
 {
     let metadata = crate::Metadata::new(label);

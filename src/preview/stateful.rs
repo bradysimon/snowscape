@@ -1,13 +1,12 @@
-use crate::{Message, Metadata, Preview};
+use crate::{Message, Metadata, Preview, message::AnyMessage};
 use iced::{Element, Task};
-use std::fmt::Debug;
 
 /// A stateful preview with full update/view cycle.
 pub struct Stateful<Boot, State, Msg, IntoTask>
 where
     Boot: Fn() -> State,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Debug + 'static,
+    Msg: AnyMessage,
     IntoTask: Into<Task<Msg>>,
 {
     boot: Boot,
@@ -23,7 +22,7 @@ impl<Boot, State, Msg, IntoTask> Stateful<Boot, State, Msg, IntoTask>
 where
     Boot: Fn() -> State + Send,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + Debug + 'static,
+    Msg: AnyMessage,
     IntoTask: Into<Task<Msg>>,
 {
     pub fn new(
@@ -68,7 +67,7 @@ impl<Boot, State, Msg, IntoTask> Preview for Stateful<Boot, State, Msg, IntoTask
 where
     Boot: Fn() -> State + Send,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + Debug + 'static,
+    Msg: AnyMessage,
     IntoTask: Into<Task<Msg>>,
 {
     fn update(&mut self, message: Message) -> Task<Message> {
@@ -95,7 +94,7 @@ where
         Some(
             self.history
                 .iter()
-                .map(|msg| format!("{:?}", msg))
+                .map(|message| format!("{message:?}"))
                 .collect(),
         )
     }

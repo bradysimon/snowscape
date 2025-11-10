@@ -1,8 +1,15 @@
-use std::any::Any;
+use std::{any::Any, fmt::Debug};
 
 use iced::{Theme, theme};
 
 use crate::config_tab::ConfigTab;
+
+/// Supertrait for messages that can be used in the preview system.
+/// - `Any`: Previews support any type of message via downcasting
+/// - `Clone`: Messages can be stored in history
+/// - `Debug`: Messages can be displayed in the UI
+pub trait AnyMessage: Any + Clone + Debug + Send + Sync + 'static {}
+impl<T> AnyMessage for T where T: Any + Clone + Debug + Send + Sync + 'static {}
 
 /// Helper trait for cloneable, type-erased messages
 pub trait AnyClone: Any + Send + Sync {
