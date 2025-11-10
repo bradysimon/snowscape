@@ -206,7 +206,7 @@ fn message_config_pane<'a>(preview: &dyn Preview) -> Element<'a, Message> {
                 scrollable(
                     column(messages.iter().enumerate().map(|(i, msg)| {
                         // TODO: Try removing `to_string()` by having `history` be a reference.
-                        row![mini_badge(i), text(msg.to_string())]
+                        row![mini_badge(i + 1), text(msg.to_string())]
                             .spacing(4)
                             .align_y(Center)
                             .into()
