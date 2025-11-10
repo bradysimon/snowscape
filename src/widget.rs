@@ -197,7 +197,7 @@ fn parameter_config_pane<'a>() -> Element<'a, Message> {
     text("Parameters").into()
 }
 
-fn message_config_pane<'a>(preview: &dyn Preview) -> Element<'a, Message> {
+fn message_config_pane(preview: &dyn Preview) -> Element<'_, Message> {
     match preview.history() {
         Some(messages) => {
             if messages.is_empty() {
@@ -205,8 +205,7 @@ fn message_config_pane<'a>(preview: &dyn Preview) -> Element<'a, Message> {
             } else {
                 scrollable(
                     column(messages.iter().enumerate().map(|(i, msg)| {
-                        // TODO: Try removing `to_string()` by having `history` be a reference.
-                        row![mini_badge(i + 1), text(msg.to_string())]
+                        row![mini_badge(i + 1), text(msg)]
                             .spacing(4)
                             .align_y(Center)
                             .into()

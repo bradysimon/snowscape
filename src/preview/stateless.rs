@@ -1,4 +1,4 @@
-use crate::{Metadata, Preview, message::AnyMessage};
+use crate::{Metadata, Preview, message::AnyMessage, preview::History};
 use iced::{Element, Task};
 
 /// A stateless preview that renders a view function.
@@ -9,7 +9,7 @@ where
 {
     view_fn: F,
     /// The history of messages emitted by the preview.
-    history: Vec<Message>,
+    history: History<Message>,
     pub(crate) metadata: Metadata,
 }
 
@@ -18,10 +18,10 @@ where
     Message: AnyMessage,
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
-    pub const fn new(view_fn: F, metadata: Metadata) -> Self {
+    pub fn new(view_fn: F, metadata: Metadata) -> Self {
         Self {
             view_fn,
-            history: Vec::new(),
+            history: History::new(),
             metadata,
         }
     }
@@ -65,12 +65,7 @@ where
         (self.view_fn)().map(|msg| crate::Message::Component(Box::new(msg)))
     }
 
-    fn history(&self) -> Option<Vec<String>> {
-        Some(
-            self.history
-                .iter()
-                .map(|message| format!("{message:?}"))
-                .collect(),
-        )
+    fn history(&self) -> Option<&'_ [String]> {
+        Some(self.history.debug())
     }
 }

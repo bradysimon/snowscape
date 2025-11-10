@@ -1,8 +1,10 @@
 mod descriptor;
+mod history;
 mod stateful;
 mod stateless;
 
 pub use descriptor::Descriptor;
+pub use history::History;
 use iced::{Element, Task};
 pub use stateful::Stateful;
 pub use stateless::Stateless;
@@ -19,7 +21,7 @@ pub trait Preview: Send {
 
     /// Returns the history of the messages the preview has emitted.
     /// `None` indicates the preview doesn't support message tracking.
-    fn history(&self) -> Option<Vec<String>> {
+    fn history(&self) -> Option<&'_ [String]> {
         None
     }
 }

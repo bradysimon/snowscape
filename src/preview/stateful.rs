@@ -1,4 +1,4 @@
-use crate::{Message, Metadata, Preview, message::AnyMessage};
+use crate::{Message, Metadata, Preview, message::AnyMessage, preview::History};
 use iced::{Element, Task};
 
 /// A stateful preview with full update/view cycle.
@@ -12,7 +12,7 @@ where
     boot: Boot,
     state: State,
     /// The history of messages emitted by the preview.
-    history: Vec<Msg>,
+    history: History<Msg>,
     update_fn: fn(&mut State, Msg) -> IntoTask,
     view_fn: fn(&State) -> Element<'_, Msg>,
     pub(crate) metadata: Metadata,
@@ -35,7 +35,7 @@ where
         Self {
             boot,
             state,
-            history: Vec::new(),
+            history: History::new(),
             update_fn,
             view_fn,
             metadata,
@@ -90,12 +90,7 @@ where
         (self.view_fn)(&self.state).map(|msg| Message::Component(Box::new(msg)))
     }
 
-    fn history(&self) -> Option<Vec<String>> {
-        Some(
-            self.history
-                .iter()
-                .map(|message| format!("{message:?}"))
-                .collect(),
-        )
+    fn history(&self) -> Option<&'_ [String]> {
+        Some(self.history.debug())
     }
 }
