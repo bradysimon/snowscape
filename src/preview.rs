@@ -2,7 +2,7 @@ mod descriptor;
 mod stateful;
 mod stateless;
 
-use std::fmt::Debug;
+use std::{any::Any, fmt::Debug};
 
 pub use descriptor::Descriptor;
 use iced::{Element, Task};
@@ -28,6 +28,7 @@ pub trait Preview: Send {
 
 pub fn stateless<F, Message>(label: impl Into<String>, view_fn: F) -> Stateless<F, Message>
 where
+    Message: Send + Sync + Any + Clone + Debug + 'static,
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
     let metadata = crate::Metadata::new(label);

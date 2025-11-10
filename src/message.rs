@@ -1,22 +1,24 @@
+use std::any::Any;
+
 use iced::{Theme, theme};
 
 use crate::config_tab::ConfigTab;
 
 /// Helper trait for cloneable, type-erased messages
-pub trait AnyClone: std::any::Any + Send + Sync {
+pub trait AnyClone: Any + Send + Sync {
     fn clone_box(&self) -> Box<dyn AnyClone>;
-    fn as_any(&self) -> &dyn std::any::Any;
+    fn as_any(&self) -> &dyn Any;
 }
 
 impl<T> AnyClone for T
 where
-    T: std::any::Any + Clone + Send + Sync,
+    T: Any + Clone + Send + Sync,
 {
     fn clone_box(&self) -> Box<dyn AnyClone> {
         Box::new(self.clone())
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 }

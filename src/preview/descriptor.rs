@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{any::Any, fmt::Debug};
 
 use crate::{
     Metadata, Preview,
@@ -54,7 +54,7 @@ impl Debug for Descriptor {
 impl<F, Message> From<Stateless<F, Message>> for Descriptor
 where
     F: Fn() -> iced::Element<'static, Message> + Send + 'static,
-    Message: Send + Sync + std::any::Any + 'static,
+    Message: Send + Sync + Clone + Any + Debug + 'static,
 {
     fn from(stateless: Stateless<F, Message>) -> Self {
         Self {
@@ -68,7 +68,7 @@ impl<Boot, State, Msg, IntoTask> From<Stateful<Boot, State, Msg, IntoTask>> for 
 where
     Boot: Fn() -> State + Send + 'static,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + Debug + 'static,
+    Msg: Send + Sync + Clone + Any + Debug + 'static,
     IntoTask: Into<iced::Task<Msg>> + 'static,
 {
     fn from(stateful: Stateful<Boot, State, Msg, IntoTask>) -> Self {
