@@ -35,17 +35,17 @@ where
     Stateless::new(view_fn, metadata)
 }
 
-pub fn stateful<Boot, State, Msg, IntoTask>(
+pub fn stateful<Boot, State, Message, IntoTask>(
     label: impl Into<String>,
     boot: Boot,
-    update_fn: fn(&mut State, Msg) -> IntoTask,
-    view_fn: fn(&State) -> Element<'_, Msg>,
-) -> Stateful<Boot, State, Msg, IntoTask>
+    update_fn: fn(&mut State, Message) -> IntoTask,
+    view_fn: fn(&State) -> Element<'_, Message>,
+) -> Stateful<Boot, State, Message, IntoTask>
 where
     Boot: Fn() -> State + Send,
     State: Send + 'static,
-    Msg: AnyMessage,
-    IntoTask: Into<Task<Msg>>,
+    Message: AnyMessage,
+    IntoTask: Into<Task<Message>>,
 {
     let metadata = crate::Metadata::new(label);
     Stateful::new(boot, update_fn, view_fn, metadata)

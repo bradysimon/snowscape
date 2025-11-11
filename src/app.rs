@@ -156,13 +156,13 @@ impl App {
                 self.config_tab = tab;
                 Task::none()
             }
-            Message::Component(msg) => {
+            Message::Component(message) => {
                 // Forward component messages to the current preview
                 if let Some(descriptor) = self
                     .selected_index
                     .and_then(|index| self.descriptors.get_mut(index))
                 {
-                    descriptor.preview.update(Message::Component(msg))
+                    descriptor.preview.update(Message::Component(message))
                 } else {
                     Task::none()
                 }

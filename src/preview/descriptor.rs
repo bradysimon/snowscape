@@ -65,14 +65,14 @@ where
     }
 }
 
-impl<Boot, State, Msg, IntoTask> From<Stateful<Boot, State, Msg, IntoTask>> for Descriptor
+impl<Boot, State, Message, IntoTask> From<Stateful<Boot, State, Message, IntoTask>> for Descriptor
 where
     Boot: Fn() -> State + Send + 'static,
     State: Send + 'static,
-    Msg: AnyMessage,
-    IntoTask: Into<iced::Task<Msg>> + 'static,
+    Message: AnyMessage,
+    IntoTask: Into<iced::Task<Message>> + 'static,
 {
-    fn from(stateful: Stateful<Boot, State, Msg, IntoTask>) -> Self {
+    fn from(stateful: Stateful<Boot, State, Message, IntoTask>) -> Self {
         Self {
             metadata: stateful.metadata.clone(),
             preview: Box::new(stateful),

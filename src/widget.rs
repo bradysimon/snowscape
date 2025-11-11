@@ -247,8 +247,8 @@ fn message_config_pane(preview: &dyn Preview) -> Element<'_, Message> {
                 text("No messages emitted.").into()
             } else {
                 scrollable(
-                    column(messages.iter().enumerate().map(|(i, msg)| {
-                        row![mini_badge(i + 1), text(msg)]
+                    column(messages.iter().enumerate().map(|(i, message)| {
+                        row![mini_badge(i + 1), text(message)]
                             .spacing(4)
                             .align_y(Center)
                             .into()

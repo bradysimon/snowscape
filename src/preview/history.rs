@@ -8,9 +8,9 @@ where
 {
     /// The messages emitted by the preview.
     pub messages: Vec<Message>,
-    /// Debug representations of the emitted `messages`.
-    /// Stored as a separate Vec to avoid constant allocations.
-    pub debug: Vec<String>,
+    /// Message traces of the emitted `messages`.
+    /// Stored as a separate `Vec` to avoid constant string allocations.
+    pub traces: Vec<String>,
 }
 
 impl<Message> History<Message>
@@ -21,18 +21,18 @@ where
     pub const fn new() -> Self {
         Self {
             messages: Vec::new(),
-            debug: Vec::new(),
+            traces: Vec::new(),
         }
     }
 
     /// Pushes a new `message` to the history.
     pub fn push(&mut self, message: Message) {
-        self.debug.push(format!("{message:?}"));
+        self.traces.push(format!("{message:?}"));
         self.messages.push(message);
     }
 
-    /// Returns a reference to the debug representations of the messages in the history.
-    pub fn debug(&self) -> &[String] {
-        &self.debug
+    /// Returns a reference to the message traces in the history.
+    pub fn traces(&self) -> &[String] {
+        &self.traces
     }
 }

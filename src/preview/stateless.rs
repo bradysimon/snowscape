@@ -54,18 +54,18 @@ where
 {
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
         if let crate::Message::Component(boxed) = message {
-            if let Some(msg) = boxed.as_any().downcast_ref::<Message>() {
-                self.history.push(msg.clone());
+            if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
+                self.history.push(message.clone());
             }
         }
         Task::none()
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)().map(|msg| crate::Message::Component(Box::new(msg)))
+        (self.view_fn)().map(|message| crate::Message::Component(Box::new(message)))
     }
 
     fn history(&self) -> Option<&'_ [String]> {
-        Some(self.history.debug())
+        Some(self.history.traces())
     }
 }
