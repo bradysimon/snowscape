@@ -1,38 +1,41 @@
-use crate::{Message, Metadata, Preview};
+use crate::{Metadata, Preview, message::AnyMessage, preview::History};
 use iced::{Element, Task};
 
 /// A stateful preview with full update/view cycle.
-pub struct Stateful<Boot, State, Msg, IntoTask>
+pub struct Stateful<Boot, State, Message, IntoTask>
 where
     Boot: Fn() -> State,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + 'static,
-    IntoTask: Into<Task<Msg>>,
+    Message: AnyMessage,
+    IntoTask: Into<Task<Message>>,
 {
     boot: Boot,
     state: State,
-    update_fn: fn(&mut State, Msg) -> IntoTask,
-    view_fn: fn(&State) -> Element<'_, Msg>,
+    /// The history of messages emitted by the preview.
+    history: History<Message>,
+    update_fn: fn(&mut State, Message) -> IntoTask,
+    view_fn: fn(&State) -> Element<'_, Message>,
     pub(crate) metadata: Metadata,
 }
 
-impl<Boot, State, Msg, IntoTask> Stateful<Boot, State, Msg, IntoTask>
+impl<Boot, State, Message, IntoTask> Stateful<Boot, State, Message, IntoTask>
 where
     Boot: Fn() -> State + Send,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + 'static,
-    IntoTask: Into<Task<Msg>>,
+    Message: AnyMessage,
+    IntoTask: Into<Task<Message>>,
 {
     pub fn new(
         boot: Boot,
-        update_fn: fn(&mut State, Msg) -> IntoTask,
-        view_fn: fn(&State) -> Element<'_, Msg>,
+        update_fn: fn(&mut State, Message) -> IntoTask,
+        view_fn: fn(&State) -> Element<'_, Message>,
         metadata: Metadata,
     ) -> Self {
         let state = boot();
         Self {
             boot,
             state,
+            history: History::new(),
             update_fn,
             view_fn,
             metadata,
@@ -60,30 +63,34 @@ where
     }
 }
 
-impl<Boot, State, Msg, IntoTask> Preview for Stateful<Boot, State, Msg, IntoTask>
+impl<Boot, State, Message, IntoTask> Preview for Stateful<Boot, State, Message, IntoTask>
 where
     Boot: Fn() -> State + Send,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + 'static,
-    IntoTask: Into<Task<Msg>>,
+    Message: AnyMessage,
+    IntoTask: Into<Task<Message>>,
 {
-    fn update(&mut self, message: Message) -> Task<Message> {
+    fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
         // Try to downcast the message to the component's message type
-        if let Message::Component(boxed_msg) = message {
-            if let Some(component_msg) = boxed_msg.as_any().downcast_ref::<Msg>() {
-                // Call the update function with the component's message
-                let component_msg = component_msg.clone();
-                let result = (self.update_fn)(&mut self.state, component_msg);
-                let task: Task<Msg> = result.into();
+        if let crate::Message::Component(boxed) = message {
+            if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
+                self.history.push(message.clone());
+                let message = message.clone();
+                let result = (self.update_fn)(&mut self.state, message);
+                let task: Task<Message> = result.into();
 
-                // Map the task's messages back to the preview's Message type
-                return task.map(|msg| Message::Component(Box::new(msg)));
+                // Map the task's messages back to the preview's crate::Message type
+                return task.map(|message| crate::Message::Component(Box::new(message)));
             }
         }
         Task::none()
     }
 
-    fn view(&self) -> Element<'_, Message> {
-        (self.view_fn)(&self.state).map(|msg| Message::Component(Box::new(msg)))
+    fn view(&self) -> Element<'_, crate::Message> {
+        (self.view_fn)(&self.state).map(|message| crate::Message::Component(Box::new(message)))
+    }
+
+    fn history(&self) -> Option<&'_ [String]> {
+        Some(self.history.traces())
     }
 }

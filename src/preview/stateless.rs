@@ -1,21 +1,29 @@
-use crate::{Metadata, Preview};
+use crate::{Metadata, Preview, message::AnyMessage, preview::History};
 use iced::{Element, Task};
 
 /// A stateless preview that renders a view function.
 pub struct Stateless<F, Message>
 where
+    Message: AnyMessage,
     F: Fn() -> Element<'static, Message>,
 {
     view_fn: F,
+    /// The history of messages emitted by the preview.
+    history: History<Message>,
     pub(crate) metadata: Metadata,
 }
 
 impl<F, Message> Stateless<F, Message>
 where
+    Message: AnyMessage,
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
-    pub const fn new(view_fn: F, metadata: Metadata) -> Self {
-        Self { view_fn, metadata }
+    pub fn new(view_fn: F, metadata: Metadata) -> Self {
+        Self {
+            view_fn,
+            history: History::new(),
+            metadata,
+        }
     }
 
     /// Add a description to the preview.
@@ -41,13 +49,23 @@ where
 
 impl<F, Message> Preview for Stateless<F, Message>
 where
+    Message: AnyMessage,
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
-    fn update(&mut self, _message: crate::Message) -> Task<crate::Message> {
+    fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
+        if let crate::Message::Component(boxed) = message {
+            if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
+                self.history.push(message.clone());
+            }
+        }
         Task::none()
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)().map(|_| crate::Message::Noop)
+        (self.view_fn)().map(|message| crate::Message::Component(Box::new(message)))
+    }
+
+    fn history(&self) -> Option<&'_ [String]> {
+        Some(self.history.traces())
     }
 }

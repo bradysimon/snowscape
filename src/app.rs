@@ -1,21 +1,37 @@
 pub use crate::message::Message;
-use crate::{Preview, preview::Descriptor, widget::theme_picker};
+use crate::{
+    Preview,
+    config_tab::ConfigTab,
+    preview::Descriptor,
+    widget::{
+        config_pane, header, preview_area,
+        split::{Strategy, horizontal_split, vertical_split},
+    },
+};
 use iced::{
-    Alignment::Center,
-    Border, Element, Subscription, Task, Theme, system,
+    Element,
+    Length::Fill,
+    Subscription, Task, Theme, border, keyboard, system,
     theme::{self, Base},
-    widget::{rule, space, text_input},
+    widget::{operation, rule, text_input},
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
 
+pub const SEARCH_INPUT_ID: &str = "search_input";
+
 /// The preview app that shows registered previews.
-#[derive(Default)]
 pub struct App {
     /// A custom title for the application window.
     pub(crate) title: Option<String>,
     /// The current search query that filters previews.
     search: String,
+    /// The width of the sidebar.
+    sidebar_width: f32,
+    /// The currently selected configuration tab.
+    config_tab: ConfigTab,
+    /// The height of the configuration pane underneath the preview.
+    config_pane_height: f32,
     /// The list of registered previewable elements.
     descriptors: Vec<Descriptor>,
     /// The index of the selected `descriptor` in the list.
@@ -24,6 +40,22 @@ pub struct App {
     theme: Option<Animated<Theme>>,
     /// The initial theme mode used by the application.
     theme_mode: theme::Mode,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            title: None,
+            search: String::new(),
+            sidebar_width: 250.0,
+            config_tab: ConfigTab::default(),
+            config_pane_height: 200.0,
+            descriptors: Vec::new(),
+            selected_index: None,
+            theme: None,
+            theme_mode: Default::default(),
+        }
+    }
 }
 
 impl App {
@@ -107,17 +139,30 @@ impl App {
                 }
                 Task::none()
             }
+            Message::FocusInput => operation::focus(SEARCH_INPUT_ID),
             Message::ChangeSearch(text) => {
                 self.search = text;
                 Task::none()
             }
-            Message::Component(msg) => {
+            Message::ResizeSidebar(size) => {
+                self.sidebar_width = size;
+                Task::none()
+            }
+            Message::ResizeConfigPane(size) => {
+                self.config_pane_height = size;
+                Task::none()
+            }
+            Message::ChangeConfigTab(tab) => {
+                self.config_tab = tab;
+                Task::none()
+            }
+            Message::Component(message) => {
                 // Forward component messages to the current preview
                 if let Some(descriptor) = self
                     .selected_index
                     .and_then(|index| self.descriptors.get_mut(index))
                 {
-                    descriptor.preview.update(Message::Component(msg))
+                    descriptor.preview.update(Message::Component(message))
                 } else {
                     Task::none()
                 }
@@ -141,17 +186,24 @@ impl App {
     }
 
     pub(crate) fn subscription(&self) -> Subscription<Message> {
-        system::theme_changes().map(Message::ChangeThemeMode)
+        Subscription::batch([
+            system::theme_changes().map(Message::ChangeThemeMode),
+            keyboard::on_key_press(|key, _modifiers| match key.as_ref() {
+                keyboard::Key::Character("/") => Some(Message::FocusInput),
+                _ => None,
+            }),
+        ])
     }
 
     pub(crate) fn view(&self) -> Element<'_, Message> {
-        use iced::widget::{button, column, container, row, scrollable, text};
-        use iced::{Alignment, Length};
+        use iced::widget::{button, column, container, scrollable, text};
 
+        let visible_previews: Vec<_> = self.visible_previews().collect();
         // Build sidebar with preview list
         let mut sidebar = column![
-            text("Previews").size(18),
-            text_input("Search previews", &self.search)
+            text(format!("Previews ({})", visible_previews.len())).size(18),
+            text_input("Search previews ('/' to focus)", &self.search)
+                .id(SEARCH_INPUT_ID)
                 .on_input(Message::ChangeSearch)
                 .style(|theme, status| {
                     let default = text_input::default(theme, status);
@@ -173,14 +225,13 @@ impl App {
         .spacing(10)
         .padding(10);
 
-        let mut sidebar_items = column![];
+        let mut sidebar_items = vec![];
 
-        // TODO: Filter descriptors based on search query
-        for (index, descriptor) in self.descriptors.iter().enumerate() {
+        for (index, descriptor) in visible_previews {
             let is_selected = Some(index) == self.selected_index;
 
             let btn = button(text(&descriptor.metadata.label).size(14))
-                .width(Length::Fill)
+                .width(Fill)
                 .on_press(Message::SelectPreview(index))
                 .style(move |theme, status| {
                     let base = button::primary(theme, status);
@@ -188,7 +239,7 @@ impl App {
                         button::Style {
                             background: Some(theme.extended_palette().primary.base.color.into()),
                             text_color: theme.extended_palette().primary.base.text,
-                            border: Border::default().rounded(4),
+                            border: border::rounded(4),
                             ..base
                         }
                     } else {
@@ -205,68 +256,65 @@ impl App {
                         button::Style {
                             background: pair.map(|p| p.color.into()),
                             text_color: pair.map(|p| p.text).unwrap_or(default.text_color),
-                            border: Border::default().rounded(4),
+                            border: border::rounded(4),
                             ..default
                         }
                     }
                 });
 
-            sidebar_items = sidebar_items.push(btn);
+            sidebar_items.push(btn);
         }
 
-        sidebar = sidebar.push(sidebar_items);
+        if sidebar_items.is_empty() {
+            sidebar = sidebar.push(text("No previews found").size(14));
+        } else {
+            sidebar = sidebar.push(
+                sidebar_items
+                    .into_iter()
+                    .fold(column![], |col, btn| col.push(btn)),
+            );
+        }
+
         let sidebar = container(scrollable(sidebar))
-            .width(250)
-            .height(Length::Fill)
+            .width(Fill)
+            .height(Fill)
             .style(|theme: &Theme| container::Style {
                 background: Some(theme.extended_palette().background.weak.color.into()),
-                border: iced::Border {
-                    color: theme.extended_palette().background.strong.color,
-                    width: 1.0,
-                    ..Default::default()
-                },
                 ..Default::default()
             });
 
         // Build preview area
         let preview_content = container(
             column![
-                row![
-                    if let Some(index) = self.selected_index {
-                        Some(
-                            container(text(&self.descriptors[index].metadata.label))
-                                .width(Length::Fill),
-                        )
-                    } else {
-                        None
-                    },
-                    space::horizontal(),
-                    theme_picker(self.theme.as_ref().map(|t| t.target().clone())),
-                ]
-                .align_y(Center)
-                .padding(10),
+                header(
+                    self.selected_index
+                        .and_then(|index| self.descriptors.get(index)),
+                    &self.theme,
+                ),
                 rule::horizontal(1).style(rule::weak),
-                container(if let Some(preview) = &self.current_preview() {
-                    preview.view()
-                } else {
-                    // TODO: Improve placeholder view
-                    text("No preview selected").into()
-                })
-                .padding(20)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill)
+                horizontal_split(
+                    preview_area(self.current_preview()),
+                    self.selected_index
+                        .and_then(|index| self.descriptors.get(index))
+                        .map(|descriptor| { config_pane(descriptor, self.config_tab) }),
+                    self.config_pane_height,
+                    Message::ResizeConfigPane,
+                )
+                .strategy(Strategy::End)
             ]
             .spacing(0),
         )
-        .width(Length::Fill)
-        .height(Length::Fill);
+        .width(Fill)
+        .height(Fill);
 
         // Combine sidebar and preview
-        let page = row![sidebar, preview_content]
-            .spacing(0)
-            .align_y(Alignment::Start);
+        let page = vertical_split(
+            sidebar,
+            preview_content,
+            self.sidebar_width,
+            Message::ResizeSidebar,
+        )
+        .strategy(Strategy::Start);
 
         if let Some(theme) = self.theme.as_ref() {
             Animation::new(theme, page)
@@ -275,6 +323,15 @@ impl App {
         } else {
             page.into()
         }
+    }
+
+    /// Returns an iterator over the previews that match the current search query.
+    fn visible_previews(&self) -> impl Iterator<Item = (usize, &Descriptor)> {
+        let query = self.search.trim().to_lowercase();
+        self.descriptors
+            .iter()
+            .enumerate()
+            .filter(move |(_, descriptor)| descriptor.metadata.matches(&query))
     }
 }
 

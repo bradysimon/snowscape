@@ -39,4 +39,32 @@ impl Metadata {
         self.tags = tags;
         self
     }
+
+    /// Checks if the metadata matches the given search `query`.
+    /// Assumes the `query` is already in lowercase.
+    pub(crate) fn matches(&self, query: &str) -> bool {
+        if self.label.to_lowercase().contains(query) {
+            return true;
+        }
+
+        if let Some(description) = &self.description {
+            if description.to_lowercase().contains(query) {
+                return true;
+            }
+        }
+
+        if let Some(group) = &self.group {
+            if group.to_lowercase().contains(query) {
+                return true;
+            }
+        }
+
+        for tag in &self.tags {
+            if tag.to_lowercase().contains(query) {
+                return true;
+            }
+        }
+
+        false
+    }
 }

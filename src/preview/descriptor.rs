@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     Metadata, Preview,
+    message::AnyMessage,
     preview::{Stateful, Stateless},
 };
 
@@ -54,7 +55,7 @@ impl Debug for Descriptor {
 impl<F, Message> From<Stateless<F, Message>> for Descriptor
 where
     F: Fn() -> iced::Element<'static, Message> + Send + 'static,
-    Message: Send + Sync + std::any::Any + 'static,
+    Message: AnyMessage,
 {
     fn from(stateless: Stateless<F, Message>) -> Self {
         Self {
@@ -64,14 +65,14 @@ where
     }
 }
 
-impl<Boot, State, Msg, IntoTask> From<Stateful<Boot, State, Msg, IntoTask>> for Descriptor
+impl<Boot, State, Message, IntoTask> From<Stateful<Boot, State, Message, IntoTask>> for Descriptor
 where
     Boot: Fn() -> State + Send + 'static,
     State: Send + 'static,
-    Msg: Send + Sync + std::any::Any + Clone + 'static,
-    IntoTask: Into<iced::Task<Msg>> + 'static,
+    Message: AnyMessage,
+    IntoTask: Into<iced::Task<Message>> + 'static,
 {
-    fn from(stateful: Stateful<Boot, State, Msg, IntoTask>) -> Self {
+    fn from(stateful: Stateful<Boot, State, Message, IntoTask>) -> Self {
         Self {
             metadata: stateful.metadata.clone(),
             preview: Box::new(stateful),
