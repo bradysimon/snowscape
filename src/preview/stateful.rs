@@ -104,6 +104,10 @@ where
                 Task::none()
             }
             crate::Message::JumpToPresent => {
+                if self.timeline.is_live() {
+                    return Task::none();
+                }
+
                 let position = self.timeline.position;
                 self.timeline.go_live();
                 self.history
