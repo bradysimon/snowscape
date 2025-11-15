@@ -86,12 +86,17 @@ where
 
                 self.history.push(message.clone());
                 self.timeline.update(self.history.len());
-                let message = message.clone();
-                let result = (self.update_fn)(&mut self.state, message);
-                let task: Task<Message> = result.into();
 
-                // Map the task's messages back to the preview's crate::Message type
-                task.map(|message| crate::Message::Component(Box::new(message)))
+                if self.timeline.is_live() {
+                    let message = message.clone();
+                    let result = (self.update_fn)(&mut self.state, message);
+                    let task: Task<Message> = result.into();
+
+                    // Map the task's messages back to the preview's crate::Message type
+                    task.map(|message| crate::Message::Component(Box::new(message)))
+                } else {
+                    Task::none()
+                }
             }
             crate::Message::TimeTravel(index) => {
                 self.timeline.change_position(index);
@@ -99,7 +104,7 @@ where
                 self.history
                     .messages
                     .iter()
-                    .take(self.timeline.position as usize)
+                    .take(self.timeline.position() as usize)
                     .for_each(|message| _ = (self.update_fn)(&mut self.state, message.clone()));
                 Task::none()
             }
@@ -108,7 +113,7 @@ where
                     return Task::none();
                 }
 
-                let position = self.timeline.position;
+                let position = self.timeline.position();
                 self.timeline.go_live();
                 self.history
                     .messages

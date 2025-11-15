@@ -40,4 +40,9 @@ where
     pub fn len(&self) -> usize {
         self.messages.len()
     }
+
+    /// Returns whether the history is empty.
+    pub fn is_empty(&self) -> bool {
+        self.messages.is_empty()
+    }
 }

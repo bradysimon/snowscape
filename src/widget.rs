@@ -109,14 +109,26 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
     .into()
 }
 
+/// The timeline slider used for time travel in stateful previews.
 fn timeline_slider(timeline: &Timeline) -> Element<'_, Message> {
+    // The label shown on the left of the slider
+    let label = if timeline.is_live() {
+        format!("{}", timeline.position())
+    } else {
+        format!("{} / {}", timeline.position(), timeline.range().end())
+    };
+
+    // Use `1` as a value if the timeline is empty to ensure the slider
+    // still shows the
+    let (value, range) = if timeline.is_empty() {
+        (1, 0..=1)
+    } else {
+        (timeline.position(), timeline.range())
+    };
+
     row![
-        slider(
-            timeline.range.clone(),
-            timeline.position,
-            Message::TimeTravel
-        )
-        .width(200),
+        text(label).size(14),
+        slider(range, value, Message::TimeTravel).width(200),
         live_button(timeline.is_live()),
     ]
     .align_y(Center)
@@ -124,6 +136,7 @@ fn timeline_slider(timeline: &Timeline) -> Element<'_, Message> {
     .into()
 }
 
+/// The "Live" button used to jump to the latest state in the timeline in the [`timeline_slider`].
 fn live_button<'a>(is_live: bool) -> Element<'a, Message> {
     const SIZE: u32 = 6;
     button(
