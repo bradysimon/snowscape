@@ -69,3 +69,12 @@ where
         Some(self.history.traces())
     }
 }
+
+pub fn stateless<F, Message>(label: impl Into<String>, view_fn: F) -> Stateless<F, Message>
+where
+    Message: AnyMessage,
+    F: Fn() -> Element<'static, Message> + Send + 'static,
+{
+    let metadata = crate::Metadata::new(label);
+    Stateless::new(view_fn, metadata)
+}

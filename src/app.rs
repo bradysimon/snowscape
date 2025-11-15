@@ -156,6 +156,26 @@ impl App {
                 self.config_tab = tab;
                 Task::none()
             }
+            Message::TimeTravel(index) => {
+                let Some(descriptor) = self
+                    .selected_index
+                    .and_then(|i| self.descriptors.get_mut(i))
+                else {
+                    return Task::none();
+                };
+
+                descriptor.preview.update(Message::TimeTravel(index))
+            }
+            Message::JumpToPresent => {
+                let Some(descriptor) = self
+                    .selected_index
+                    .and_then(|i| self.descriptors.get_mut(i))
+                else {
+                    return Task::none();
+                };
+
+                descriptor.preview.update(Message::JumpToPresent)
+            }
             Message::Component(message) => {
                 // Forward component messages to the current preview
                 if let Some(descriptor) = self

@@ -35,4 +35,9 @@ where
     pub fn traces(&self) -> &[String] {
         &self.traces
     }
+
+    /// Returns the number of messages in the history.
+    pub fn len(&self) -> usize {
+        self.messages.len()
+    }
 }

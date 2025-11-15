@@ -47,6 +47,10 @@ pub enum Message {
     SelectPreview(usize),
     /// Change the search query.
     ChangeSearch(String),
+    /// Time travel to a previous state in a stateful preview's timeline by index.
+    TimeTravel(u32),
+    /// Jump to the latest state in a stateful preview's timeline.
+    JumpToPresent,
     /// Resize the sidebar to the given pixel size.
     ResizeSidebar(f32),
     /// Resize the configuration pane underneath the preview to the given pixel size.
@@ -68,6 +72,8 @@ impl std::fmt::Debug for Message {
             Self::FocusInput => write!(f, "FocusInput"),
             Self::SelectPreview(arg0) => f.debug_tuple("SelectPreview").field(arg0).finish(),
             Self::ChangeSearch(text) => f.debug_tuple("ChangeSearch").field(text).finish(),
+            Self::TimeTravel(arg0) => f.debug_tuple("TimeTravel").field(arg0).finish(),
+            Self::JumpToPresent => write!(f, "JumpToPresent"),
             Self::ResizeSidebar(arg0) => f.debug_tuple("ResizePreviewPane").field(arg0).finish(),
             Self::ResizeConfigPane(arg0) => f.debug_tuple("ResizeConfigPane").field(arg0).finish(),
             Self::ChangeConfigTab(arg0) => f.debug_tuple("ChangeConfigTab").field(arg0).finish(),

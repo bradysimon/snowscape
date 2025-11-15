@@ -7,7 +7,8 @@ use iced::{
     Theme, border,
     overlay::menu,
     widget::{
-        button, column, container, pick_list, row, scrollable, space, text, text::IntoFragment,
+        button, column, container, pick_list, row, scrollable, slider, space, text,
+        text::IntoFragment,
     },
 };
 use iced_anim::Animated;
@@ -16,7 +17,7 @@ use crate::{
     config_tab::ConfigTab,
     message::Message,
     metadata::Metadata,
-    preview::{Descriptor, Preview},
+    preview::{Descriptor, Preview, Timeline},
 };
 
 /// The theme picker dropdown shown in the header.
@@ -81,14 +82,22 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
     };
     container(
         column![
-            config_tabs(
-                tab,
+            row![
+                config_tabs(
+                    tab,
+                    descriptor
+                        .preview
+                        .history()
+                        .map(|h| h.len())
+                        .unwrap_or_default()
+                ),
+                space::horizontal(),
                 descriptor
                     .preview
-                    .history()
-                    .map(|h| h.len())
-                    .unwrap_or_default()
-            ),
+                    .timeline()
+                    .map(|timeline| timeline_slider(timeline)),
+            ]
+            .align_y(Center),
             container(content).padding([2, 8])
         ]
         .spacing(4),
@@ -97,6 +106,47 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
     .width(Fill)
     .height(Fill)
     .style(|theme: &Theme| container::background(theme.extended_palette().background.weakest.color))
+    .into()
+}
+
+fn timeline_slider(timeline: &Timeline) -> Element<'_, Message> {
+    row![
+        slider(
+            timeline.range.clone(),
+            timeline.position,
+            Message::TimeTravel
+        )
+        .width(200),
+        live_button(timeline.is_live()),
+    ]
+    .align_y(Center)
+    .spacing(4)
+    .into()
+}
+
+fn live_button<'a>(is_live: bool) -> Element<'a, Message> {
+    const SIZE: u32 = 6;
+    button(
+        row![
+            container(space::horizontal())
+                .width(SIZE)
+                .height(SIZE)
+                .style(move |theme: &Theme| container::Style {
+                    background: if is_live {
+                        Some(theme.extended_palette().danger.base.color.into())
+                    } else {
+                        Some(theme.extended_palette().background.neutral.color.into())
+                    },
+                    border: border::rounded(SIZE / 2),
+                    ..Default::default()
+                }),
+            text("Live").size(14),
+        ]
+        .align_y(Center)
+        .spacing(6),
+    )
+    .on_press(Message::JumpToPresent)
+    .style(button::text)
     .into()
 }
 

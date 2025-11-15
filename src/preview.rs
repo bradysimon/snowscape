@@ -2,14 +2,16 @@ mod descriptor;
 mod history;
 mod stateful;
 mod stateless;
+mod timeline;
+
+use crate::Message;
+use iced::{Element, Task};
 
 pub use descriptor::Descriptor;
 pub use history::History;
-use iced::{Element, Task};
-pub use stateful::Stateful;
-pub use stateless::Stateless;
-
-use crate::{Message, message::AnyMessage};
+pub use stateful::{Stateful, stateful};
+pub use stateless::{Stateless, stateless};
+pub use timeline::Timeline;
 
 /// Trait for preview components that can be displayed in the preview window.
 pub trait Preview: Send {
@@ -24,29 +26,9 @@ pub trait Preview: Send {
     fn history(&self) -> Option<&'_ [String]> {
         None
     }
-}
 
-pub fn stateless<F, Message>(label: impl Into<String>, view_fn: F) -> Stateless<F, Message>
-where
-    Message: AnyMessage,
-    F: Fn() -> Element<'static, Message> + Send + 'static,
-{
-    let metadata = crate::Metadata::new(label);
-    Stateless::new(view_fn, metadata)
-}
-
-pub fn stateful<Boot, State, Message, IntoTask>(
-    label: impl Into<String>,
-    boot: Boot,
-    update_fn: fn(&mut State, Message) -> IntoTask,
-    view_fn: fn(&State) -> Element<'_, Message>,
-) -> Stateful<Boot, State, Message, IntoTask>
-where
-    Boot: Fn() -> State + Send,
-    State: Send + 'static,
-    Message: AnyMessage,
-    IntoTask: Into<Task<Message>>,
-{
-    let metadata = crate::Metadata::new(label);
-    Stateful::new(boot, update_fn, view_fn, metadata)
+    /// The index and range of the message timeline if the preview supports time travel.
+    fn timeline(&self) -> Option<&'_ Timeline> {
+        None
+    }
 }
