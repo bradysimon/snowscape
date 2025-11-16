@@ -74,12 +74,23 @@ pub fn preview_area(preview: Option<&dyn Preview>) -> Element<'_, Message> {
 
 /// The configuration pane shown underneath the preview area.
 pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Message> {
+    // The main content of the config pane
     let content = match tab {
         ConfigTab::About => about_config_pane(&descriptor.metadata),
         ConfigTab::Parameters => parameter_config_pane(),
         ConfigTab::Messages => message_config_pane(descriptor.preview.as_ref()),
         ConfigTab::Performance => performance_config_pane(),
     };
+
+    // Trailing element shown on the right of the config tabs
+    let trailing = match tab {
+        ConfigTab::About | ConfigTab::Parameters | ConfigTab::Performance => None,
+        ConfigTab::Messages => descriptor
+            .preview
+            .timeline()
+            .map(|timeline| timeline_slider(timeline)),
+    };
+
     container(
         column![
             row![
@@ -92,10 +103,7 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
                         .unwrap_or_default()
                 ),
                 space::horizontal(),
-                descriptor
-                    .preview
-                    .timeline()
-                    .map(|timeline| timeline_slider(timeline)),
+                trailing,
             ]
             .align_y(Center),
             container(content).padding([2, 8])
