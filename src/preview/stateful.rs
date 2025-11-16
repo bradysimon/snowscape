@@ -95,6 +95,7 @@ where
                     // Map the task's messages back to the preview's crate::Message type
                     task.map(|message| crate::Message::Component(Box::new(message)))
                 } else {
+                    // TODO: Probably want to return tasks even when time traveling.
                     Task::none()
                 }
             }
@@ -131,11 +132,11 @@ where
     }
 
     fn history(&self) -> Option<&'_ [String]> {
-        Some(self.history.traces())
+        Some(self.history.traces()[..self.timeline.position() as usize].as_ref())
     }
 
-    fn timeline(&self) -> Option<&'_ Timeline> {
-        Some(&self.timeline)
+    fn timeline(&self) -> Option<Timeline> {
+        Some(self.timeline)
     }
 }
 

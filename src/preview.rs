@@ -28,7 +28,7 @@ pub trait Preview: Send {
     }
 
     /// The index and range of the message timeline if the preview supports time travel.
-    fn timeline(&self) -> Option<&'_ Timeline> {
+    fn timeline(&self) -> Option<Timeline> {
         None
     }
 }

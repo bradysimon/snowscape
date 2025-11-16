@@ -110,7 +110,7 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
 }
 
 /// The timeline slider used for time travel in stateful previews.
-fn timeline_slider(timeline: &Timeline) -> Element<'_, Message> {
+fn timeline_slider<'a>(timeline: Timeline) -> Element<'a, Message> {
     // The label shown on the left of the slider
     let label = if timeline.is_live() {
         format!("{}", timeline.position())
