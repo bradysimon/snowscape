@@ -1,16 +1,17 @@
 pub mod split;
 
+use iced::widget::{
+    button, column, container, pick_list, responsive, row, scrollable, slider, space, text,
+};
 use iced::{
     Alignment::Center,
     Element,
     Length::{Fill, Shrink},
     Theme, border,
     overlay::menu,
-    widget::{
-        button, column, container, pick_list, row, scrollable, slider, space, text,
-        text::IntoFragment,
-    },
+    widget::text::IntoFragment,
 };
+use iced::{Length, padding};
 use iced_anim::Animated;
 
 use crate::{
@@ -74,60 +75,60 @@ pub fn preview_area(preview: Option<&dyn Preview>) -> Element<'_, Message> {
 
 /// The configuration pane shown underneath the preview area.
 pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Message> {
-    // The main content of the config pane
-    let content = match tab {
-        ConfigTab::About => about_config_pane(&descriptor.metadata),
-        ConfigTab::Parameters => parameter_config_pane(),
-        ConfigTab::Messages => message_config_pane(descriptor.preview.as_ref()),
-        ConfigTab::Performance => performance_config_pane(),
-    };
+    responsive(move |size| {
+        // The main content of the config pane
+        let content = match tab {
+            ConfigTab::About => about_config_pane(&descriptor.metadata),
+            ConfigTab::Parameters => parameter_config_pane(),
+            ConfigTab::Messages => message_config_pane(descriptor.preview.as_ref()),
+            ConfigTab::Performance => performance_config_pane(),
+        };
 
-    // Trailing element shown on the right of the config tabs
-    let trailing = match tab {
-        ConfigTab::About | ConfigTab::Parameters | ConfigTab::Performance => None,
-        ConfigTab::Messages => descriptor
-            .preview
-            .timeline()
-            .map(|timeline| timeline_slider(timeline)),
-    };
+        let is_horizontal_layout = size.width >= 675.0;
 
-    container(
-        column![
+        // Trailing element shown on the right of the config tabs
+        let trailing = match tab {
+            ConfigTab::About | ConfigTab::Parameters | ConfigTab::Performance => None,
+            ConfigTab::Messages => descriptor
+                .preview
+                .timeline()
+                .map(|timeline| timeline_slider(timeline, !is_horizontal_layout)),
+        };
+
+        // The header containing the config tabs and any trailing elements
+        let header: Element<'_, Message> = if is_horizontal_layout {
             row![
-                config_tabs(
-                    tab,
-                    descriptor
-                        .preview
-                        .history()
-                        .map(|h| h.len())
-                        .unwrap_or_default()
-                ),
+                config_tabs(tab, descriptor.preview.message_count()),
                 space::horizontal(),
                 trailing,
             ]
-            .align_y(Center),
-            container(content).padding([2, 8])
-        ]
-        .spacing(4),
-    )
-    .padding(4)
-    .width(Fill)
-    .height(Fill)
-    .style(|theme: &Theme| container::background(theme.extended_palette().background.weakest.color))
+            .align_y(Center)
+            .into()
+        } else {
+            // Display the config tabs and trailing element vertically on smaller widths
+            column![
+                config_tabs(tab, descriptor.preview.message_count()),
+                trailing,
+            ]
+            .into()
+        };
+
+        container(column![header, container(content).padding([2, 8]).height(Fill)].spacing(4))
+            .padding(4)
+            .width(Fill)
+            .height(Fill)
+            .style(|theme: &Theme| {
+                container::background(theme.extended_palette().background.weakest.color)
+            })
+            .into()
+    })
     .into()
 }
 
 /// The timeline slider used for time travel in stateful previews.
-fn timeline_slider<'a>(timeline: Timeline) -> Element<'a, Message> {
-    // The label shown on the left of the slider
-    let label = if timeline.is_live() {
-        format!("{}", timeline.position())
-    } else {
-        format!("{} / {}", timeline.position(), timeline.range().end())
-    };
-
+fn timeline_slider<'a>(timeline: Timeline, fill: bool) -> Element<'a, Message> {
     // Use `1` as a value if the timeline is empty to ensure the slider
-    // still shows the
+    // still shows the slider at the end of the range when empty.
     let (value, range) = if timeline.is_empty() {
         (1, 0..=1)
     } else {
@@ -135,8 +136,16 @@ fn timeline_slider<'a>(timeline: Timeline) -> Element<'a, Message> {
     };
 
     row![
-        text(label).size(14),
-        slider(range, value, Message::TimeTravel).width(200),
+        container(mini_badge(format!("{}", timeline.position()))).padding(padding::left(if fill {
+            8.0
+        } else {
+            0.0
+        })),
+        slider(range, value, Message::TimeTravel).width(if fill {
+            Fill
+        } else {
+            Length::Fixed(200.0)
+        }),
         live_button(timeline.is_live()),
     ]
     .align_y(Center)
@@ -311,27 +320,24 @@ fn parameter_config_pane<'a>() -> Element<'a, Message> {
     text("Coming soon!").into()
 }
 
+/// The pane containing the list of emitted messages by the preview.
 fn message_config_pane(preview: &dyn Preview) -> Element<'_, Message> {
-    match preview.history() {
-        Some(messages) => {
-            if messages.is_empty() {
-                text("No messages emitted.").into()
-            } else {
-                scrollable(
-                    column(messages.iter().enumerate().map(|(i, message)| {
-                        row![mini_badge(i + 1), text(message)]
-                            .spacing(4)
-                            .align_y(Center)
-                            .into()
-                    }))
+    let messages = preview.visible_messages();
+    if messages.is_empty() {
+        text("No messages emitted.").into()
+    } else {
+        scrollable(
+            column(messages.iter().enumerate().map(|(i, message)| {
+                row![mini_badge(i + 1), text(message)]
                     .spacing(4)
-                    .width(Fill),
-                )
-                .anchor_bottom()
-                .into()
-            }
-        }
-        None => text("No messages available.").into(),
+                    .align_y(Center)
+                    .into()
+            }))
+            .spacing(4)
+            .width(Fill),
+        )
+        .anchor_bottom()
+        .into()
     }
 }
 

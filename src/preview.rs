@@ -21,11 +21,12 @@ pub trait Preview: Send {
     /// Render the preview.
     fn view(&self) -> Element<'_, Message>;
 
-    /// Returns the history of the messages the preview has emitted.
-    /// `None` indicates the preview doesn't support message tracking.
-    fn history(&self) -> Option<&'_ [String]> {
-        None
-    }
+    /// The total number of messages the preview has emitted.
+    fn message_count(&self) -> usize;
+
+    /// Returns the visible history of the messages the preview has emitted.
+    /// This may be a subset of all messages if the preview supports time travel.
+    fn visible_messages(&self) -> &'_ [String];
 
     /// The index and range of the message timeline if the preview supports time travel.
     fn timeline(&self) -> Option<Timeline> {

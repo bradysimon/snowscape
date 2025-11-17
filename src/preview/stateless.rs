@@ -65,8 +65,12 @@ where
         (self.view_fn)().map(|message| crate::Message::Component(Box::new(message)))
     }
 
-    fn history(&self) -> Option<&'_ [String]> {
-        Some(self.history.traces())
+    fn message_count(&self) -> usize {
+        self.history.len()
+    }
+
+    fn visible_messages(&self) -> &'_ [String] {
+        self.history.traces()
     }
 }
 
