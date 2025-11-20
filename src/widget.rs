@@ -1,7 +1,7 @@
 pub mod split;
 
 use iced::widget::{
-    button, column, container, pick_list, responsive, row, scrollable, slider, space, text,
+    button, column, container, pick_list, responsive, row, scrollable, slider, space, svg, text,
 };
 use iced::{
     Alignment::Center,
@@ -46,17 +46,47 @@ pub fn theme_picker<'a>(theme: Option<Theme>) -> Element<'a, Message> {
 }
 
 /// The header shown above the preview area.
-pub fn header<'a>(
-    descriptor: Option<&'a Descriptor>,
-    theme: &'a Option<Animated<Theme>>,
-) -> Element<'a, Message> {
+pub fn header<'a>(theme: &'a Option<Animated<Theme>>) -> Element<'a, Message> {
     row![
-        descriptor.map(|descriptor| container(text(&descriptor.metadata.label)).width(Fill)),
+        reset_button(),
         space::horizontal(),
         theme_picker(theme.as_ref().map(|t| t.target().clone())),
     ]
     .align_y(Center)
     .padding(10)
+    .into()
+}
+
+/// A button to reset the current preview.
+pub fn reset_button<'a>() -> Element<'a, Message> {
+    button(
+        row![
+            crate::icon::refresh()
+                .width(16)
+                .height(16)
+                .style(|theme, _status| svg::Style {
+                    color: Some(theme.palette().text),
+                }),
+            text("Reset").size(14),
+        ]
+        .spacing(6)
+        .align_y(Center),
+    )
+    .on_press(Message::ResetPreview)
+    .style(|theme: &Theme, status| {
+        let pair = match status {
+            button::Status::Hovered => theme.extended_palette().background.weaker,
+            button::Status::Pressed => theme.extended_palette().background.weak,
+            button::Status::Disabled => theme.extended_palette().background.weakest,
+            _ => theme.extended_palette().background.base,
+        };
+        button::Style {
+            background: Some(pair.color.into()),
+            text_color: pair.text,
+            border: border::rounded(4),
+            ..button::text(theme, status)
+        }
+    })
     .into()
 }
 

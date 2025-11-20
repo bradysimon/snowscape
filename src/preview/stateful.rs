@@ -99,6 +99,13 @@ where
                     Task::none()
                 }
             }
+            crate::Message::ResetPreview => {
+                // TODO: Add a refresh button in header to trigger this action.
+                self.state = (self.boot)();
+                self.history = History::new();
+                self.timeline = Timeline::default();
+                Task::none()
+            }
             crate::Message::TimeTravel(index) => {
                 self.timeline.change_position(index);
                 self.state = (self.boot)();

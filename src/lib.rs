@@ -1,5 +1,6 @@
 mod app;
 mod config_tab;
+pub mod icon;
 mod message;
 mod metadata;
 pub mod preview;

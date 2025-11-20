@@ -53,10 +53,16 @@ where
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
-        if let crate::Message::Component(boxed) = message {
-            if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
-                self.history.push(message.clone());
+        match message {
+            crate::Message::Component(boxed) => {
+                if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
+                    self.history.push(message.clone());
+                }
             }
+            crate::app::Message::ResetPreview => {
+                self.history = History::new();
+            }
+            _ => {}
         }
         Task::none()
     }

@@ -139,6 +139,16 @@ impl App {
                 }
                 Task::none()
             }
+            Message::ResetPreview => {
+                let Some(descriptor) = self
+                    .selected_index
+                    .and_then(|i| self.descriptors.get_mut(i))
+                else {
+                    return Task::none();
+                };
+
+                descriptor.preview.update(Message::ResetPreview)
+            }
             Message::FocusInput => operation::focus(SEARCH_INPUT_ID),
             Message::ChangeSearch(text) => {
                 self.search = text;
@@ -306,11 +316,7 @@ impl App {
         // Build preview area
         let preview_content = container(
             column![
-                header(
-                    self.selected_index
-                        .and_then(|index| self.descriptors.get(index)),
-                    &self.theme,
-                ),
+                header(&self.theme),
                 rule::horizontal(1).style(rule::weak),
                 horizontal_split(
                     preview_area(self.current_preview()),
