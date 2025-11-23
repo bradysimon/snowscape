@@ -218,8 +218,9 @@ impl App {
     pub(crate) fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             system::theme_changes().map(Message::ChangeThemeMode),
-            keyboard::on_key_press(|key, _modifiers| match key.as_ref() {
+            keyboard::on_key_press(|key, modifiers| match key.as_ref() {
                 keyboard::Key::Character("/") => Some(Message::FocusInput),
+                keyboard::Key::Character("r") if modifiers.command() => Some(Message::ResetPreview),
                 _ => None,
             }),
         ])
