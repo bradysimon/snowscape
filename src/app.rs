@@ -13,7 +13,7 @@ use iced::{
     Length::Fill,
     Subscription, Task, Theme, border, keyboard, system,
     theme::{self, Base},
-    widget::{operation, rule, text_input},
+    widget::{button, column, container, operation, rule, scrollable, text, text_input},
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
@@ -227,8 +227,6 @@ impl App {
     }
 
     pub(crate) fn view(&self) -> Element<'_, Message> {
-        use iced::widget::{button, column, container, scrollable, text};
-
         let visible_previews: Vec<_> = self.visible_previews().collect();
         // Build sidebar with preview list
         let mut sidebar = column![
