@@ -31,30 +31,6 @@ impl Timeline {
         0..=self.count
     }
 
-    /// Gets the length of the timeline, i.e. the number of messages.
-    pub fn len(&self) -> u32 {
-        self.count
-    }
-
-    /// Updates the timeline to reflect the given number of messages.
-    /// This will only update the current `position` if the timeline is live,
-    /// i.e. the user isn't scrubbing through previous states.
-    pub fn update(&mut self, count: usize) {
-        if self.is_live() {
-            self.position = count as u32;
-        }
-        self.count = count as u32;
-    }
-
-    /// Changes the current position in the timeline to the given `position`
-    /// if it is within the valid range.
-    pub fn change_position(&mut self, position: u32) {
-        if position > self.count {
-            return;
-        }
-        self.position = position;
-    }
-
     /// Whether the timeline is empty, i.e. has no messages.
     pub fn is_empty(&self) -> bool {
         self.count == 0
@@ -64,11 +40,6 @@ impl Timeline {
     /// and seeing the most recent state.
     pub fn is_live(&self) -> bool {
         self.position == self.count
-    }
-
-    /// Jumps the timeline forward to the latest state.
-    pub fn go_live(&mut self) {
-        self.position = self.count;
     }
 }
 
@@ -99,28 +70,5 @@ mod tests {
 
         timeline.position = 3;
         assert!(!timeline.is_live());
-    }
-
-    #[test]
-    fn go_live() {
-        let mut timeline = Timeline::new(2, 5);
-        timeline.go_live();
-        assert_eq!(timeline.position(), 5);
-    }
-
-    /// Changing the position within bounds should update the position.
-    #[test]
-    fn change_position_in_bounds() {
-        let mut timeline = Timeline::new(2, 5);
-        timeline.change_position(3);
-        assert_eq!(timeline.position(), 3);
-    }
-
-    /// Changing the position out of bounds should not modify the position.
-    #[test]
-    fn change_position_out_of_bounds() {
-        let mut timeline = Timeline::new(2, 5);
-        timeline.change_position(6);
-        assert_eq!(timeline.position(), 2);
     }
 }

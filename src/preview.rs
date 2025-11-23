@@ -14,6 +14,9 @@ pub use stateless::{Stateless, stateless};
 pub use timeline::Timeline;
 
 /// Trait for preview components that can be displayed in the preview window.
+///
+/// This must be a trait because the generic parameters (i.e. message types) for previews
+/// can be different per preview, so we need a way to store them in a type-erased manner.
 pub trait Preview: Send {
     /// Update the preview state with a message.
     fn update(&mut self, message: Message) -> Task<Message>;

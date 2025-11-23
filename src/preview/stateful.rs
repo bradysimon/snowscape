@@ -17,7 +17,6 @@ where
     state: State,
     /// The history of messages emitted by the preview.
     history: History<Message>,
-    timeline: Timeline,
     update_fn: fn(&mut State, Message) -> IntoTask,
     view_fn: fn(&State) -> Element<'_, Message>,
     pub(crate) metadata: Metadata,
@@ -41,7 +40,6 @@ where
             boot,
             state,
             history: History::new(),
-            timeline: Timeline::default(),
             update_fn,
             view_fn,
             metadata,
@@ -85,9 +83,7 @@ where
                 };
 
                 self.history.push(message.clone());
-                self.timeline.update(self.history.len());
-
-                if self.timeline.is_live() {
+                if self.history.is_live() {
                     let message = message.clone();
                     let result = (self.update_fn)(&mut self.state, message);
                     let task: Task<Message> = result.into();
@@ -102,31 +98,30 @@ where
             crate::Message::ResetPreview => {
                 // TODO: Add a refresh button in header to trigger this action.
                 self.state = (self.boot)();
-                self.history = History::new();
-                self.timeline = Timeline::default();
+                self.history.reset();
                 Task::none()
             }
             crate::Message::TimeTravel(index) => {
-                self.timeline.change_position(index);
+                self.history.change_position(index as usize);
                 self.state = (self.boot)();
                 self.history
                     .messages
                     .iter()
-                    .take(self.timeline.position() as usize)
+                    .take(self.history.position)
                     .for_each(|message| _ = (self.update_fn)(&mut self.state, message.clone()));
                 Task::none()
             }
             crate::Message::JumpToPresent => {
-                if self.timeline.is_live() {
+                if self.history.is_live() {
                     return Task::none();
                 }
 
-                let position = self.timeline.position();
-                self.timeline.go_live();
+                let position = self.history.position;
+                self.history.go_live();
                 self.history
                     .messages
                     .iter()
-                    .skip(position.saturating_sub(0) as usize)
+                    .skip(position.saturating_sub(0))
                     .for_each(|message| _ = (self.update_fn)(&mut self.state, message.clone()));
                 Task::none()
             }
@@ -143,11 +138,11 @@ where
     }
 
     fn visible_messages(&self) -> &'_ [String] {
-        &self.history.traces()[..self.timeline.position() as usize]
+        self.history.visible_traces()
     }
 
     fn timeline(&self) -> Option<Timeline> {
-        Some(self.timeline)
+        Some(self.history.timeline())
     }
 }
 
