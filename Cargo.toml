@@ -4,14 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-iced = "0.14.0-dev"
-iced_anim = { git = "https://github.com/bradysimon/iced_anim", branch = "iced/master" }
+iced = { workspace = true, features = ["svg"] }
+iced_anim.workspace = true
 
 [workspace]
 members = ["examples/counter"]
 
 [workspace.dependencies]
 iced = "0.14.0-dev"
+iced_anim = { git = "https://github.com/bradysimon/iced_anim", branch = "iced/master" }
 
 [patch.crates-io]
 iced.git = "https://github.com/iced-rs/iced.git"

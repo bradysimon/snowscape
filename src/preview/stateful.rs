@@ -1,4 +1,8 @@
-use crate::{Metadata, Preview, message::AnyMessage, preview::History};
+use crate::{
+    Metadata, Preview,
+    message::AnyMessage,
+    preview::{History, Timeline},
+};
 use iced::{Element, Task};
 
 /// A stateful preview with full update/view cycle.
@@ -71,26 +75,88 @@ where
     IntoTask: Into<Task<Message>>,
 {
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
-        // Try to downcast the message to the component's message type
-        if let crate::Message::Component(boxed) = message {
-            if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
+        match message {
+            crate::Message::Component(boxed) => {
+                // Ignore incoming messages if we're in the past.
+                if !self.history.is_live() {
+                    return Task::none();
+                }
+
+                let Some(message) = boxed.as_any().downcast_ref::<Message>() else {
+                    return Task::none();
+                };
+
                 self.history.push(message.clone());
                 let message = message.clone();
                 let result = (self.update_fn)(&mut self.state, message);
                 let task: Task<Message> = result.into();
 
                 // Map the task's messages back to the preview's crate::Message type
-                return task.map(|message| crate::Message::Component(Box::new(message)));
+                task.map(|message| crate::Message::Component(Box::new(message)))
             }
+            crate::Message::ResetPreview => {
+                // TODO: Add a refresh button in header to trigger this action.
+                self.state = (self.boot)();
+                self.history.reset();
+                Task::none()
+            }
+            crate::Message::TimeTravel(index) => {
+                self.history.change_position(index as usize);
+                self.state = (self.boot)();
+                self.history
+                    .messages
+                    .iter()
+                    .take(self.history.position)
+                    .for_each(|message| _ = (self.update_fn)(&mut self.state, message.clone()));
+                Task::none()
+            }
+            crate::Message::JumpToPresent => {
+                if self.history.is_live() {
+                    return Task::none();
+                }
+
+                let position = self.history.position;
+                self.history.go_live();
+                self.history
+                    .messages
+                    .iter()
+                    .skip(position.saturating_sub(0))
+                    .for_each(|message| _ = (self.update_fn)(&mut self.state, message.clone()));
+                Task::none()
+            }
+            _ => Task::none(),
         }
-        Task::none()
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
         (self.view_fn)(&self.state).map(|message| crate::Message::Component(Box::new(message)))
     }
 
-    fn history(&self) -> Option<&'_ [String]> {
-        Some(self.history.traces())
+    fn message_count(&self) -> usize {
+        self.history.len()
     }
+
+    fn visible_messages(&self) -> &'_ [String] {
+        self.history.visible_traces()
+    }
+
+    fn timeline(&self) -> Option<Timeline> {
+        Some(self.history.timeline())
+    }
+}
+
+pub fn stateful<Boot, State, Message, IntoTask>(
+    label: impl Into<String>,
+    boot: Boot,
+    update_fn: fn(&mut State, Message) -> IntoTask,
+    view_fn: fn(&State) -> Element<'_, Message>,
+) -> Stateful<Boot, State, Message, IntoTask>
+where
+    Boot: Fn() -> State + Send,
+    State: Send + 'static,
+    Message: AnyMessage,
+    IntoTask: Into<Task<Message>>,
+{
+    let metadata = crate::Metadata::new(label);
+    Stateful::new(boot, update_fn, view_fn, metadata)
 }

@@ -53,10 +53,16 @@ where
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
-        if let crate::Message::Component(boxed) = message {
-            if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
-                self.history.push(message.clone());
+        match message {
+            crate::Message::Component(boxed) => {
+                if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
+                    self.history.push(message.clone());
+                }
             }
+            crate::app::Message::ResetPreview => {
+                self.history = History::new();
+            }
+            _ => {}
         }
         Task::none()
     }
@@ -65,7 +71,20 @@ where
         (self.view_fn)().map(|message| crate::Message::Component(Box::new(message)))
     }
 
-    fn history(&self) -> Option<&'_ [String]> {
-        Some(self.history.traces())
+    fn message_count(&self) -> usize {
+        self.history.len()
     }
+
+    fn visible_messages(&self) -> &'_ [String] {
+        self.history.traces()
+    }
+}
+
+pub fn stateless<F, Message>(label: impl Into<String>, view_fn: F) -> Stateless<F, Message>
+where
+    Message: AnyMessage,
+    F: Fn() -> Element<'static, Message> + Send + 'static,
+{
+    let metadata = crate::Metadata::new(label);
+    Stateless::new(view_fn, metadata)
 }

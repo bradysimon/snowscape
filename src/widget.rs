@@ -1,22 +1,24 @@
 pub mod split;
 
+use iced::widget::{
+    button, column, container, pick_list, responsive, row, scrollable, slider, space, svg, text,
+};
 use iced::{
     Alignment::Center,
     Element,
     Length::{Fill, Shrink},
     Theme, border,
     overlay::menu,
-    widget::{
-        button, column, container, pick_list, row, scrollable, space, text, text::IntoFragment,
-    },
+    widget::text::IntoFragment,
 };
+use iced::{Length, padding};
 use iced_anim::Animated;
 
 use crate::{
     config_tab::ConfigTab,
     message::Message,
     metadata::Metadata,
-    preview::{Descriptor, Preview},
+    preview::{Descriptor, Preview, Timeline},
 };
 
 /// The theme picker dropdown shown in the header.
@@ -44,17 +46,47 @@ pub fn theme_picker<'a>(theme: Option<Theme>) -> Element<'a, Message> {
 }
 
 /// The header shown above the preview area.
-pub fn header<'a>(
-    descriptor: Option<&'a Descriptor>,
-    theme: &'a Option<Animated<Theme>>,
-) -> Element<'a, Message> {
+pub fn header<'a>(theme: &'a Option<Animated<Theme>>) -> Element<'a, Message> {
     row![
-        descriptor.map(|descriptor| container(text(&descriptor.metadata.label)).width(Fill)),
+        reset_button(),
         space::horizontal(),
         theme_picker(theme.as_ref().map(|t| t.target().clone())),
     ]
     .align_y(Center)
     .padding(10)
+    .into()
+}
+
+/// A button to reset the current preview.
+pub fn reset_button<'a>() -> Element<'a, Message> {
+    button(
+        row![
+            crate::icon::refresh()
+                .width(16)
+                .height(16)
+                .style(|theme, _status| svg::Style {
+                    color: Some(theme.palette().text),
+                }),
+            text("Reset").size(14),
+        ]
+        .spacing(6)
+        .align_y(Center),
+    )
+    .on_press(Message::ResetPreview)
+    .style(|theme: &Theme, status| {
+        let pair = match status {
+            button::Status::Hovered => theme.extended_palette().background.weaker,
+            button::Status::Pressed => theme.extended_palette().background.weak,
+            button::Status::Disabled => theme.extended_palette().background.weakest,
+            _ => theme.extended_palette().background.base,
+        };
+        button::Style {
+            background: Some(pair.color.into()),
+            text_color: pair.text,
+            border: border::rounded(4),
+            ..button::text(theme, status)
+        }
+    })
     .into()
 }
 
@@ -73,30 +105,108 @@ pub fn preview_area(preview: Option<&dyn Preview>) -> Element<'_, Message> {
 
 /// The configuration pane shown underneath the preview area.
 pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Message> {
-    let content = match tab {
-        ConfigTab::About => about_config_pane(&descriptor.metadata),
-        ConfigTab::Parameters => parameter_config_pane(),
-        ConfigTab::Messages => message_config_pane(descriptor.preview.as_ref()),
-        ConfigTab::Performance => performance_config_pane(),
+    responsive(move |size| {
+        // The main content of the config pane
+        let content = match tab {
+            ConfigTab::About => about_config_pane(&descriptor.metadata),
+            ConfigTab::Parameters => parameter_config_pane(),
+            ConfigTab::Messages => message_config_pane(descriptor.preview.as_ref()),
+            ConfigTab::Performance => performance_config_pane(),
+        };
+
+        let is_horizontal_layout = size.width >= 675.0;
+
+        // Trailing element shown on the right of the config tabs
+        let trailing = match tab {
+            ConfigTab::About | ConfigTab::Parameters | ConfigTab::Performance => None,
+            ConfigTab::Messages => descriptor
+                .preview
+                .timeline()
+                .map(|timeline| timeline_slider(timeline, !is_horizontal_layout)),
+        };
+
+        // The header containing the config tabs and any trailing elements
+        let header: Element<'_, Message> = if is_horizontal_layout {
+            row![
+                config_tabs(tab, descriptor.preview.message_count()),
+                space::horizontal(),
+                trailing,
+            ]
+            .align_y(Center)
+            .into()
+        } else {
+            // Display the config tabs and trailing element vertically on smaller widths
+            column![
+                config_tabs(tab, descriptor.preview.message_count()),
+                trailing,
+            ]
+            .into()
+        };
+
+        container(column![header, container(content).padding([2, 8]).height(Fill)].spacing(4))
+            .padding(4)
+            .width(Fill)
+            .height(Fill)
+            .style(|theme: &Theme| {
+                container::background(theme.extended_palette().background.weakest.color)
+            })
+            .into()
+    })
+    .into()
+}
+
+/// The timeline slider used for time travel in stateful previews.
+fn timeline_slider<'a>(timeline: Timeline, fill: bool) -> Element<'a, Message> {
+    // Use `1` as a value if the timeline is empty to ensure the slider
+    // still shows the slider at the end of the range when empty.
+    let (value, range) = if timeline.is_empty() {
+        (1, 0..=1)
+    } else {
+        (timeline.position(), timeline.range())
     };
-    container(
-        column![
-            config_tabs(
-                tab,
-                descriptor
-                    .preview
-                    .history()
-                    .map(|h| h.len())
-                    .unwrap_or_default()
-            ),
-            container(content).padding([2, 8])
+
+    row![
+        container(mini_badge(format!("{}", timeline.position()))).padding(padding::left(if fill {
+            8.0
+        } else {
+            0.0
+        })),
+        slider(range, value, Message::TimeTravel).width(if fill {
+            Fill
+        } else {
+            Length::Fixed(200.0)
+        }),
+        live_button(timeline.is_live()),
+    ]
+    .align_y(Center)
+    .spacing(4)
+    .into()
+}
+
+/// The "Live" button used to jump to the latest state in the timeline in the [`timeline_slider`].
+fn live_button<'a>(is_live: bool) -> Element<'a, Message> {
+    const SIZE: u32 = 6;
+    button(
+        row![
+            container(space::horizontal())
+                .width(SIZE)
+                .height(SIZE)
+                .style(move |theme: &Theme| container::Style {
+                    background: if is_live {
+                        Some(theme.extended_palette().danger.base.color.into())
+                    } else {
+                        Some(theme.extended_palette().background.neutral.color.into())
+                    },
+                    border: border::rounded(SIZE / 2),
+                    ..Default::default()
+                }),
+            text("Live").size(14),
         ]
-        .spacing(4),
+        .align_y(Center)
+        .spacing(6),
     )
-    .padding(4)
-    .width(Fill)
-    .height(Fill)
-    .style(|theme: &Theme| container::background(theme.extended_palette().background.weakest.color))
+    .on_press(Message::JumpToPresent)
+    .style(button::text)
     .into()
 }
 
@@ -240,27 +350,24 @@ fn parameter_config_pane<'a>() -> Element<'a, Message> {
     text("Coming soon!").into()
 }
 
+/// The pane containing the list of emitted messages by the preview.
 fn message_config_pane(preview: &dyn Preview) -> Element<'_, Message> {
-    match preview.history() {
-        Some(messages) => {
-            if messages.is_empty() {
-                text("No messages emitted.").into()
-            } else {
-                scrollable(
-                    column(messages.iter().enumerate().map(|(i, message)| {
-                        row![mini_badge(i + 1), text(message)]
-                            .spacing(4)
-                            .align_y(Center)
-                            .into()
-                    }))
+    let messages = preview.visible_messages();
+    if messages.is_empty() {
+        text("No messages emitted.").into()
+    } else {
+        scrollable(
+            column(messages.iter().enumerate().map(|(i, message)| {
+                row![mini_badge(i + 1), text(message)]
                     .spacing(4)
-                    .width(Fill),
-                )
-                .anchor_bottom()
-                .into()
-            }
-        }
-        None => text("No messages available.").into(),
+                    .align_y(Center)
+                    .into()
+            }))
+            .spacing(4)
+            .width(Fill),
+        )
+        .anchor_bottom()
+        .into()
     }
 }
 
