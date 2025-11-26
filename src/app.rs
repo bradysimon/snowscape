@@ -88,11 +88,15 @@ impl App {
             .map(|descriptor| descriptor.preview.as_ref())
     }
 
+    /// Sets up the application with the given configuration function.
     pub(crate) fn setup<F>(configure: F) -> (Self, Task<Message>)
     where
         F: Fn(App) -> App,
     {
-        let app = configure(App::default());
+        let mut app = configure(App::default());
+        if !app.descriptors.is_empty() {
+            app.selected_index = Some(0);
+        }
 
         (app, App::initial_theme())
     }
