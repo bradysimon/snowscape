@@ -71,32 +71,6 @@ impl App {
         self
     }
 
-    /// Find a preview by name from the `SNOWSCAPE_PREVIEW` environment variable.
-    ///
-    /// This first looks for exact matches, and if none are found, it looks for partial matches.
-    /// Partial matches may happen when there are multiple stateless previews on the same function.
-    fn find_preview_by_env(descriptors: &[Descriptor]) -> usize {
-        if let Ok(preview_name) = std::env::var("SNOWSCAPE_PREVIEW") {
-            let mut partial_match: Option<usize> = None;
-            for (i, descriptor) in descriptors.iter().enumerate() {
-                if descriptor.metadata.label == preview_name {
-                    return i;
-                } else if descriptor.metadata.label.starts_with(&preview_name)
-                    && partial_match.is_none()
-                {
-                    // Try checking for partial starting matches if no exact match is found.
-                    partial_match = Some(i);
-                }
-            }
-
-            // Use partial match if found
-            if let Some(index) = partial_match {
-                return index;
-            }
-        }
-        0
-    }
-
     /// Gets a task that retrieves the theme mode.
     pub fn initial_theme() -> Task<Message> {
         system::theme().map(Message::ChangeThemeMode)
@@ -119,16 +93,8 @@ impl App {
         F: Fn(App) -> App,
     {
         let app = configure(App::default());
-        // Check for environment variable to auto-select a specific preview
-        let selected_index = App::find_preview_by_env(&app.descriptors);
 
-        (
-            Self {
-                selected_index: Some(selected_index),
-                ..app
-            },
-            App::initial_theme(),
-        )
+        (app, App::initial_theme())
     }
 
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
