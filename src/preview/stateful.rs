@@ -77,23 +77,22 @@ where
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
         match message {
             crate::Message::Component(boxed) => {
-                // Try to downcast the message to the component's message type
+                // Ignore incoming messages if we're in the past.
+                if !self.history.is_live() {
+                    return Task::none();
+                }
+
                 let Some(message) = boxed.as_any().downcast_ref::<Message>() else {
                     return Task::none();
                 };
 
                 self.history.push(message.clone());
-                if self.history.is_live() {
-                    let message = message.clone();
-                    let result = (self.update_fn)(&mut self.state, message);
-                    let task: Task<Message> = result.into();
+                let message = message.clone();
+                let result = (self.update_fn)(&mut self.state, message);
+                let task: Task<Message> = result.into();
 
-                    // Map the task's messages back to the preview's crate::Message type
-                    task.map(|message| crate::Message::Component(Box::new(message)))
-                } else {
-                    // TODO: Probably want to return tasks even when time traveling.
-                    Task::none()
-                }
+                // Map the task's messages back to the preview's crate::Message type
+                task.map(|message| crate::Message::Component(Box::new(message)))
             }
             crate::Message::ResetPreview => {
                 // TODO: Add a refresh button in header to trigger this action.
