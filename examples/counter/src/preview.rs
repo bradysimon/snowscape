@@ -6,8 +6,8 @@ pub fn main() -> iced::Result {
         app.title("My previews")
             .preview(stateless("Label (0)", || label(0)))
             .preview(stateless("Label (42)", || label(42)))
-            .preview(dynamic(100, |count| {
-                stateless("Label", move || label(count))
+            .preview(dynamic(dynamic::text("Content", "Editable"), |content| {
+                stateless("Label", move || label(content))
                     .description("Shows a label for some given content")
             }))
             .preview(stateless("Increment", add_button).group("Button"))

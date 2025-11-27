@@ -42,7 +42,7 @@ pub trait Preview: Send {
     }
 
     /// The parameters for the dynamic preview if applicable.
-    fn params(&self) -> Option<Vec<Param>> {
-        None
+    fn params(&self) -> &[Param] {
+        &[]
     }
 }

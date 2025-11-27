@@ -2,8 +2,12 @@ use iced::{Element, Task};
 
 use crate::preview::Preview;
 
+/// A dynamic preview that supports adjustable parameters.
+/// This allows users to modify certain aspects of the preview at runtime.
 pub struct Dynamic<P: Preview> {
+    /// The parameters the user can adjust.
     params: ParamSet,
+    /// The underlying preview component.
     preview: P,
 }
 
@@ -13,6 +17,12 @@ impl<P: Preview> Preview for Dynamic<P> {
     }
 
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
+        if let crate::Message::ChangeParam(index, value) = message {
+            if let Some(param) = self.params.params.get_mut(index) {
+                param.value = value;
+            }
+            return Task::none();
+        }
         self.preview.update(message)
     }
 
@@ -32,26 +42,52 @@ impl<P: Preview> Preview for Dynamic<P> {
         self.preview.visible_messages()
     }
 
-    fn params(&self) -> Option<Vec<Param>> {
-        self.params.params.clone().into()
+    fn params(&self) -> &[Param] {
+        &self.params.params
     }
 }
 
+pub fn text(name: impl Into<String>, value: impl Into<String>) -> Param {
+    Param::new(name, Value::Text(value.into()))
+}
+
+/// A dynamic parameter value used within [`Param`].
 #[derive(Debug, Clone)]
-pub enum Param {
+pub enum Value {
+    Bool(bool),
     Text(String),
     I32(i32),
 }
 
-impl From<String> for Param {
-    fn from(value: String) -> Self {
-        Param::Text(value)
+/// A dynamic parameter that can be adjusted in the configuration pane.
+#[derive(Debug, Clone)]
+pub struct Param {
+    pub name: String,
+    pub value: Value,
+}
+
+impl Param {
+    pub fn new<N, V>(name: N, value: V) -> Self
+    where
+        N: Into<String>,
+        V: Into<Value>,
+    {
+        Param {
+            name: name.into(),
+            value: value.into(),
+        }
     }
 }
 
-impl From<i32> for Param {
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Value::Text(value)
+    }
+}
+
+impl From<i32> for Value {
     fn from(value: i32) -> Self {
-        Param::I32(value)
+        Value::I32(value)
     }
 }
 

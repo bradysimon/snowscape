@@ -24,7 +24,7 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
         // The main content of the config pane
         let content = match tab {
             ConfigTab::About => about_pane::about_pane(descriptor.metadata()),
-            ConfigTab::Parameters => parameter_pane::parameter_pane(),
+            ConfigTab::Parameters => parameter_pane::parameter_pane(descriptor.preview.params()),
             ConfigTab::Messages => message_pane::message_pane(descriptor.preview.as_ref()),
             ConfigTab::Performance => performance_pane::performance_pane(),
         };

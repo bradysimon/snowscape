@@ -2,7 +2,10 @@ use std::{any::Any, fmt::Debug};
 
 use iced::{Theme, theme};
 
-use crate::config_tab::ConfigTab;
+use crate::{
+    config_tab::ConfigTab,
+    dynamic::{self},
+};
 
 /// Supertrait for messages that can be used in the preview system.
 /// - `Any`: Previews support any type of message via downcasting
@@ -49,6 +52,8 @@ pub enum Message {
     ResetPreview,
     /// Change the search query.
     ChangeSearch(String),
+    /// Change a dynamic parameter's value at some index.
+    ChangeParam(usize, dynamic::Value),
     /// Time travel to a previous state in a stateful preview's timeline by index.
     TimeTravel(u32),
     /// Jump to the latest state in a stateful preview's timeline.
@@ -75,6 +80,11 @@ impl std::fmt::Debug for Message {
             Self::SelectPreview(arg0) => f.debug_tuple("SelectPreview").field(arg0).finish(),
             Self::ResetPreview => write!(f, "ResetPreview"),
             Self::ChangeSearch(text) => f.debug_tuple("ChangeSearch").field(text).finish(),
+            Self::ChangeParam(arg0, arg1) => f
+                .debug_tuple("ChangeParam")
+                .field(arg0)
+                .field(arg1)
+                .finish(),
             Self::TimeTravel(arg0) => f.debug_tuple("TimeTravel").field(arg0).finish(),
             Self::JumpToPresent => write!(f, "JumpToPresent"),
             Self::ResizeSidebar(arg0) => f.debug_tuple("ResizePreviewPane").field(arg0).finish(),

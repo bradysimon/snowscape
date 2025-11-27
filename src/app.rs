@@ -124,6 +124,18 @@ impl App {
                 self.search = text;
                 Task::none()
             }
+            Message::ChangeParam(index, param) => {
+                let Some(descriptor) = self
+                    .selected_index
+                    .and_then(|i| self.descriptors.get_mut(i))
+                else {
+                    return Task::none();
+                };
+
+                descriptor
+                    .preview
+                    .update(Message::ChangeParam(index, param))
+            }
             Message::ResizeSidebar(size) => {
                 self.sidebar_width = size;
                 Task::none()
