@@ -1,29 +1,43 @@
+mod extract_params;
+pub mod param;
+
 use iced::{Element, Task};
 
 use crate::preview::Preview;
+pub use extract_params::ExtractParams;
+pub use param::{Param, boolean, number, text};
+
+/// A function type that generates a preview from given parameters.
+pub type Generate<Params, Preview> = dyn Fn(&Params) -> Preview + Send;
 
 /// A dynamic preview that supports adjustable parameters.
 /// This allows users to modify certain aspects of the preview at runtime.
-pub struct Dynamic<P: Preview> {
-    /// The parameters the user can adjust.
-    params: ParamSet,
+pub struct Dynamic<Params: ExtractParams, P: Preview> {
+    /// The dynamic parameters the user can adjust.
+    params: Params,
+    /// A cached list of params generated from `params` for displaying in the UI.
+    cached_params: Vec<Param>,
+    /// A function to regenerate the preview from parameters.
+    generate: Box<Generate<Params::Values, P>>,
     /// The underlying preview component.
     preview: P,
 }
 
-impl<P: Preview> Preview for Dynamic<P> {
+impl<Params: ExtractParams, P: Preview> Preview for Dynamic<Params, P> {
     fn metadata(&self) -> &crate::Metadata {
         self.preview.metadata()
     }
 
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
         if let crate::Message::ChangeParam(index, value) = message {
-            if let Some(param) = self.params.params.get_mut(index) {
-                param.value = value;
-            }
-            return Task::none();
+            self.params.update_index(index, value);
+            self.cached_params = self.params.to_params();
+            let values = self.params.extract();
+            self.preview = (self.generate)(&values);
+            Task::none()
+        } else {
+            self.preview.update(message)
         }
-        self.preview.update(message)
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
@@ -43,103 +57,59 @@ impl<P: Preview> Preview for Dynamic<P> {
     }
 
     fn params(&self) -> &[Param] {
-        &self.params.params
+        &self.cached_params
     }
 }
 
-pub fn text(name: impl Into<String>, value: impl Into<String>) -> Param {
-    Param::new(name, Value::Text(value.into()))
-}
-
 /// A dynamic parameter value used within [`Param`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Bool(bool),
     Text(String),
     I32(i32),
 }
 
-/// A dynamic parameter that can be adjusted in the configuration pane.
-#[derive(Debug, Clone)]
-pub struct Param {
-    pub name: String,
-    pub value: Value,
-}
-
-impl Param {
-    pub fn new<N, V>(name: N, value: V) -> Self
-    where
-        N: Into<String>,
-        V: Into<Value>,
-    {
-        Param {
-            name: name.into(),
-            value: value.into(),
-        }
-    }
-}
-
-impl From<String> for Value {
-    fn from(value: String) -> Self {
-        Value::Text(value)
-    }
-}
-
-impl From<i32> for Value {
-    fn from(value: i32) -> Self {
-        Value::I32(value)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ParamSet {
-    params: Vec<Param>,
-}
-
-impl<T> From<T> for ParamSet
+/// Create a new dynamic preview with adjustable parameters.
+///
+/// Pass in parameters implementing [`ExtractParams`] and a function that generates
+/// a preview from the extracted parameter values. You typically want to combine this
+/// with the [`crate::stateless`] or [`crate::stateful`] preview functions.
+///
+/// # Example
+/// ```
+/// use snowscape::{dynamic, stateless};
+///
+/// #[derive(Debug, Clone)]
+/// enum Message {}
+///
+/// fn label(content: &str) -> iced::Element<'_, Message> {
+///    iced::widget::text(content).into()
+/// }
+///
+/// fn main() -> iced::Result {
+///     snowscape::run(|app| {
+///         let preview = dynamic(dynamic::text("Content", "Editable"), |content| {
+///             stateless("Label", move || label(&content))
+///                 .description("Shows a label for some given content")
+///         });
+///         app.preview(preview)
+///     })
+/// }
+/// ```
+pub fn dynamic<Params, F, P>(params: Params, generate: F) -> Dynamic<Params, P>
 where
-    T: Into<Param>,
-{
-    fn from(value: T) -> Self {
-        ParamSet {
-            params: vec![value.into()],
-        }
-    }
-}
-
-macro_rules! impl_paramset_from_tuple {
-    ($($T:ident),+) => {
-        impl<$($T),+> From<($($T,)+)> for ParamSet
-        where
-            $($T: Into<Param>,)+
-        {
-            fn from(value: ($($T,)+)) -> Self {
-                #[allow(non_snake_case)]
-                let ($($T,)+) = value;
-                ParamSet {
-                    params: vec![$($T.into(),)+],
-                }
-            }
-        }
-    };
-}
-
-impl_paramset_from_tuple!(T1, T2);
-impl_paramset_from_tuple!(T1, T2, T3);
-impl_paramset_from_tuple!(T1, T2, T3, T4);
-impl_paramset_from_tuple!(T1, T2, T3, T4, T5);
-impl_paramset_from_tuple!(T1, T2, T3, T4, T5, T6);
-impl_paramset_from_tuple!(T1, T2, T3, T4, T5, T6, T7);
-impl_paramset_from_tuple!(T1, T2, T3, T4, T5, T6, T7, T8);
-
-pub fn dynamic<Params, F, P>(params: Params, generate: F) -> Dynamic<P>
-where
-    Params: Into<ParamSet> + Clone + Send,
-    F: Fn(Params) -> P + Send + 'static,
+    Params: ExtractParams,
+    F: Fn(Params::Values) -> P + Send + 'static,
     P: Preview,
 {
-    let preview = generate(params.clone());
-    let params = params.into();
+    let values = params.extract();
+    let preview = generate(values);
+    let cached_params = params.to_params();
 
-    Dynamic { params, preview }
+    Dynamic {
+        params,
+        cached_params,
+        generate: Box::new(move |values| generate(values.clone())),
+        preview,
+    }
 }

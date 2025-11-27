@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     Metadata, Preview,
+    dynamic::ExtractParams,
     message::AnyMessage,
     preview::{Dynamic, Stateful, Stateless},
 };
@@ -57,8 +58,12 @@ where
     }
 }
 
-impl<P: Preview + 'static> From<Dynamic<P>> for Descriptor {
-    fn from(dynamic: Dynamic<P>) -> Self {
+impl<Params, P> From<Dynamic<Params, P>> for Descriptor
+where
+    Params: ExtractParams,
+    P: Preview + 'static,
+{
+    fn from(dynamic: Dynamic<Params, P>) -> Self {
         Self {
             preview: Box::new(dynamic),
         }
