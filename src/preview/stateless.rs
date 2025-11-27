@@ -52,6 +52,10 @@ where
     Message: AnyMessage,
     F: Fn() -> Element<'static, Message> + Send + 'static,
 {
+    fn metadata(&self) -> &crate::Metadata {
+        &self.metadata
+    }
+
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
         match message {
             crate::Message::Component(boxed) => {

@@ -74,6 +74,10 @@ where
     Message: AnyMessage,
     IntoTask: Into<Task<Message>>,
 {
+    fn metadata(&self) -> &crate::Metadata {
+        &self.metadata
+    }
+
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
         match message {
             crate::Message::Component(boxed) => {

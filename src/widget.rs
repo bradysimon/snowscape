@@ -108,7 +108,7 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
     responsive(move |size| {
         // The main content of the config pane
         let content = match tab {
-            ConfigTab::About => about_config_pane(&descriptor.metadata),
+            ConfigTab::About => about_config_pane(descriptor.metadata()),
             ConfigTab::Parameters => parameter_config_pane(),
             ConfigTab::Messages => message_config_pane(descriptor.preview.as_ref()),
             ConfigTab::Performance => performance_config_pane(),

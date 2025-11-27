@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use iced::{
     Alignment::Center,
     Element,
@@ -40,8 +42,8 @@ pub fn minus_button<'a>() -> Element<'a, Message> {
     button("Decrement").on_press(Message::Decrement).into()
 }
 
-pub fn label<'a>(count: i32) -> Element<'a, Message> {
-    text(format!("Count: {}", count)).size(32).into()
+pub fn label<'a>(content: impl Display) -> Element<'a, Message> {
+    text(format!("Count: {}", content)).size(32).into()
 }
 
 // Stateless preview returning a more complex layout

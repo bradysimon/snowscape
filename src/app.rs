@@ -229,7 +229,7 @@ impl App {
         for (index, descriptor) in visible_previews {
             let is_selected = Some(index) == self.selected_index;
 
-            let btn = button(text(&descriptor.metadata.label).size(14))
+            let btn = button(text(&descriptor.metadata().label).size(14))
                 .width(Fill)
                 .on_press(Message::SelectPreview(index))
                 .style(move |theme, status| {
@@ -326,7 +326,7 @@ impl App {
         self.descriptors
             .iter()
             .enumerate()
-            .filter(move |(_, descriptor)| descriptor.metadata.matches(&query))
+            .filter(move |(_, descriptor)| descriptor.metadata().matches(&query))
     }
 }
 
