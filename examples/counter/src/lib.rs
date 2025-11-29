@@ -12,7 +12,7 @@ pub enum Message {
 
 #[derive(Debug, Clone, Default)]
 pub struct App {
-    count: i32,
+    pub count: i32,
 }
 
 impl App {
@@ -53,4 +53,21 @@ pub fn counter(count: i32) -> Element<'static, Message> {
         .spacing(10)
         .padding(20)
         .into()
+}
+
+/// A counter with adjustable labels for the increment and decrement buttons.
+pub fn adjustable_counter<'a>(
+    count: i32,
+    inc_label: &'a str,
+    dec_label: &'a str,
+) -> Element<'a, Message> {
+    column![
+        label(count),
+        button(inc_label).on_press(Message::Increment),
+        button(dec_label).on_press(Message::Decrement)
+    ]
+    .align_x(Center)
+    .spacing(10)
+    .padding(20)
+    .into()
 }

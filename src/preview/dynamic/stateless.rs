@@ -7,6 +7,7 @@ use crate::{
     preview::Preview,
 };
 
+/// A dynamic stateless preview that renders an element based on adjustable parameters.
 pub struct Stateless<Params, F, Message>
 where
     Params: ExtractParams,
@@ -93,6 +94,7 @@ where
     }
 }
 
+/// Create a new dynamic stateless preview with the given label, parameters, and view function.
 pub fn stateless<Params, F, Message>(
     label: impl Into<String>,
     params: Params,
