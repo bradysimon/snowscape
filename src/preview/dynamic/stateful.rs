@@ -183,7 +183,8 @@ where
     }
 }
 
-/// Create a new dynamic stateful preview with the given label, boot function, parameters, update function, and view function.
+/// Create a new dynamic stateful preview, allowing users to adjust parameters
+/// that affect the view at runtime.
 pub fn stateful<Boot, Params, State, Message, IntoTask>(
     label: impl Into<String>,
     params: Params,
