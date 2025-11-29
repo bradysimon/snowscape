@@ -9,7 +9,7 @@ use iced::{Element, Task};
 pub struct Stateful<Boot, State, Message, IntoTask>
 where
     Boot: Fn() -> State,
-    State: Send + 'static,
+    State: Send,
     Message: AnyMessage,
     IntoTask: Into<Task<Message>>,
 {
@@ -25,7 +25,7 @@ where
 impl<Boot, State, Message, IntoTask> Stateful<Boot, State, Message, IntoTask>
 where
     Boot: Fn() -> State + Send,
-    State: Send + 'static,
+    State: Send,
     Message: AnyMessage,
     IntoTask: Into<Task<Message>>,
 {
@@ -70,7 +70,7 @@ where
 impl<Boot, State, Message, IntoTask> Preview for Stateful<Boot, State, Message, IntoTask>
 where
     Boot: Fn() -> State + Send,
-    State: Send + 'static,
+    State: Send,
     Message: AnyMessage,
     IntoTask: Into<Task<Message>>,
 {
@@ -133,7 +133,7 @@ where
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)(&self.state).map(|message| crate::Message::Component(Box::new(message)))
+        (self.view_fn)(&self.state).map(crate::Message::component)
     }
 
     fn message_count(&self) -> usize {
@@ -157,7 +157,7 @@ pub fn stateful<Boot, State, Message, IntoTask>(
 ) -> Stateful<Boot, State, Message, IntoTask>
 where
     Boot: Fn() -> State + Send,
-    State: Send + 'static,
+    State: Send,
     Message: AnyMessage,
     IntoTask: Into<Task<Message>>,
 {

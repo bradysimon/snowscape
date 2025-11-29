@@ -1,9 +1,7 @@
-use std::fmt::Display;
-
 use iced::{
     Alignment::Center,
     Element,
-    widget::{button, column, text},
+    widget::{button, column, text, text::IntoFragment},
 };
 
 #[derive(Debug, Clone)]
@@ -42,8 +40,10 @@ pub fn minus_button<'a>() -> Element<'a, Message> {
     button("Decrement").on_press(Message::Decrement).into()
 }
 
-pub fn label<'a>(content: impl Display) -> Element<'a, Message> {
-    text(format!("Count: {}", content)).size(32).into()
+pub fn label<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
+    text(format!("Count: {}", content.into_fragment()))
+        .size(32)
+        .into()
 }
 
 // Stateless preview returning a more complex layout

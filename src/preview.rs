@@ -9,7 +9,6 @@ use crate::{Message, preview::dynamic::Param};
 use iced::{Element, Task};
 
 pub use descriptor::Descriptor;
-pub use dynamic::{Dynamic, dynamic};
 pub use history::History;
 pub use stateful::{Stateful, stateful};
 pub use stateless::{Stateless, stateless};

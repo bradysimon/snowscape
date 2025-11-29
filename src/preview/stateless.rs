@@ -72,7 +72,7 @@ where
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)().map(|message| crate::Message::Component(Box::new(message)))
+        (self.view_fn)().map(crate::Message::component)
     }
 
     fn message_count(&self) -> usize {

@@ -96,3 +96,10 @@ impl std::fmt::Debug for Message {
         }
     }
 }
+
+impl Message {
+    /// Creates a new boxed [`Message::Component`] from any cloneable message.
+    pub fn component(message: impl AnyClone) -> Self {
+        Self::Component(Box::new(message))
+    }
+}

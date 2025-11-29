@@ -1,11 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{
-    Metadata, Preview,
-    dynamic::ExtractParams,
-    message::AnyMessage,
-    preview::{Dynamic, Stateful, Stateless},
-};
+use crate::{Metadata, Preview};
 
 /// A descriptor for a preview component that can be registered.
 pub struct Descriptor {
@@ -32,40 +27,13 @@ impl Debug for Descriptor {
     }
 }
 
-impl<F, Message> From<Stateless<F, Message>> for Descriptor
+impl<P> From<P> for Descriptor
 where
-    F: Fn() -> iced::Element<'static, Message> + Send + 'static,
-    Message: AnyMessage,
-{
-    fn from(stateless: Stateless<F, Message>) -> Self {
-        Self {
-            preview: Box::new(stateless),
-        }
-    }
-}
-
-impl<Boot, State, Message, IntoTask> From<Stateful<Boot, State, Message, IntoTask>> for Descriptor
-where
-    Boot: Fn() -> State + Send + 'static,
-    State: Send + 'static,
-    Message: AnyMessage,
-    IntoTask: Into<iced::Task<Message>> + 'static,
-{
-    fn from(stateful: Stateful<Boot, State, Message, IntoTask>) -> Self {
-        Self {
-            preview: Box::new(stateful),
-        }
-    }
-}
-
-impl<Params, P> From<Dynamic<Params, P>> for Descriptor
-where
-    Params: ExtractParams,
     P: Preview + 'static,
 {
-    fn from(dynamic: Dynamic<Params, P>) -> Self {
+    fn from(preview: P) -> Self {
         Self {
-            preview: Box::new(dynamic),
+            preview: Box::new(preview),
         }
     }
 }
