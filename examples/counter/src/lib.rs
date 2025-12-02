@@ -71,3 +71,20 @@ pub fn adjustable_counter<'a>(
     .padding(20)
     .into()
 }
+
+/// A view that takes in various parameters intended to show off how dynamic parameters work.
+pub fn adjustable_view(label: &str, number: i32, toggle: bool) -> Element<'_, ()> {
+    column![
+        text(label).size(30),
+        text(number),
+        text(if toggle {
+            "The toggle is ON"
+        } else {
+            "The toggle is OFF"
+        }),
+    ]
+    .align_x(Center)
+    .spacing(20)
+    .padding(20)
+    .into()
+}

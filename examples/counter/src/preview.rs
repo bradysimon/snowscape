@@ -1,4 +1,4 @@
-use counter::{App, add_button, adjustable_counter, label, minus_button};
+use counter::{App, add_button, adjustable_counter, adjustable_view, label, minus_button};
 use snowscape::{dynamic, stateful, stateless};
 
 pub fn main() -> iced::Result {
@@ -29,6 +29,15 @@ pub fn main() -> iced::Result {
                     let (inc_label, dec_label) = params;
                     adjustable_counter(state.count, inc_label, dec_label)
                 },
+            ))
+            .preview(dynamic::stateless(
+                "All dynamic params",
+                (
+                    dynamic::text("Label", "The meaning of life"),
+                    dynamic::number("The magic number", 42),
+                    dynamic::boolean("A toggle", true),
+                ),
+                |(label, number, toggle)| adjustable_view(label, *number, *toggle),
             ))
     })
 }
