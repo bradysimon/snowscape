@@ -69,6 +69,7 @@ pub fn field(param: &Param, index: usize) -> Element<'_, Message> {
             .into(),
         Value::Text(ref value) => text_input(&param.name, value)
             .on_input(move |value| Message::ChangeParam(index, Value::Text(value)))
+            .style(input_style)
             .into(),
         Value::I32(number) => text_input(&param.name, &number.to_string())
             .on_input(move |value| {
@@ -78,6 +79,7 @@ pub fn field(param: &Param, index: usize) -> Element<'_, Message> {
                     Message::Noop
                 }
             })
+            .style(input_style)
             .into(),
     }
 }
@@ -90,4 +92,12 @@ pub fn labeled<'a>(
     column![text(label).size(14), element.into()]
         .spacing(2)
         .into()
+}
+
+fn input_style(theme: &Theme, status: text_input::Status) -> text_input::Style {
+    let default = text_input::default(theme, status);
+    text_input::Style {
+        border: default.border.rounded(4),
+        ..default
+    }
 }

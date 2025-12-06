@@ -18,11 +18,15 @@ pub fn badge<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
 }
 
 /// A round badge typically showing a number, e.g. the number of emitted messages.
-pub fn round_badge<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
+pub fn round_badge<'a>(content: impl IntoFragment<'a>, is_primary: bool) -> Element<'a, Message> {
     container(text(content).size(10))
         .padding([2, 6])
-        .style(|theme: &Theme| {
-            let pair = theme.extended_palette().primary.base;
+        .style(move |theme: &Theme| {
+            let pair = if is_primary {
+                theme.extended_palette().primary.base
+            } else {
+                theme.extended_palette().background.neutral
+            };
             container::Style {
                 background: Some(pair.color.into()),
                 text_color: Some(pair.text),

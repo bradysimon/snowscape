@@ -43,7 +43,11 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
         // The header containing the config tabs and any trailing elements
         let header: Element<'_, Message> = if is_horizontal_layout {
             row![
-                config_tabs(tab, descriptor.preview.message_count()),
+                config_tabs(
+                    tab,
+                    descriptor.preview.params().len(),
+                    descriptor.preview.message_count()
+                ),
                 space::horizontal(),
                 trailing,
             ]
@@ -52,7 +56,11 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
         } else {
             // Display the config tabs and trailing element vertically on smaller widths
             column![
-                config_tabs(tab, descriptor.preview.message_count()),
+                config_tabs(
+                    tab,
+                    descriptor.preview.params().len(),
+                    descriptor.preview.message_count()
+                ),
                 trailing,
             ]
             .into()
@@ -126,29 +134,35 @@ fn live_button<'a>(is_live: bool) -> Element<'a, Message> {
 }
 
 /// The configuration tabs shown in the configuration pane.
-fn config_tabs<'a>(selected_tab: ConfigTab, messages: usize) -> Element<'a, Message> {
+fn config_tabs<'a>(
+    selected_tab: ConfigTab,
+    params: usize,
+    messages: usize,
+) -> Element<'a, Message> {
     row(ConfigTab::ALL.iter().map(|&variant| {
         let is_selected = variant == selected_tab;
-        config_tab(
-            variant,
-            is_selected,
-            if variant == ConfigTab::Messages {
-                Some(messages)
-            } else {
-                None
-            },
-        )
+        config_tab(variant, is_selected, params, messages)
     }))
     .into()
 }
 
 /// A tab button used within [`config_tabs`].
-fn config_tab<'a>(tab: ConfigTab, selected: bool, count: Option<usize>) -> Element<'a, Message> {
+fn config_tab<'a>(
+    tab: ConfigTab,
+    selected: bool,
+    params: usize,
+    messages: usize,
+) -> Element<'a, Message> {
     let label = match tab {
         ConfigTab::About => "About",
         ConfigTab::Parameters => "Parameters",
         ConfigTab::Messages => "Messages",
         ConfigTab::Performance => "Performance",
+    };
+    let badge_info = match tab {
+        ConfigTab::Messages if messages > 0 => Some((messages, true)),
+        ConfigTab::Parameters if params > 0 => Some((params, false)),
+        _ => None,
     };
 
     button(
@@ -156,7 +170,7 @@ fn config_tab<'a>(tab: ConfigTab, selected: bool, count: Option<usize>) -> Eleme
             container(
                 row![
                     text(label).size(14),
-                    count.filter(|&c| c > 0).map(round_badge)
+                    badge_info.map(|(count, primary)| round_badge(count, primary)),
                 ]
                 .spacing(4)
                 .align_y(Center)
