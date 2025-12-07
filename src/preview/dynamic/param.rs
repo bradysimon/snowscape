@@ -149,6 +149,13 @@ impl DynamicParam for BoolParam {
 }
 
 /// Create a dynamic text parameter.
+///
+/// # Example
+///
+/// ```
+/// use snowscape::dynamic;
+/// let title = dynamic::text("Title", "Hello, World!");
+/// ```
 pub fn text(name: impl Into<String>, value: impl Into<String>) -> TextParam {
     TextParam {
         name: name.into(),
@@ -157,6 +164,13 @@ pub fn text(name: impl Into<String>, value: impl Into<String>) -> TextParam {
 }
 
 /// Create a dynamic number parameter.
+///
+/// # Example
+///
+/// ```
+/// use snowscape::dynamic;
+/// let font_size = dynamic::number("Font Size", 24);
+/// ```
 pub fn number(name: impl Into<String>, value: i32) -> NumberParam {
     NumberParam {
         name: name.into(),
@@ -165,6 +179,13 @@ pub fn number(name: impl Into<String>, value: i32) -> NumberParam {
 }
 
 /// Create a dynamic boolean parameter.
+///
+/// # Example
+///
+/// ```
+/// use snowscape::dynamic;
+/// let is_enabled = dynamic::boolean("Enabled", true);
+/// ```
 pub fn boolean(name: impl Into<String>, value: bool) -> BoolParam {
     BoolParam {
         name: name.into(),
@@ -221,11 +242,26 @@ where
 ///
 /// # Example
 ///
-/// ```ignore
-/// #[derive(Debug, Clone, PartialEq, Display)]
+/// ```
+/// use snowscape::dynamic;
+/// #[derive(Debug, Clone, PartialEq)]
 /// enum Alignment { Left, Center, Right }
 ///
-/// let param = select("Alignment", &[Alignment::Left, Alignment::Center, Alignment::Right], Alignment::Center);
+/// impl std::fmt::Display for Alignment {
+///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+///         match self {
+///             Alignment::Left => write!(f, "Left"),
+///             Alignment::Center => write!(f, "Center"),
+///             Alignment::Right => write!(f, "Right"),
+///         }
+///     }
+/// }
+///
+/// let alignment = dynamic::select(
+///     "Alignment",
+///     &[Alignment::Left, Alignment::Center, Alignment::Right],
+///     Alignment::Center
+/// );
 /// ```
 pub fn select<T>(name: impl Into<String>, options: &[T], default: T) -> SelectParam<T>
 where
@@ -277,8 +313,9 @@ impl DynamicParam for SliderParam {
 ///
 /// # Example
 ///
-/// ```ignore
-/// let padding = slider("Padding", 0.0..=100.0, 16.0);
+/// ```
+/// use snowscape::dynamic;
+/// let padding = dynamic::slider("Padding", 0.0..=100.0, 16.0);
 /// ```
 pub fn slider(name: impl Into<String>, range: RangeInclusive<f32>, default: f32) -> SliderParam {
     SliderParam {
@@ -321,8 +358,9 @@ impl DynamicParam for ColorParam {
 ///
 /// # Example
 ///
-/// ```ignore
-/// let bg_color = color("Background", Color::from_rgb(0.2, 0.4, 0.8));
+/// ```
+/// use snowscape::dynamic;
+/// let bg_color = dynamic::color("Background", iced::Color::from_rgb(0.2, 0.4, 0.8));
 /// ```
 pub fn color(name: impl Into<String>, default: Color) -> ColorParam {
     ColorParam {
@@ -377,20 +415,20 @@ mod tests {
         assert_eq!(param.value(), false);
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    enum Size {
+        Small,
+        Medium,
+        Large,
+    }
+    impl std::fmt::Display for Size {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{:?}", self)
+        }
+    }
+
     #[test]
     fn select_param_basic() {
-        #[derive(Debug, Clone, PartialEq)]
-        enum Size {
-            Small,
-            Medium,
-            Large,
-        }
-        impl std::fmt::Display for Size {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{:?}", self)
-            }
-        }
-
         let param = select(
             "Size",
             &[Size::Small, Size::Medium, Size::Large],
@@ -402,24 +440,12 @@ mod tests {
 
     #[test]
     fn select_param_update() {
-        #[derive(Debug, Clone, PartialEq)]
-        enum Size {
-            Small,
-            Medium,
-            Large,
-        }
-        impl std::fmt::Display for Size {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{:?}", self)
-            }
-        }
-
         let mut param = select(
             "Size",
             &[Size::Small, Size::Medium, Size::Large],
             Size::Small,
         );
-        param.update(Value::Select(2, vec![])); // Update to index 2 (Large)
+        param.update(Value::Select(2, vec![]));
         assert_eq!(param.value(), Size::Large);
     }
 
@@ -437,31 +463,30 @@ mod tests {
         assert_eq!(param.value(), 75.0);
     }
 
+    /// Slider should clamp values to the defined range.
     #[test]
     fn slider_param_clamps() {
         let mut param = slider("Padding", 0.0..=100.0, 50.0);
-        param.update(Value::Slider(150.0, 0.0..=100.0)); // Out of range
-        assert_eq!(param.value(), 100.0); // Clamped to max
+        param.update(Value::Slider(150.0, 0.0..=100.0));
+        assert_eq!(param.value(), 100.0);
     }
 
     #[test]
     fn color_param_basic() {
-        let param = color("Background", Color::from_rgb(1.0, 0.5, 0.0));
+        let red = Color::from_rgb(1.0, 0.0, 0.0);
+        let param = color("Background", red);
         assert_eq!(param.name(), "Background");
-        let c = param.value();
-        assert_eq!(c.r, 1.0);
-        assert_eq!(c.g, 0.5);
-        assert_eq!(c.b, 0.0);
+        let value = param.value();
+        assert_eq!(value, red);
     }
 
     #[test]
     fn color_param_update() {
-        let mut param = color("Background", Color::from_rgb(1.0, 0.5, 0.0));
-        param.update(Value::Color(Color::from_rgba(0.2, 0.4, 0.6, 1.0)));
-        let c = param.value();
-        assert_eq!(c.r, 0.2);
-        assert_eq!(c.g, 0.4);
-        assert_eq!(c.b, 0.6);
-        assert_eq!(c.a, 1.0);
+        let red = Color::from_rgb(1.0, 0.0, 0.0);
+        let blue = Color::from_rgb(0.0, 0.0, 1.0);
+        let mut param = color("Background", red);
+        param.update(Value::Color(blue));
+        let value = param.value();
+        assert_eq!(value, blue);
     }
 }
