@@ -41,9 +41,7 @@ pub fn minus_button<'a>() -> Element<'a, Message> {
 }
 
 pub fn label<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
-    text(format!("Count: {}", content.into_fragment()))
-        .size(32)
-        .into()
+    text!("Count: {}", content.into_fragment()).size(32).into()
 }
 
 // Stateless preview returning a more complex layout
@@ -68,23 +66,6 @@ pub fn adjustable_counter<'a>(
     ]
     .align_x(Center)
     .spacing(10)
-    .padding(20)
-    .into()
-}
-
-/// A view that takes in various parameters intended to show off how dynamic parameters work.
-pub fn adjustable_view(label: &str, number: i32, toggle: bool) -> Element<'_, ()> {
-    column![
-        text(label).size(30),
-        text(number),
-        text(if toggle {
-            "The toggle is ON"
-        } else {
-            "The toggle is OFF"
-        }),
-    ]
-    .align_x(Center)
-    .spacing(20)
     .padding(20)
     .into()
 }

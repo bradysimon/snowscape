@@ -1,13 +1,13 @@
 [package]
-name = "counter"
+name = "dynamic_params"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
-[lib]
-name = "counter"
-path = "src/lib.rs"
-
 [dependencies]
 snowscape = { path = "../.." }
 iced.workspace = true
+
+[lib]
+name = "dynamic_params"
+path = "src/lib.rs"

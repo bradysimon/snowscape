@@ -3,8 +3,11 @@ pub mod param;
 pub mod stateful;
 pub mod stateless;
 
+use std::ops::RangeInclusive;
+
 pub use extract_params::ExtractParams;
-pub use param::{Param, boolean, number, text};
+use iced::Color;
+pub use param::{Param, boolean, color, number, select, slider, text};
 pub use stateful::stateful;
 pub use stateless::stateless;
 
@@ -14,4 +17,10 @@ pub enum Value {
     Bool(bool),
     Text(String),
     I32(i32),
+    /// A selection from a list of options. Stores (selected_index, options).
+    Select(usize, Vec<String>),
+    /// A slider value with range. Stores (current, range).
+    Slider(f32, RangeInclusive<f32>),
+    /// An RGBA color value.
+    Color(Color),
 }

@@ -212,7 +212,7 @@ impl App {
         let visible_previews: Vec<_> = self.visible_previews().collect();
         // Build sidebar with preview list
         let mut sidebar = column![
-            text(format!("Previews ({})", visible_previews.len())).size(18),
+            text!("Previews ({})", visible_previews.len()).size(18),
             text_input("Search previews ('/' to focus)", &self.search)
                 .id(SEARCH_INPUT_ID)
                 .on_input(Message::ChangeSearch)

@@ -8,7 +8,7 @@ iced = { workspace = true, features = ["svg"] }
 iced_anim.workspace = true
 
 [workspace]
-members = ["examples/counter"]
+members = ["examples/counter", "examples/dynamic_params"]
 
 [workspace.dependencies]
 iced = "0.14.0-dev"
