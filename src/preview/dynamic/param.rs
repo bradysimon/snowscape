@@ -1,4 +1,6 @@
-use std::ops::RangeInclusive;
+use std::{fmt::Display, ops::RangeInclusive};
+
+use iced::Color;
 
 use crate::dynamic::Value;
 
@@ -227,7 +229,7 @@ where
 /// ```
 pub fn select<T>(name: impl Into<String>, options: &[T], default: T) -> SelectParam<T>
 where
-    T: std::fmt::Display + Clone + PartialEq + Send + 'static,
+    T: Display + Clone + PartialEq,
 {
     let selected_index = options
         .iter()
@@ -286,15 +288,15 @@ pub fn slider(name: impl Into<String>, range: RangeInclusive<f32>, default: f32)
     }
 }
 
-/// A color parameter that produces `iced::Color` values.
+/// A color parameter that produces `Color` values.
 #[derive(Debug, Clone)]
 pub struct ColorParam {
     name: String,
-    color: iced::Color,
+    color: Color,
 }
 
 impl DynamicParam for ColorParam {
-    type Value = iced::Color;
+    type Value = Color;
 
     fn name(&self) -> &str {
         &self.name
@@ -320,9 +322,9 @@ impl DynamicParam for ColorParam {
 /// # Example
 ///
 /// ```ignore
-/// let bg_color = color("Background", iced::Color::from_rgb(0.2, 0.4, 0.8));
+/// let bg_color = color("Background", Color::from_rgb(0.2, 0.4, 0.8));
 /// ```
-pub fn color(name: impl Into<String>, default: iced::Color) -> ColorParam {
+pub fn color(name: impl Into<String>, default: Color) -> ColorParam {
     ColorParam {
         name: name.into(),
         color: default,
@@ -444,7 +446,7 @@ mod tests {
 
     #[test]
     fn color_param_basic() {
-        let param = color("Background", iced::Color::from_rgb(1.0, 0.5, 0.0));
+        let param = color("Background", Color::from_rgb(1.0, 0.5, 0.0));
         assert_eq!(param.name(), "Background");
         let c = param.value();
         assert_eq!(c.r, 1.0);
@@ -454,8 +456,8 @@ mod tests {
 
     #[test]
     fn color_param_update() {
-        let mut param = color("Background", iced::Color::from_rgb(1.0, 0.5, 0.0));
-        param.update(Value::Color(iced::Color::from_rgba(0.2, 0.4, 0.6, 1.0)));
+        let mut param = color("Background", Color::from_rgb(1.0, 0.5, 0.0));
+        param.update(Value::Color(Color::from_rgba(0.2, 0.4, 0.6, 1.0)));
         let c = param.value();
         assert_eq!(c.r, 0.2);
         assert_eq!(c.g, 0.4);
