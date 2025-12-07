@@ -1,8 +1,9 @@
-use iced::Length::FillPortion;
+use iced::Length::{FillPortion, Shrink};
 use iced::widget::{
-    column, pick_list, responsive, row, scrollable, slider, space, table, text, text_input, toggler,
+    button, column, container, pick_list, responsive, row, scrollable, slider, space, table, text,
+    text_input,
 };
-use iced::{Element, Length, Theme};
+use iced::{Element, Length, Theme, border};
 
 use crate::{
     app::Message,
@@ -66,9 +67,9 @@ pub fn vertical_view(params: &[Param]) -> Element<'_, Message> {
 /// Displays an editable field for a dynamic `param`.
 pub fn field(param: &Param, index: usize) -> Element<'_, Message> {
     match &param.value {
-        Value::Bool(active) => toggler(*active)
-            .on_toggle(move |active| Message::ChangeParam(index, Value::Bool(active)))
-            .into(),
+        Value::Bool(active) => boolean_toggle(*active, |active| {
+            Message::ChangeParam(index, Value::Bool(active))
+        }),
         Value::Text(value) => text_input(&param.name, value)
             .on_input(move |value| Message::ChangeParam(index, Value::Text(value)))
             .style(input_style)
@@ -124,6 +125,51 @@ fn input_style(theme: &Theme, status: text_input::Status) -> text_input::Style {
         border: default.border.rounded(4),
         ..default
     }
+}
+
+/// A custom toggle for Booleans that shows true/false labels.
+/// Similar to a segmented button but only for two states.
+fn boolean_toggle<'a, Message: Clone + 'a>(
+    active: bool,
+    message: impl Fn(bool) -> Message,
+) -> Element<'a, Message> {
+    let button_style = |theme: &Theme, status: button::Status, active: bool| {
+        let active_pair = if theme.extended_palette().is_dark {
+            theme.extended_palette().background.strongest
+        } else {
+            theme.extended_palette().background.weakest
+        };
+        button::Style {
+            background: active.then(|| active_pair.color.into()),
+            border: border::rounded(8),
+            text_color: active
+                .then(|| active_pair.text)
+                .unwrap_or(theme.palette().text),
+            ..button::text(theme, status)
+        }
+    };
+
+    container(
+        container(
+            row![
+                button(text("False").size(14))
+                    .on_press(message(false))
+                    .style(move |theme, status| button_style(theme, status, !active)),
+                button(text("True").size(14))
+                    .on_press(message(true))
+                    .style(move |theme, status| button_style(theme, status, active)),
+            ]
+            .width(Shrink)
+            .spacing(0),
+        )
+        .padding(2),
+    )
+    .style(|theme: &Theme| container::Style {
+        background: Some(theme.extended_palette().background.weak.color.into()),
+        border: border::rounded(10),
+        ..Default::default()
+    })
+    .into()
 }
 
 /// A simple color picker with a preview swatch.
