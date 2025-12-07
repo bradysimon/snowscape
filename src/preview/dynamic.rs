@@ -14,13 +14,16 @@ pub use stateless::stateless;
 /// A dynamic parameter value used within [`Param`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// A boolean toggle.
     Bool(bool),
+    /// A customizable text value.
     Text(String),
+    /// A 32-bit integer value.
     I32(i32),
     /// A selection from a list of options. Stores (selected_index, options).
     Select(usize, Vec<String>),
     /// A slider value with range. Stores (current, range).
     Slider(f32, RangeInclusive<f32>),
-    /// An RGBA color value.
+    /// A color value.
     Color(Color),
 }
