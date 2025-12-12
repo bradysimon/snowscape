@@ -149,13 +149,15 @@ fn boolean_toggle<'a, Message: Clone + 'a>(
         }
     };
 
+    // Fixed with to ensure the true/false buttons are consistent
+    const BUTTON_SIZE: f32 = 40.0;
     container(
         container(
             row![
-                button(text("False").size(14))
+                button(text("False").size(14).width(BUTTON_SIZE).center())
                     .on_press(message(false))
                     .style(move |theme, status| button_style(theme, status, !active)),
-                button(text("True").size(14))
+                button(text("True").size(14).width(BUTTON_SIZE).center())
                     .on_press(message(true))
                     .style(move |theme, status| button_style(theme, status, active)),
             ]
