@@ -1,3 +1,4 @@
+use iced::Alignment::Center;
 use iced::Length::{FillPortion, Shrink};
 use iced::widget::{
     button, column, container, pick_list, responsive, row, scrollable, slider, space, table, text,
@@ -5,6 +6,7 @@ use iced::widget::{
 };
 use iced::{Element, Length, Theme, border};
 
+use crate::style;
 use crate::{
     app::Message,
     dynamic::{Param, Value},
@@ -179,7 +181,7 @@ fn color_picker(index: usize, color: iced::Color) -> Element<'static, Message> {
     use iced::widget::container;
     use iced::{Color, border};
 
-    let (r, g, b, a) = (color.r, color.g, color.b, color.a);
+    let [r, g, b, a] = color.into_rgba8();
 
     let color_swatch =
         container(space().width(32).height(32)).style(move |theme: &Theme| container::Style {
@@ -190,35 +192,83 @@ fn color_picker(index: usize, color: iced::Color) -> Element<'static, Message> {
             ..Default::default()
         });
 
-    let color_slider = |label: &'static str, value: f32| {
+    let color_slider = |channel: style::ColorChannel, value: u8| {
         let (r, g, b, a) = (r, g, b, a);
-        row![
-            text(label).size(12).width(16),
-            slider(0.0..=1.0, value, move |v| {
-                let new_color = match label {
-                    "R" => Color::from_rgba(v, g, b, a),
-                    "G" => Color::from_rgba(r, v, b, a),
-                    "B" => Color::from_rgba(r, g, v, a),
-                    "A" => Color::from_rgba(r, g, b, v),
-                    _ => Color::from_rgba(r, g, b, a),
+        let backgrounds = style::channel_slider_backgrounds(channel, r, g, b, a);
+
+        let color_slider = container(
+            slider(0..=255, value, move |v| {
+                let new_color = match channel {
+                    style::ColorChannel::Red => Color::from_rgba8(v, g, b, a as f32 / 255.0),
+                    style::ColorChannel::Green => Color::from_rgba8(r, v, b, a as f32 / 255.0),
+                    style::ColorChannel::Blue => Color::from_rgba8(r, g, v, a as f32 / 255.0),
+                    style::ColorChannel::Alpha => Color::from_rgba8(r, g, b, v as f32 / 255.0),
                 };
                 Message::ChangeParam(index, Value::Color(new_color))
             })
-            .step(0.01)
+            .style(move |theme: &Theme, _status| slider::Style {
+                rail: slider::Rail {
+                    backgrounds,
+                    border: border::rounded(4)
+                        .width(1)
+                        .color(theme.extended_palette().background.weak.color),
+                    width: 6.0,
+                },
+                handle: slider::Handle {
+                    shape: slider::HandleShape::Circle { radius: 8.0 },
+                    background: theme.extended_palette().secondary.base.color.into(),
+                    border_width: 1.0,
+                    border_color: theme.extended_palette().secondary.strong.color,
+                },
+            })
             .width(Length::Fill),
-            text!("{:.0}", value * 255.0).size(12).width(28),
+        )
+        .max_width(400);
+
+        let rgb_input = text_input("", &value.to_string())
+            .on_input(move |v| {
+                if let Ok(num) = v.parse::<u8>() {
+                    let clamped = num.clamp(0, 255);
+                    let new_color = match channel {
+                        style::ColorChannel::Red => {
+                            Color::from_rgba8(clamped, g, b, a as f32 / 255.0)
+                        }
+                        style::ColorChannel::Green => {
+                            Color::from_rgba8(r, clamped, b, a as f32 / 255.0)
+                        }
+                        style::ColorChannel::Blue => {
+                            Color::from_rgba8(r, g, clamped, a as f32 / 255.0)
+                        }
+                        style::ColorChannel::Alpha => {
+                            Color::from_rgba8(r, g, b, clamped as f32 / 255.0)
+                        }
+                    };
+                    Message::ChangeParam(index, Value::Color(new_color))
+                } else {
+                    Message::Noop
+                }
+            })
+            .style(input_style)
+            .size(12)
+            .width(40);
+
+        row![
+            text(channel.letter()).size(12).width(16),
+            color_slider,
+            rgb_input,
         ]
         .spacing(4)
+        .align_y(Center)
     };
 
     column![
         row![
             color_swatch,
             column![
-                color_slider("R", r),
-                color_slider("G", g),
-                color_slider("B", b),
-                color_slider("A", a),
+                color_slider(style::ColorChannel::Red, r),
+                color_slider(style::ColorChannel::Green, g),
+                color_slider(style::ColorChannel::Blue, b),
+                color_slider(style::ColorChannel::Alpha, a),
             ]
             .spacing(2)
             .width(Length::Fill),

@@ -4,6 +4,7 @@ pub mod icon;
 mod message;
 mod metadata;
 pub mod preview;
+pub mod style;
 mod widget;
 
 use app::App;
