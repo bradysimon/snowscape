@@ -1,23 +1,39 @@
-use snowscape::preview::dynamic;
+use iced::Element;
+use iced::widget::{container, space};
+use snowscape::preview::{dynamic, stateless, stateless_with};
 use snowscape::{ConfigTab, widget};
 
 /// Previews various components used within Snowscape.
 fn main() -> iced::Result {
     snowscape::run(|app| {
-        app.title("Snowscape Previews").preview(dynamic::stateless(
-            "Config Tabs",
-            (
-                dynamic::select("Selected Tab", &ConfigTab::ALL, ConfigTab::default()),
-                dynamic::number("Parameter Count", 0),
-                dynamic::number("Message Count", 0),
-            ),
-            |(tab, params, messages)| {
-                widget::config_tabs(
-                    *tab,
-                    usize::try_from(*params).unwrap_or(0),
-                    usize::try_from(*messages).unwrap_or(0),
-                )
-            },
-        ))
+        app.title("Snowscape Previews")
+            .preview(dynamic::stateless(
+                "Config Tabs",
+                (
+                    dynamic::select("Selected Tab", &ConfigTab::ALL, ConfigTab::default()),
+                    dynamic::number("Parameter Count", 0),
+                    dynamic::number("Message Count", 0),
+                ),
+                |(tab, params, messages)| {
+                    widget::config_tabs(
+                        *tab,
+                        usize::try_from(*params).unwrap_or(0),
+                        usize::try_from(*messages).unwrap_or(0),
+                    )
+                },
+            ))
+            .preview(stateless_with(
+                "Preview List",
+                vec![
+                    stateless("Item 1", || -> Element<'static, ()> { space().into() }).into(),
+                    stateless("Item 2", || -> Element<'static, ()> { space().into() }).into(),
+                    stateless("Item 3", || -> Element<'static, ()> { space().into() }).into(),
+                ],
+                |items| {
+                    container(widget::preview_list(items, Some(1)))
+                        .max_width(200)
+                        .into()
+                },
+            ))
     })
 }

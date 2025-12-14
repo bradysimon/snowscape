@@ -11,7 +11,7 @@ use iced::{Element, Task};
 pub use descriptor::Descriptor;
 pub use history::History;
 pub use stateful::{Stateful, stateful};
-pub use stateless::{Stateless, stateless};
+pub use stateless::{Stateless, stateless, stateless_with};
 pub use timeline::Timeline;
 
 /// Trait for preview components that can be displayed in the preview window.
