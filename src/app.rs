@@ -4,16 +4,16 @@ use crate::{
     config_tab::ConfigTab,
     preview::Descriptor,
     widget::{
-        config_pane, header, preview_area,
+        config_pane, header, preview_area, preview_list,
         split::{Strategy, horizontal_split, vertical_split},
     },
 };
 use iced::{
     Element,
     Length::Fill,
-    Subscription, Task, Theme, border, keyboard, system,
+    Subscription, Task, Theme, keyboard, system,
     theme::{self, Base},
-    widget::{button, column, container, operation, rule, scrollable, text, text_input},
+    widget::{column, container, operation, rule, scrollable, text, text_input},
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
@@ -216,7 +216,7 @@ impl App {
     pub(crate) fn view(&self) -> Element<'_, Message> {
         let visible_previews: Vec<_> = self.visible_previews().collect();
         // Build sidebar with preview list
-        let mut sidebar = column![
+        let sidebar = column![
             text!("Previews ({})", visible_previews.len()).size(18),
             text_input("Search previews ('/' to focus)", &self.search)
                 .id(SEARCH_INPUT_ID)
@@ -237,59 +237,10 @@ impl App {
                         ..default
                     }
                 }),
+            preview_list(&self.descriptors, self.selected_index),
         ]
         .spacing(10)
         .padding(10);
-
-        let mut sidebar_items = vec![];
-
-        for (index, descriptor) in visible_previews {
-            let is_selected = Some(index) == self.selected_index;
-
-            let btn = button(text(&descriptor.metadata().label).size(14))
-                .width(Fill)
-                .on_press(Message::SelectPreview(index))
-                .style(move |theme, status| {
-                    let base = button::primary(theme, status);
-                    if is_selected {
-                        button::Style {
-                            background: Some(theme.extended_palette().primary.base.color.into()),
-                            text_color: theme.extended_palette().primary.base.text,
-                            border: border::rounded(4),
-                            ..base
-                        }
-                    } else {
-                        let default = button::text(theme, status);
-                        let pair: Option<theme::palette::Pair> = match status {
-                            button::Status::Hovered => {
-                                Some(theme.extended_palette().background.stronger)
-                            }
-                            button::Status::Pressed => {
-                                Some(theme.extended_palette().background.strongest)
-                            }
-                            _ => None,
-                        };
-                        button::Style {
-                            background: pair.map(|p| p.color.into()),
-                            text_color: pair.map(|p| p.text).unwrap_or(default.text_color),
-                            border: border::rounded(4),
-                            ..default
-                        }
-                    }
-                });
-
-            sidebar_items.push(btn);
-        }
-
-        if sidebar_items.is_empty() {
-            sidebar = sidebar.push(text("No previews found").size(14));
-        } else {
-            sidebar = sidebar.push(
-                sidebar_items
-                    .into_iter()
-                    .fold(column![], |col, btn| col.push(btn)),
-            );
-        }
 
         let sidebar = container(scrollable(sidebar))
             .width(Fill)
