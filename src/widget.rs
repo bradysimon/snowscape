@@ -1,5 +1,5 @@
-mod badge;
-mod config_pane;
+pub mod badge;
+pub mod config_pane;
 pub mod split;
 
 pub use badge::*;

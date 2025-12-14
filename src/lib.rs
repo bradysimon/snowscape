@@ -5,9 +5,12 @@ mod message;
 mod metadata;
 pub mod preview;
 pub mod style;
-mod widget;
+#[doc(hidden)]
+pub mod widget;
 
 use app::App;
+#[doc(hidden)]
+pub use config_tab::ConfigTab;
 use message::Message;
 use metadata::Metadata;
 use preview::Preview;

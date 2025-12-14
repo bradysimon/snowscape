@@ -134,7 +134,7 @@ fn live_button<'a>(is_live: bool) -> Element<'a, Message> {
 }
 
 /// The configuration tabs shown in the configuration pane.
-fn config_tabs<'a>(
+pub fn config_tabs<'a>(
     selected_tab: ConfigTab,
     params: usize,
     messages: usize,
@@ -153,12 +153,6 @@ fn config_tab<'a>(
     params: usize,
     messages: usize,
 ) -> Element<'a, Message> {
-    let label = match tab {
-        ConfigTab::About => "About",
-        ConfigTab::Parameters => "Parameters",
-        ConfigTab::Messages => "Messages",
-        ConfigTab::Performance => "Performance",
-    };
     let badge_info = match tab {
         ConfigTab::Messages if messages > 0 => Some((messages, true)),
         ConfigTab::Parameters if params > 0 => Some((params, false)),
@@ -169,7 +163,7 @@ fn config_tab<'a>(
         column![
             container(
                 row![
-                    text(label).size(14),
+                    text(tab.name()).size(14),
                     badge_info.map(|(count, primary)| round_badge(count, primary)),
                 ]
                 .spacing(4)
