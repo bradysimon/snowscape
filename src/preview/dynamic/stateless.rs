@@ -4,7 +4,7 @@ use crate::{
     dynamic::{ExtractParams, Param},
     message::AnyMessage,
     metadata::Metadata,
-    preview::Preview,
+    preview::{History, Preview},
 };
 
 /// A dynamic stateless preview that renders an element based on adjustable parameters.
@@ -16,6 +16,8 @@ where
 {
     /// Metadata about the preview.
     metadata: Metadata,
+    /// The history of messages emitted by the preview.
+    history: History<Message>,
     /// The dynamic parameters the user can adjust.
     params: Params,
     /// A cached list of params generated from `params` for displaying in the UI.
@@ -64,10 +66,21 @@ where
     }
 
     fn update(&mut self, message: crate::Message) -> Task<crate::Message> {
-        if let crate::Message::ChangeParam(index, param) = message {
-            self.params.update_index(index, param);
-            self.cached_params = self.params.to_params();
-            self.cached_values = self.params.extract();
+        match message {
+            crate::Message::Component(boxed) => {
+                if let Some(message) = boxed.as_any().downcast_ref::<Message>() {
+                    self.history.push(message.clone());
+                }
+            }
+            crate::app::Message::ResetPreview => {
+                self.history = History::new();
+            }
+            crate::Message::ChangeParam(index, param) => {
+                self.params.update_index(index, param);
+                self.cached_params = self.params.to_params();
+                self.cached_values = self.params.extract();
+            }
+            _ => {}
         }
 
         Task::none()
@@ -78,15 +91,15 @@ where
     }
 
     fn message_count(&self) -> usize {
-        0
+        self.history.len()
+    }
+
+    fn visible_messages(&self) -> &'_ [String] {
+        self.history.traces()
     }
 
     fn timeline(&self) -> Option<crate::preview::Timeline> {
         None
-    }
-
-    fn visible_messages(&self) -> &'_ [String] {
-        &[]
     }
 
     fn params(&self) -> &[Param] {
@@ -111,6 +124,7 @@ where
     Stateless {
         metadata,
         params,
+        history: History::new(),
         cached_params,
         cached_values,
         view_fn,
