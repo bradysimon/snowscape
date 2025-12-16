@@ -1,7 +1,7 @@
-mod about_pane;
-mod message_pane;
-mod parameter_pane;
-mod performance_pane;
+pub mod about_pane;
+pub mod message_pane;
+pub mod parameter_pane;
+pub mod performance_pane;
 
 use iced::{
     Alignment::Center,

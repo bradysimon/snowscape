@@ -93,6 +93,7 @@ cargo run --bin preview
 ## Running the examples
 
 You can do `cargo run -p {package_name}` to run any of the included examples.
+You can also do `cargo run --features internal` to see Snowscape's previews.
 
 ## Roadmap
 

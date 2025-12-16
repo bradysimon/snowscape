@@ -1,7 +1,7 @@
 use iced::Element;
 use iced::widget::{container, space};
 use snowscape::preview::{dynamic, stateless, stateless_with};
-use snowscape::{ConfigTab, widget};
+use snowscape::{ConfigTab, Metadata, widget};
 
 /// Previews various components used within Snowscape.
 fn main() -> iced::Result {
@@ -34,6 +34,18 @@ fn main() -> iced::Result {
                         .max_width(200)
                         .into()
                 },
+            ))
+            .preview(stateless_with(
+                "About Pane",
+                Metadata {
+                    label: String::from("A label about a component"),
+                    description: Some(String::from(
+                        "This is a longer description about the component being previewed.",
+                    )),
+                    group: Some(String::from("Group Name")),
+                    tags: vec![String::from("tag1"), String::from("tag2")],
+                },
+                |metadata| widget::config_pane::about_pane::about_pane(&metadata),
             ))
     })
 }

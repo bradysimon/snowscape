@@ -2,17 +2,20 @@ mod app;
 mod config_tab;
 pub mod icon;
 mod message;
-mod metadata;
+pub mod metadata;
 pub mod preview;
 pub mod style;
-#[doc(hidden)]
+
+#[cfg(feature = "internal")]
 pub mod widget;
+#[cfg(not(feature = "internal"))]
+mod widget;
+#[cfg(feature = "internal")]
+pub use crate::config_tab::ConfigTab;
 
 use app::App;
-#[doc(hidden)]
-pub use config_tab::ConfigTab;
 use message::Message;
-use metadata::Metadata;
+pub use metadata::Metadata;
 use preview::Preview;
 pub use preview::{dynamic, stateful, stateless};
 
