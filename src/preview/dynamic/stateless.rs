@@ -8,16 +8,19 @@ use crate::{
 };
 
 /// A dynamic stateless preview that renders an element based on adjustable parameters.
-pub struct Stateless<Params, F, Message>
+pub struct Stateless<Data, Params, F, Message>
 where
+    Data: Send + 'static,
     Params: ExtractParams,
-    F: Fn(&Params::Values) -> Element<'_, Message> + Send,
+    F: for<'a> Fn(&'a Data, &'a Params::Values) -> Element<'a, Message> + Send,
     Message: AnyMessage,
 {
     /// Metadata about the preview.
     metadata: Metadata,
     /// The history of messages emitted by the preview.
     history: History<Message>,
+    /// The owned data that the view function can borrow from.
+    data: Data,
     /// The dynamic parameters the user can adjust.
     params: Params,
     /// A cached list of params generated from `params` for displaying in the UI.
@@ -28,10 +31,11 @@ where
     view_fn: F,
 }
 
-impl<Params, F, Message> Stateless<Params, F, Message>
+impl<Data, Params, F, Message> Stateless<Data, Params, F, Message>
 where
+    Data: Send + 'static,
     Params: ExtractParams,
-    F: Fn(&Params::Values) -> Element<'_, Message> + Send,
+    F: for<'a> Fn(&'a Data, &'a Params::Values) -> Element<'a, Message> + Send,
     Message: AnyMessage,
 {
     /// Add a description to the preview.
@@ -55,10 +59,11 @@ where
     }
 }
 
-impl<Params, F, Message> Preview for Stateless<Params, F, Message>
+impl<Data, Params, F, Message> Preview for Stateless<Data, Params, F, Message>
 where
+    Data: Send + 'static,
     Params: ExtractParams,
-    F: Fn(&Params::Values) -> Element<'_, Message> + Send,
+    F: for<'a> Fn(&'a Data, &'a Params::Values) -> Element<'a, Message> + Send,
     Message: AnyMessage,
 {
     fn metadata(&self) -> &crate::Metadata {
@@ -87,7 +92,7 @@ where
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)(&self.cached_values).map(crate::Message::component)
+        (self.view_fn)(&self.data, &self.cached_values).map(crate::Message::component)
     }
 
     fn message_count(&self) -> usize {
@@ -108,14 +113,66 @@ where
 }
 
 /// Create a new dynamic stateless preview with the given label, parameters, and view function.
+///
+/// This is a convenience wrapper around [`stateless_with`] that doesn't require external data.
 pub fn stateless<Params, F, Message>(
     label: impl Into<String>,
     params: Params,
     view_fn: F,
-) -> Stateless<Params, F, Message>
+) -> Stateless<
+    (),
+    Params,
+    impl for<'a> Fn(&'a (), &'a Params::Values) -> Element<'a, Message> + Send,
+    Message,
+>
 where
     Params: ExtractParams,
-    F: Fn(&Params::Values) -> Element<'_, Message> + Send,
+    F: for<'a> Fn(&'a Params::Values) -> Element<'a, Message> + Send + 'static,
+    Message: AnyMessage,
+{
+    stateless_with(label, (), params, move |_data, params| view_fn(params))
+}
+
+/// Create a new dynamic stateless preview with static data, parameters, and a view function.
+///
+/// This allows you to pass owned data that the view function can borrow from,
+/// along with dynamic parameters that can be adjusted at runtime.
+///
+/// # Example
+///
+/// ```
+/// use snowscape::dynamic;
+/// use iced::{Element, widget::text};
+///
+/// struct Config {
+///     prefix: String,
+/// }
+///
+/// fn config_view<'a>(config: &'a Config, name: &'a str) -> Element<'a, ()> {
+///     text!("{}, {}!", config.prefix, name).into()
+/// }
+///
+/// fn previews() -> iced::Result {
+///     snowscape::run(|app| {
+///         app.preview(dynamic::stateless_with(
+///             "Greeting",
+///             Config { prefix: "Hello".to_string() },
+///             dynamic::text("Name", "World"),
+///             |config, name| config_view(config, name),
+///         ))
+///     })
+/// }
+/// ```
+pub fn stateless_with<Data, Params, F, Message>(
+    label: impl Into<String>,
+    data: Data,
+    params: Params,
+    view_fn: F,
+) -> Stateless<Data, Params, F, Message>
+where
+    Data: Send + 'static,
+    Params: ExtractParams,
+    F: for<'a> Fn(&'a Data, &'a Params::Values) -> Element<'a, Message> + Send,
     Message: AnyMessage,
 {
     let metadata = crate::Metadata::new(label);
@@ -123,6 +180,7 @@ where
     let cached_values = params.extract();
     Stateless {
         metadata,
+        data,
         params,
         history: History::new(),
         cached_params,

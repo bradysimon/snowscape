@@ -1,6 +1,6 @@
 use iced::widget::{container, space};
 use iced::{Color, Element};
-use snowscape::preview::{dynamic, stateless, stateless_with};
+use snowscape::preview::{Descriptor, dynamic, stateful, stateless, stateless_with};
 use snowscape::{ConfigTab, Metadata, widget};
 
 /// Previews various components used within Snowscape.
@@ -47,27 +47,7 @@ fn main() -> iced::Result {
                 },
                 |metadata| widget::config_pane::about_pane::about_pane(&metadata),
             ))
-            .preview(stateless_with(
-                "Parameter Pane",
-                [
-                    dynamic::Param::new("Boolean param", true),
-                    dynamic::Param::new("Text param", String::from("Hello")),
-                    dynamic::Param::new("Number param", 42),
-                    dynamic::Param::new(
-                        "Select param",
-                        dynamic::Value::Select(
-                            0,
-                            vec![String::from("Option 1"), String::from("Option 2")],
-                        ),
-                    ),
-                    dynamic::Param::new("Slider param", dynamic::Value::Slider(50.0, 0.0..=100.0)),
-                    dynamic::Param::new(
-                        "Color param",
-                        dynamic::Value::Color(Color::from_rgba8(0, 178, 255, 1.0)),
-                    ),
-                ],
-                |params| widget::config_pane::parameter_pane::parameter_pane(params),
-            ))
+            .preview(parameter_pane())
             .preview(stateless_with(
                 "Message Pane",
                 [
@@ -79,4 +59,47 @@ fn main() -> iced::Result {
                 |messages| widget::config_pane::message_pane::message_pane(messages),
             ))
     })
+}
+
+/// Previews the parameter pane widget with its own editable state.
+fn parameter_pane() -> impl Into<Descriptor> {
+    struct App {
+        params: Vec<dynamic::Param>,
+    }
+
+    impl App {
+        fn new() -> Self {
+            Self {
+                params: vec![
+                    dynamic::Param::new("Boolean param", true),
+                    dynamic::Param::new("Text param", String::from("Hello")),
+                    dynamic::Param::new("Number param", 42),
+                    dynamic::Param::new("Slider param", dynamic::Value::Slider(50.0, 0.0..=100.0)),
+                    dynamic::Param::new(
+                        "Color param",
+                        dynamic::Value::Color(Color::from_rgba8(0, 178, 255, 1.0)),
+                    ),
+                ],
+            }
+        }
+
+        fn view(&self) -> Element<'_, snowscape::Message> {
+            widget::config_pane::parameter_pane::parameter_pane(&self.params)
+        }
+
+        fn update(&mut self, message: snowscape::Message) {
+            match message {
+                snowscape::Message::ChangeParam(index, value) => {
+                    if let Some(param) = self.params.get_mut(index) {
+                        param.value = value;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    stateful("Parameter Pane", App::new, App::update, App::view).description(
+        "A pane allowing the user to dynamically change parameters that appear within Snowscape",
+    )
 }

@@ -9,7 +9,7 @@ pub use extract_params::ExtractParams;
 use iced::Color;
 pub use param::{Param, boolean, color, number, select, slider, text};
 pub use stateful::stateful;
-pub use stateless::stateless;
+pub use stateless::{stateless, stateless_with};
 
 /// A dynamic parameter value used within [`Param`].
 #[derive(Debug, Clone, PartialEq)]

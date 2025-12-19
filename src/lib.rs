@@ -13,8 +13,12 @@ mod widget;
 #[cfg(feature = "internal")]
 pub use crate::config_tab::ConfigTab;
 
-use app::App;
+#[cfg(not(feature = "internal"))]
 use message::Message;
+#[cfg(feature = "internal")]
+pub use message::Message;
+
+use app::App;
 pub use metadata::Metadata;
 use preview::Preview;
 pub use preview::{dynamic, stateful, stateless};
