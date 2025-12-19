@@ -96,6 +96,9 @@ pub fn field(param: &Param, index: usize) -> Element<'_, Message> {
                     .unwrap_or(0);
                 Message::ChangeParam(index, Value::Select(new_index, options_clone.clone()))
             })
+            .style(crate::style::pick_list::default)
+            .menu_style(crate::style::pick_list::menu)
+            .text_size(14)
             .into()
         }
         Value::Slider(value, range) => row![
@@ -152,15 +155,17 @@ fn boolean_toggle<'a, Message: Clone + 'a>(
     };
 
     // Fixed with to ensure the true/false buttons are consistent
-    const BUTTON_SIZE: f32 = 40.0;
+    const BUTTON_WIDTH: f32 = 40.0;
     container(
         container(
             row![
-                button(text("False").size(14).width(BUTTON_SIZE).center())
+                button(text("False").size(14).width(BUTTON_WIDTH).center())
                     .on_press(message(false))
+                    .padding([4, 6])
                     .style(move |theme, status| button_style(theme, status, !active)),
-                button(text("True").size(14).width(BUTTON_SIZE).center())
+                button(text("True").size(14).width(BUTTON_WIDTH).center())
                     .on_press(message(true))
+                    .padding([4, 6])
                     .style(move |theme, status| button_style(theme, status, active)),
             ]
             .width(Shrink)

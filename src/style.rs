@@ -82,3 +82,25 @@ pub fn channel_slider_backgrounds(
         channel_gradient(current_color, max_color),
     )
 }
+
+pub mod pick_list {
+    use iced::Theme;
+    use iced::widget::overlay::menu;
+    use iced::widget::pick_list;
+
+    pub fn default(theme: &Theme, status: pick_list::Status) -> pick_list::Style {
+        let default = pick_list::default(theme, status);
+        pick_list::Style {
+            border: default.border.rounded(4),
+            ..default
+        }
+    }
+
+    pub fn menu(theme: &Theme) -> menu::Style {
+        let default = menu::default(theme);
+        menu::Style {
+            border: default.border.rounded(4),
+            ..default
+        }
+    }
+}

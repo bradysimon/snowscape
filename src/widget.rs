@@ -7,7 +7,7 @@ pub use config_pane::*;
 
 use iced::theme;
 use iced::widget::{Column, button, container, pick_list, row, space, svg, text};
-use iced::{Alignment::Center, Element, Length::Fill, Theme, border, overlay::menu};
+use iced::{Alignment::Center, Element, Length::Fill, Theme, border};
 use iced_anim::Animated;
 
 use crate::preview::Descriptor;
@@ -20,20 +20,8 @@ pub fn theme_picker<'a>(theme: Option<Theme>) -> Element<'a, Message> {
     })
     .text_size(14)
     .placeholder("System theme")
-    .style(|theme, status| {
-        let default = pick_list::default(theme, status);
-        pick_list::Style {
-            border: default.border.rounded(4),
-            ..default
-        }
-    })
-    .menu_style(|theme| {
-        let default = menu::default(theme);
-        menu::Style {
-            border: default.border.rounded(4),
-            ..default
-        }
-    })
+    .style(crate::style::pick_list::default)
+    .menu_style(crate::style::pick_list::menu)
     .into()
 }
 

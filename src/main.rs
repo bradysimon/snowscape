@@ -1,5 +1,5 @@
-use iced::Element;
 use iced::widget::{container, space};
+use iced::{Color, Element};
 use snowscape::preview::{dynamic, stateless, stateless_with};
 use snowscape::{ConfigTab, Metadata, widget};
 
@@ -59,6 +59,11 @@ fn main() -> iced::Result {
                             0,
                             vec![String::from("Option 1"), String::from("Option 2")],
                         ),
+                    ),
+                    dynamic::Param::new("Slider param", dynamic::Value::Slider(50.0, 0.0..=100.0)),
+                    dynamic::Param::new(
+                        "Color param",
+                        dynamic::Value::Color(Color::from_rgba8(0, 178, 255, 1.0)),
                     ),
                 ],
                 |params| widget::config_pane::parameter_pane::parameter_pane(params),
