@@ -25,7 +25,9 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
         let content = match tab {
             ConfigTab::About => about_pane::about_pane(descriptor.metadata()),
             ConfigTab::Parameters => parameter_pane::parameter_pane(descriptor.preview.params()),
-            ConfigTab::Messages => message_pane::message_pane(descriptor.preview.as_ref()),
+            ConfigTab::Messages => {
+                message_pane::message_pane(descriptor.preview.visible_messages())
+            }
             ConfigTab::Performance => performance_pane::performance_pane(),
         };
 

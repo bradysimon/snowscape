@@ -68,5 +68,15 @@ fn main() -> iced::Result {
                 ],
                 |params| widget::config_pane::parameter_pane::parameter_pane(params),
             ))
+            .preview(stateless_with(
+                "Message Pane",
+                [
+                    String::from("Initialized preview."),
+                    String::from("Parameter 'X' changed to 42."),
+                    String::from("Parameter 'Color' changed to #00B2FF."),
+                    String::from("Preview rendered successfully."),
+                ],
+                |messages| widget::config_pane::message_pane::message_pane(messages),
+            ))
     })
 }

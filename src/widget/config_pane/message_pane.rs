@@ -3,12 +3,11 @@ use iced::Element;
 use iced::Length::Fill;
 use iced::widget::{column, row, scrollable, text};
 
+use crate::app::Message;
 use crate::widget::mini_badge;
-use crate::{app::Message, preview::Preview};
 
 /// The pane containing the list of emitted messages by the preview.
-pub fn message_pane(preview: &dyn Preview) -> Element<'_, Message> {
-    let messages = preview.visible_messages();
+pub fn message_pane(messages: &[String]) -> Element<'_, Message> {
     if messages.is_empty() {
         text("No messages emitted.").into()
     } else {
