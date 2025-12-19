@@ -47,5 +47,21 @@ fn main() -> iced::Result {
                 },
                 |metadata| widget::config_pane::about_pane::about_pane(&metadata),
             ))
+            .preview(stateless_with(
+                "Parameter Pane",
+                [
+                    dynamic::Param::new("Boolean param", true),
+                    dynamic::Param::new("Text param", String::from("Hello")),
+                    dynamic::Param::new("Number param", 42),
+                    dynamic::Param::new(
+                        "Select param",
+                        dynamic::Value::Select(
+                            0,
+                            vec![String::from("Option 1"), String::from("Option 2")],
+                        ),
+                    ),
+                ],
+                |params| widget::config_pane::parameter_pane::parameter_pane(params),
+            ))
     })
 }
