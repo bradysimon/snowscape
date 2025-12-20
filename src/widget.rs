@@ -6,12 +6,15 @@ pub use badge::*;
 pub use config_pane::*;
 
 use iced::theme;
-use iced::widget::{Column, button, container, pick_list, row, space, svg, text};
+use iced::widget::{Column, button, container, pick_list, row, space, svg, text, text_input};
 use iced::{Alignment::Center, Element, Length::Fill, Theme, border};
 use iced_anim::Animated;
 
 use crate::preview::Descriptor;
 use crate::{message::Message, preview::Preview};
+
+/// The ID of the search input field.
+pub const SEARCH_INPUT_ID: &str = "search_input";
 
 /// The theme picker dropdown shown in the header.
 pub fn theme_picker<'a>(theme: Option<Theme>) -> Element<'a, Message> {
@@ -35,6 +38,28 @@ pub fn header<'a>(theme: &'a Option<Animated<Theme>>) -> Element<'a, Message> {
     .align_y(Center)
     .padding(10)
     .into()
+}
+
+/// The search input field shown above the list of previews.
+pub fn search_input(search: &str) -> Element<'_, Message> {
+    text_input("Search previews ('/' to focus)", search)
+        .id(SEARCH_INPUT_ID)
+        .on_input(Message::ChangeSearch)
+        .style(|theme: &Theme, status| {
+            let default = text_input::default(theme, status);
+            let pair = theme.extended_palette().background.strong;
+            text_input::Style {
+                border: match status {
+                    text_input::Status::Active => default.border.rounded(4).color(pair.color),
+                    _ => default.border.rounded(4),
+                },
+                value: pair.text,
+                background: pair.color.into(),
+                placeholder: pair.text.scale_alpha(0.6),
+                ..default
+            }
+        })
+        .into()
 }
 
 /// A button to reset the current preview.
@@ -123,8 +148,8 @@ fn preview_list_item(
             } else {
                 let default = button::text(theme, status);
                 let pair: Option<theme::palette::Pair> = match status {
-                    button::Status::Hovered => Some(theme.extended_palette().background.stronger),
-                    button::Status::Pressed => Some(theme.extended_palette().background.strongest),
+                    button::Status::Hovered => Some(theme.extended_palette().background.strong),
+                    button::Status::Pressed => Some(theme.extended_palette().background.stronger),
                     _ => None,
                 };
                 button::Style {

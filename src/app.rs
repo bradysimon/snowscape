@@ -4,7 +4,7 @@ use crate::{
     config_tab::ConfigTab,
     preview::Descriptor,
     widget::{
-        config_pane, header, preview_area, preview_list,
+        config_pane, header, preview_area, preview_list, search_input,
         split::{Strategy, horizontal_split, vertical_split},
     },
 };
@@ -13,7 +13,7 @@ use iced::{
     Length::Fill,
     Subscription, Task, Theme, keyboard, system,
     theme::{self, Base},
-    widget::{column, container, operation, rule, scrollable, text, text_input},
+    widget::{column, container, operation, rule, scrollable, text},
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
@@ -218,25 +218,7 @@ impl App {
         // Build sidebar with preview list
         let sidebar = column![
             text!("Previews ({})", visible_previews.len()).size(18),
-            text_input("Search previews ('/' to focus)", &self.search)
-                .id(SEARCH_INPUT_ID)
-                .on_input(Message::ChangeSearch)
-                .style(|theme, status| {
-                    let default = text_input::default(theme, status);
-                    let pair = theme.extended_palette().background.stronger;
-                    text_input::Style {
-                        border: match status {
-                            text_input::Status::Active => {
-                                default.border.rounded(4).color(pair.color)
-                            }
-                            _ => default.border.rounded(4),
-                        },
-                        value: pair.text,
-                        background: pair.color.into(),
-                        placeholder: pair.text.scale_alpha(0.6),
-                        ..default
-                    }
-                }),
+            search_input(&self.search),
             preview_list(&self.descriptors, self.selected_index),
         ]
         .spacing(10)
@@ -246,7 +228,7 @@ impl App {
             .width(Fill)
             .height(Fill)
             .style(|theme: &Theme| container::Style {
-                background: Some(theme.extended_palette().background.weak.color.into()),
+                background: Some(theme.extended_palette().background.weaker.color.into()),
                 ..Default::default()
             });
 
