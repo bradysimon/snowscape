@@ -109,10 +109,11 @@ pub fn preview_area(preview: Option<&dyn Preview>) -> Element<'_, Message> {
 }
 
 /// A list of available previews the user can select from to view.
-pub fn preview_list(
-    previews: &[Descriptor],
+pub fn preview_list<'a>(
+    previews: impl IntoIterator<Item = &'a Descriptor>,
     selected_index: Option<usize>,
-) -> Element<'_, Message> {
+) -> Element<'a, Message> {
+    let previews: Vec<&Descriptor> = previews.into_iter().collect();
     if previews.is_empty() {
         text("No previews available").size(14).into()
     } else {

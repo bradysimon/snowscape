@@ -214,12 +214,11 @@ impl App {
     }
 
     pub(crate) fn view(&self) -> Element<'_, Message> {
-        let visible_previews: Vec<_> = self.visible_previews().collect();
         // Build sidebar with preview list
         let sidebar = column![
-            text!("Previews ({})", visible_previews.len()).size(18),
+            text("Previews").size(18),
             search_input(&self.search),
-            preview_list(&self.descriptors, self.selected_index),
+            preview_list(self.visible_previews(), self.selected_index),
         ]
         .spacing(10)
         .padding(10);
@@ -271,12 +270,11 @@ impl App {
     }
 
     /// Returns an iterator over the previews that match the current search query.
-    fn visible_previews(&self) -> impl Iterator<Item = (usize, &Descriptor)> {
+    fn visible_previews(&self) -> impl Iterator<Item = &Descriptor> {
         let query = self.search.trim().to_lowercase();
         self.descriptors
             .iter()
-            .enumerate()
-            .filter(move |(_, descriptor)| descriptor.metadata().matches(&query))
+            .filter(move |descriptor| descriptor.metadata().matches(&query))
     }
 }
 
