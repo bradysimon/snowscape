@@ -20,6 +20,8 @@ where
     metadata: Metadata,
     /// The dynamic parameters the user can adjust.
     params: Params,
+    /// The default parameters for resetting.
+    default_params: Params,
     /// A cached list of params generated from `params` for displaying in the UI.
     cached_params: Vec<Param>,
     /// The cached extracted parameter values.
@@ -56,7 +58,8 @@ where
         let state = boot();
         Self {
             metadata,
-            params,
+            params: params.clone(),
+            default_params: params,
             cached_params,
             cached_values,
             boot,
@@ -154,6 +157,12 @@ where
             crate::Message::ChangeParam(index, param) => {
                 // Update parameters and reset state with new values
                 self.params.update_index(index, param);
+                self.cached_params = self.params.to_params();
+                self.cached_values = self.params.extract();
+                Task::none()
+            }
+            crate::Message::ResetParams => {
+                self.params = self.default_params.clone();
                 self.cached_params = self.params.to_params();
                 self.cached_values = self.params.extract();
                 Task::none()

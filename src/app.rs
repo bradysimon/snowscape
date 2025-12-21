@@ -136,6 +136,16 @@ impl App {
                     .preview
                     .update(Message::ChangeParam(index, param))
             }
+            Message::ResetParams => {
+                let Some(descriptor) = self
+                    .selected_index
+                    .and_then(|i| self.descriptors.get_mut(i))
+                else {
+                    return Task::none();
+                };
+
+                descriptor.preview.update(Message::ResetParams)
+            }
             Message::ResizeSidebar(size) => {
                 self.sidebar_width = size;
                 Task::none()

@@ -54,6 +54,8 @@ pub enum Message {
     ChangeSearch(String),
     /// Change a dynamic parameter's value at some index.
     ChangeParam(usize, dynamic::Value),
+    /// Resets all dynamic parameters for the current preview to their default values.
+    ResetParams,
     /// Time travel to a previous state in a stateful preview's timeline by index.
     TimeTravel(u32),
     /// Jump to the latest state in a stateful preview's timeline.
@@ -85,6 +87,7 @@ impl std::fmt::Debug for Message {
                 .field(arg0)
                 .field(arg1)
                 .finish(),
+            Self::ResetParams => write!(f, "ResetParams"),
             Self::TimeTravel(arg0) => f.debug_tuple("TimeTravel").field(arg0).finish(),
             Self::JumpToPresent => write!(f, "JumpToPresent"),
             Self::ResizeSidebar(arg0) => f.debug_tuple("ResizePreviewPane").field(arg0).finish(),

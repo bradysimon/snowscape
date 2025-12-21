@@ -4,3 +4,8 @@ pub fn refresh<'a>() -> Svg<'a> {
     const BYTES: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/refresh.svg"));
     svg(svg::Handle::from_memory(BYTES))
 }
+
+pub fn undo<'a>() -> Svg<'a> {
+    const BYTES: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/undo.svg"));
+    svg(svg::Handle::from_memory(BYTES))
+}

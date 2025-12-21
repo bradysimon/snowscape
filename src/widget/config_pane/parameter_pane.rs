@@ -1,8 +1,8 @@
 use iced::Alignment::Center;
 use iced::Length::{FillPortion, Shrink};
 use iced::widget::{
-    button, column, container, pick_list, responsive, row, scrollable, slider, space, table, text,
-    text_input,
+    button, column, container, pick_list, responsive, row, scrollable, slider, space, svg, table,
+    text, text_input,
 };
 use iced::{Element, Length, Theme, border};
 
@@ -45,7 +45,31 @@ pub fn table_view(params: &[Param]) -> Element<'_, Message> {
         )
         .width(FillPortion(1)),
         table::column(
-            text("Value").size(14).style(header_style),
+            row![
+                text("Value").size(14).style(header_style),
+                space::horizontal(),
+                button(
+                    row![
+                        crate::icon::undo()
+                            .width(14)
+                            .height(14)
+                            .style(|theme: &Theme, _status| svg::Style {
+                                color: Some(theme.palette().text),
+                            }),
+                        text("Undo").size(14),
+                    ]
+                    .spacing(4)
+                    .align_y(Center)
+                )
+                .on_press(Message::ResetParams)
+                .style(|theme: &Theme, status| {
+                    button::Style {
+                        background: None,
+                        border: border::rounded(4),
+                        ..button::text(theme, status)
+                    }
+                }),
+            ],
             |(index, param): (usize, &Param)| field(param, index),
         )
         .width(FillPortion(3)),

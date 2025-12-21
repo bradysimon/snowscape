@@ -23,6 +23,8 @@ where
     data: Data,
     /// The dynamic parameters the user can adjust.
     params: Params,
+    /// The default parameters for resetting.
+    default_params: Params,
     /// A cached list of params generated from `params` for displaying in the UI.
     cached_params: Vec<Param>,
     /// The cached extracted parameter values.
@@ -82,6 +84,11 @@ where
             }
             crate::Message::ChangeParam(index, param) => {
                 self.params.update_index(index, param);
+                self.cached_params = self.params.to_params();
+                self.cached_values = self.params.extract();
+            }
+            crate::Message::ResetParams => {
+                self.params = self.default_params.clone();
                 self.cached_params = self.params.to_params();
                 self.cached_values = self.params.extract();
             }
@@ -181,7 +188,8 @@ where
     Stateless {
         metadata,
         data,
-        params,
+        params: params.clone(),
+        default_params: params,
         history: History::new(),
         cached_params,
         cached_values,
