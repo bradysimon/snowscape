@@ -100,6 +100,7 @@ pub fn field(param: &Param, index: usize) -> Element<'_, Message> {
             .on_input(move |value| Message::ChangeParam(index, Value::Text(value)))
             .style(input_style)
             .into(),
+        // TODO: Use a number input once iced's `Component` rework is finished
         Value::I32(number) => text_input(&param.name, &number.to_string())
             .on_input(move |value| {
                 if let Ok(num) = value.parse::<i32>() {
