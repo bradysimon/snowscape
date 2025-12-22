@@ -83,6 +83,25 @@ pub fn channel_slider_backgrounds(
     )
 }
 
+pub mod container {
+    use iced::widget::container;
+    use iced::{Border, Color, Shadow, Theme, Vector};
+
+    pub fn tooltip_background(theme: &Theme) -> container::Style {
+        container::Style {
+            text_color: Some(theme.extended_palette().background.weak.text),
+            background: Some(theme.extended_palette().background.weak.color.into()),
+            border: Border::default().rounded(4),
+            shadow: Shadow {
+                color: Color::BLACK.scale_alpha(0.3),
+                offset: Vector::new(0.0, 2.0),
+                blur_radius: 4.0,
+            },
+            ..Default::default()
+        }
+    }
+}
+
 pub mod pick_list {
     use iced::Theme;
     use iced::widget::overlay::menu;
