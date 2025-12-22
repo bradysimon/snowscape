@@ -18,7 +18,11 @@ use message::Message;
 #[cfg(feature = "internal")]
 pub use message::Message;
 
+#[cfg(not(feature = "internal"))]
 use app::App;
+#[cfg(feature = "internal")]
+pub use app::App;
+
 pub use metadata::Metadata;
 use preview::Preview;
 pub use preview::{dynamic, stateful, stateless};

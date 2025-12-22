@@ -1,7 +1,7 @@
 use iced::widget::{container, space};
 use iced::{Color, Element};
 use snowscape::preview::{Descriptor, dynamic, stateful, stateless, stateless_with};
-use snowscape::{ConfigTab, Metadata, widget};
+use snowscape::{App, ConfigTab, Metadata, widget};
 
 /// Previews various components used within Snowscape.
 fn main() -> iced::Result {
@@ -57,6 +57,12 @@ fn main() -> iced::Result {
                     String::from("Preview rendered successfully."),
                 ],
                 |messages| widget::config_pane::message_pane::message_pane(messages),
+            ))
+            .preview(stateful(
+                "App",
+                || App::default().title("Nested App").preview(parameter_pane()),
+                App::internal_update,
+                App::internal_view,
             ))
     })
 }

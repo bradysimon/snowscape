@@ -286,6 +286,18 @@ impl App {
             .iter()
             .filter(move |descriptor| descriptor.metadata().matches(&query))
     }
+
+    /// An `internal` feature view method exclusively used for previewing Snowscape.
+    #[cfg(feature = "internal")]
+    pub fn internal_view(&self) -> Element<'_, Message> {
+        self.view()
+    }
+
+    /// An `internal` feature update method exclusively used for previewing Snowscape.
+    #[cfg(feature = "internal")]
+    pub fn internal_update(&mut self, message: Message) -> Task<Message> {
+        self.update(message)
+    }
 }
 
 impl std::fmt::Debug for App {
