@@ -145,32 +145,51 @@ impl Message {
 mod tests {
     use super::*;
 
-    /// Nested Component messages should not cause infinite recursion during cloning.
+    /// Cloning a Component containing a simple Message should not overflow.
     #[test]
-    fn nested_messages_do_not_overflow() {
-        // Simple case: Component containing a non-Component Message
+    fn clone_simple_component() {
         let simple = Message::component(Message::Noop);
-        let _ = simple.clone();
+        let cloned = simple.clone();
+        let Message::Component(boxed) = cloned else {
+            panic!("Expected Component message");
+        };
+        let inner = (*boxed).as_any().downcast_ref::<Message>().unwrap();
+        assert!(matches!(inner, Message::Noop));
+    }
 
-        // Nested case: Component containing Component containing Noop
+    /// Cloning nested Component messages should not cause stack overflow.
+    #[test]
+    fn clone_nested_component_does_not_overflow() {
+        let nested = Message::component(Message::component(Message::Noop));
+        _ = nested.clone();
+    }
+
+    /// Cloning nested Components should preserve the message structure.
+    #[test]
+    fn clone_nested_component_preserves_structure() {
         let nested = Message::component(Message::component(Message::Noop));
         let cloned = nested.clone();
 
-        // Verify structure is preserved
+        // First level: Component
         let Message::Component(boxed) = cloned else {
-            panic!("Expected Component message");
+            panic!("Expected Component message at first level");
         };
 
-        let cloned = (*boxed).as_any().downcast_ref::<Message>().unwrap().clone();
-        let Message::Component(boxed) = cloned else {
-            panic!("Expected Component message");
+        // Second level: Component
+        let inner = (*boxed).as_any().downcast_ref::<Message>().unwrap().clone();
+        let Message::Component(boxed) = inner else {
+            panic!("Expected Component message at second level");
         };
 
-        let cloned = (*boxed).as_any().downcast_ref::<Message>().unwrap().clone();
-        assert!(matches!(cloned, Message::Noop));
+        // Third level: Noop
+        let inner = (*boxed).as_any().downcast_ref::<Message>().unwrap().clone();
+        assert!(matches!(inner, Message::Noop));
+    }
 
-        // Deeply nested
+    /// Deeply nested Component messages should not cause stack overflow.
+    #[test]
+    fn clone_deeply_nested_component_does_not_overflow() {
         let deep = Message::component(Message::component(Message::component(Message::Noop)));
-        let _ = deep.clone();
+        _ = deep.clone();
     }
 }
