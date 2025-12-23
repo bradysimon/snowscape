@@ -40,7 +40,6 @@ impl Clone for Box<dyn AnyClone> {
 }
 
 /// Message type for the preview system.
-#[derive(Clone)]
 pub enum Message {
     /// No-op message.
     Noop,
@@ -100,9 +99,78 @@ impl std::fmt::Debug for Message {
     }
 }
 
+impl Clone for Message {
+    fn clone(&self) -> Self {
+        match self {
+            Message::Noop => Message::Noop,
+            Message::FocusInput => Message::FocusInput,
+            Message::SelectPreview(i) => Message::SelectPreview(*i),
+            Message::ResetPreview => Message::ResetPreview,
+            Message::ChangeSearch(s) => Message::ChangeSearch(s.clone()),
+            Message::ChangeParam(i, v) => Message::ChangeParam(*i, v.clone()),
+            Message::ResetParams => Message::ResetParams,
+            Message::TimeTravel(t) => Message::TimeTravel(*t),
+            Message::JumpToPresent => Message::JumpToPresent,
+            Message::ResizeSidebar(f) => Message::ResizeSidebar(*f),
+            Message::ResizeConfigPane(f) => Message::ResizeConfigPane(*f),
+            Message::ChangeConfigTab(tab) => Message::ChangeConfigTab(*tab),
+            Message::UpdateTheme(ev) => Message::UpdateTheme(ev.clone()),
+            Message::ChangeThemeMode(mode) => Message::ChangeThemeMode(*mode),
+            Message::Component(inner) => {
+                // Avoid infinite clone recursion when the payload itself is a `Message`.
+                // Instead of calling `inner.clone()` (which invokes `clone_box`, which
+                // calls `T::clone`, which re-enters here), we downcast and clone directly.
+                // Note: we must deref twice to get the trait object, not the Box.
+                if let Some(msg) = (**inner).as_any().downcast_ref::<Message>() {
+                    // Clone the inner Message using this same impl (safe recursion).
+                    let cloned = msg.clone();
+                    Message::Component(Box::new(cloned))
+                } else {
+                    // Payload is not a Message; safe to use clone_box.
+                    Message::Component(inner.clone_box())
+                }
+            }
+        }
+    }
+}
+
 impl Message {
     /// Creates a new boxed [`Message::Component`] from any cloneable message.
     pub fn component(message: impl AnyClone) -> Self {
         Self::Component(Box::new(message))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Nested Component messages should not cause infinite recursion during cloning.
+    #[test]
+    fn nested_messages_do_not_overflow() {
+        // Simple case: Component containing a non-Component Message
+        let simple = Message::component(Message::Noop);
+        let _ = simple.clone();
+
+        // Nested case: Component containing Component containing Noop
+        let nested = Message::component(Message::component(Message::Noop));
+        let cloned = nested.clone();
+
+        // Verify structure is preserved
+        let Message::Component(boxed) = cloned else {
+            panic!("Expected Component message");
+        };
+
+        let cloned = (*boxed).as_any().downcast_ref::<Message>().unwrap().clone();
+        let Message::Component(boxed) = cloned else {
+            panic!("Expected Component message");
+        };
+
+        let cloned = (*boxed).as_any().downcast_ref::<Message>().unwrap().clone();
+        assert!(matches!(cloned, Message::Noop));
+
+        // Deeply nested
+        let deep = Message::component(Message::component(Message::component(Message::Noop)));
+        let _ = deep.clone();
     }
 }
