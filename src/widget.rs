@@ -100,10 +100,8 @@ pub fn preview_area(preview: Option<&dyn Preview>) -> Element<'_, Message> {
     container(if let Some(preview) = preview {
         preview.view()
     } else {
-        // TODO: Improve placeholder view
         text("No preview selected").into()
     })
-    .padding(20)
     .center(Fill)
     .into()
 }
