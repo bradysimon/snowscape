@@ -99,7 +99,6 @@ where
                 task.map(|message| crate::Message::Component(Box::new(message)))
             }
             crate::Message::ResetPreview => {
-                // TODO: Add a refresh button in header to trigger this action.
                 self.state = (self.boot)();
                 self.history.reset();
                 Task::none()
