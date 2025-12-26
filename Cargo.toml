@@ -8,11 +8,7 @@ iced = { workspace = true, features = ["advanced", "svg"] }
 iced_anim.workspace = true
 
 [workspace]
-members = ["examples/counter", "examples/dynamic_params"]
-
-[[bin]]
-name = "snowscape"
-required-features = ["internal"]
+members = ["examples/counter", "examples/dynamic_params", "examples/self"]
 
 [features]
 # Enables iced hot-reloading and exports some internal widgets for previewing.

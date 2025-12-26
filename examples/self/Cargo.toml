@@ -1,0 +1,10 @@
+[package]
+name = "self"
+description = "A Snowscape preview of Snowscape components themselves."
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+snowscape = { path = "../..", features = ["internal"] }
+iced.workspace = true
