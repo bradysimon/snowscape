@@ -4,16 +4,16 @@ use crate::{
     config_tab::ConfigTab,
     preview::Descriptor,
     widget::{
-        config_pane, header, preview_area,
+        config_pane, header, preview_area, preview_list, search_input,
         split::{Strategy, horizontal_split, vertical_split},
     },
 };
 use iced::{
     Element,
     Length::Fill,
-    Subscription, Task, Theme, border, keyboard, system,
+    Subscription, Task, Theme, keyboard, system,
     theme::{self, Base},
-    widget::{button, column, container, operation, rule, scrollable, text, text_input},
+    widget::{column, container, operation, rule, scrollable, text},
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
@@ -124,6 +124,28 @@ impl App {
                 self.search = text;
                 Task::none()
             }
+            Message::ChangeParam(index, param) => {
+                let Some(descriptor) = self
+                    .selected_index
+                    .and_then(|i| self.descriptors.get_mut(i))
+                else {
+                    return Task::none();
+                };
+
+                descriptor
+                    .preview
+                    .update(Message::ChangeParam(index, param))
+            }
+            Message::ResetParams => {
+                let Some(descriptor) = self
+                    .selected_index
+                    .and_then(|i| self.descriptors.get_mut(i))
+                else {
+                    return Task::none();
+                };
+
+                descriptor.preview.update(Message::ResetParams)
+            }
             Message::ResizeSidebar(size) => {
                 self.sidebar_width = size;
                 Task::none()
@@ -188,97 +210,34 @@ impl App {
     pub(crate) fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             system::theme_changes().map(Message::ChangeThemeMode),
-            keyboard::on_key_press(|key, modifiers| match key.as_ref() {
-                keyboard::Key::Character("/") => Some(Message::FocusInput),
-                keyboard::Key::Character("r") if modifiers.command() => Some(Message::ResetPreview),
+            keyboard::listen().filter_map(|event| match event {
+                keyboard::Event::KeyPressed { key, modifiers, .. } => match key.as_ref() {
+                    keyboard::Key::Character("/") => Some(Message::FocusInput),
+                    keyboard::Key::Character("r") if modifiers.command() => {
+                        Some(Message::ResetPreview)
+                    }
+                    _ => None,
+                },
                 _ => None,
             }),
         ])
     }
 
     pub(crate) fn view(&self) -> Element<'_, Message> {
-        let visible_previews: Vec<_> = self.visible_previews().collect();
         // Build sidebar with preview list
-        let mut sidebar = column![
-            text(format!("Previews ({})", visible_previews.len())).size(18),
-            text_input("Search previews ('/' to focus)", &self.search)
-                .id(SEARCH_INPUT_ID)
-                .on_input(Message::ChangeSearch)
-                .style(|theme, status| {
-                    let default = text_input::default(theme, status);
-                    let pair = theme.extended_palette().background.stronger;
-                    text_input::Style {
-                        border: match status {
-                            text_input::Status::Active => {
-                                default.border.rounded(4).color(pair.color)
-                            }
-                            _ => default.border.rounded(4),
-                        },
-                        value: pair.text,
-                        background: pair.color.into(),
-                        placeholder: pair.text.scale_alpha(0.6),
-                        ..default
-                    }
-                }),
+        let sidebar = column![
+            text("Previews").size(18),
+            search_input(&self.search),
+            preview_list(self.visible_previews(), self.selected_index),
         ]
         .spacing(10)
         .padding(10);
-
-        let mut sidebar_items = vec![];
-
-        for (index, descriptor) in visible_previews {
-            let is_selected = Some(index) == self.selected_index;
-
-            let btn = button(text(&descriptor.metadata.label).size(14))
-                .width(Fill)
-                .on_press(Message::SelectPreview(index))
-                .style(move |theme, status| {
-                    let base = button::primary(theme, status);
-                    if is_selected {
-                        button::Style {
-                            background: Some(theme.extended_palette().primary.base.color.into()),
-                            text_color: theme.extended_palette().primary.base.text,
-                            border: border::rounded(4),
-                            ..base
-                        }
-                    } else {
-                        let default = button::text(theme, status);
-                        let pair: Option<theme::palette::Pair> = match status {
-                            button::Status::Hovered => {
-                                Some(theme.extended_palette().background.stronger)
-                            }
-                            button::Status::Pressed => {
-                                Some(theme.extended_palette().background.strongest)
-                            }
-                            _ => None,
-                        };
-                        button::Style {
-                            background: pair.map(|p| p.color.into()),
-                            text_color: pair.map(|p| p.text).unwrap_or(default.text_color),
-                            border: border::rounded(4),
-                            ..default
-                        }
-                    }
-                });
-
-            sidebar_items.push(btn);
-        }
-
-        if sidebar_items.is_empty() {
-            sidebar = sidebar.push(text("No previews found").size(14));
-        } else {
-            sidebar = sidebar.push(
-                sidebar_items
-                    .into_iter()
-                    .fold(column![], |col, btn| col.push(btn)),
-            );
-        }
 
         let sidebar = container(scrollable(sidebar))
             .width(Fill)
             .height(Fill)
             .style(|theme: &Theme| container::Style {
-                background: Some(theme.extended_palette().background.weak.color.into()),
+                background: Some(theme.extended_palette().background.weaker.color.into()),
                 ..Default::default()
             });
 
@@ -321,12 +280,23 @@ impl App {
     }
 
     /// Returns an iterator over the previews that match the current search query.
-    fn visible_previews(&self) -> impl Iterator<Item = (usize, &Descriptor)> {
+    fn visible_previews(&self) -> impl Iterator<Item = &Descriptor> {
         let query = self.search.trim().to_lowercase();
         self.descriptors
             .iter()
-            .enumerate()
-            .filter(move |(_, descriptor)| descriptor.metadata.matches(&query))
+            .filter(move |descriptor| descriptor.metadata().matches(&query))
+    }
+
+    /// An `internal` feature view method exclusively used for previewing Snowscape.
+    #[cfg(feature = "internal")]
+    pub fn internal_view(&self) -> Element<'_, Message> {
+        self.view()
+    }
+
+    /// An `internal` feature update method exclusively used for previewing Snowscape.
+    #[cfg(feature = "internal")]
+    pub fn internal_update(&mut self, message: Message) -> Task<Message> {
+        self.update(message)
     }
 }
 

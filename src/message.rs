@@ -2,7 +2,10 @@ use std::{any::Any, fmt::Debug};
 
 use iced::{Theme, theme};
 
-use crate::config_tab::ConfigTab;
+use crate::{
+    config_tab::ConfigTab,
+    dynamic::{self},
+};
 
 /// Supertrait for messages that can be used in the preview system.
 /// - `Any`: Previews support any type of message via downcasting
@@ -37,7 +40,6 @@ impl Clone for Box<dyn AnyClone> {
 }
 
 /// Message type for the preview system.
-#[derive(Clone)]
 pub enum Message {
     /// No-op message.
     Noop,
@@ -49,6 +51,10 @@ pub enum Message {
     ResetPreview,
     /// Change the search query.
     ChangeSearch(String),
+    /// Change a dynamic parameter's value at some index.
+    ChangeParam(usize, dynamic::Value),
+    /// Resets all dynamic parameters for the current preview to their default values.
+    ResetParams,
     /// Time travel to a previous state in a stateful preview's timeline by index.
     TimeTravel(u32),
     /// Jump to the latest state in a stateful preview's timeline.
@@ -75,6 +81,12 @@ impl std::fmt::Debug for Message {
             Self::SelectPreview(arg0) => f.debug_tuple("SelectPreview").field(arg0).finish(),
             Self::ResetPreview => write!(f, "ResetPreview"),
             Self::ChangeSearch(text) => f.debug_tuple("ChangeSearch").field(text).finish(),
+            Self::ChangeParam(arg0, arg1) => f
+                .debug_tuple("ChangeParam")
+                .field(arg0)
+                .field(arg1)
+                .finish(),
+            Self::ResetParams => write!(f, "ResetParams"),
             Self::TimeTravel(arg0) => f.debug_tuple("TimeTravel").field(arg0).finish(),
             Self::JumpToPresent => write!(f, "JumpToPresent"),
             Self::ResizeSidebar(arg0) => f.debug_tuple("ResizePreviewPane").field(arg0).finish(),
@@ -84,5 +96,100 @@ impl std::fmt::Debug for Message {
             Self::ChangeThemeMode(arg0) => f.debug_tuple("ChangeThemeMode").field(arg0).finish(),
             Self::Component(_) => write!(f, "Component(..)"),
         }
+    }
+}
+
+impl Clone for Message {
+    fn clone(&self) -> Self {
+        match self {
+            Message::Noop => Message::Noop,
+            Message::FocusInput => Message::FocusInput,
+            Message::SelectPreview(i) => Message::SelectPreview(*i),
+            Message::ResetPreview => Message::ResetPreview,
+            Message::ChangeSearch(s) => Message::ChangeSearch(s.clone()),
+            Message::ChangeParam(i, v) => Message::ChangeParam(*i, v.clone()),
+            Message::ResetParams => Message::ResetParams,
+            Message::TimeTravel(t) => Message::TimeTravel(*t),
+            Message::JumpToPresent => Message::JumpToPresent,
+            Message::ResizeSidebar(f) => Message::ResizeSidebar(*f),
+            Message::ResizeConfigPane(f) => Message::ResizeConfigPane(*f),
+            Message::ChangeConfigTab(tab) => Message::ChangeConfigTab(*tab),
+            Message::UpdateTheme(ev) => Message::UpdateTheme(ev.clone()),
+            Message::ChangeThemeMode(mode) => Message::ChangeThemeMode(*mode),
+            Message::Component(inner) => {
+                // Avoid infinite clone recursion when the payload itself is a `Message`.
+                // Instead of calling `inner.clone()` (which invokes `clone_box`, which
+                // calls `T::clone`, which re-enters here), we downcast and clone directly.
+                // Note: we must deref twice to get the trait object, not the Box.
+                if let Some(msg) = (**inner).as_any().downcast_ref::<Message>() {
+                    // Clone the inner Message using this same impl (safe recursion).
+                    let cloned = msg.clone();
+                    Message::Component(Box::new(cloned))
+                } else {
+                    // Payload is not a Message; safe to use clone_box.
+                    Message::Component(inner.clone_box())
+                }
+            }
+        }
+    }
+}
+
+impl Message {
+    /// Creates a new boxed [`Message::Component`] from any cloneable message.
+    pub fn component(message: impl AnyClone) -> Self {
+        Self::Component(Box::new(message))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Cloning a Component containing a simple Message should not overflow.
+    #[test]
+    fn clone_simple_component() {
+        let simple = Message::component(Message::Noop);
+        let cloned = simple.clone();
+        let Message::Component(boxed) = cloned else {
+            panic!("Expected Component message");
+        };
+        let inner = (*boxed).as_any().downcast_ref::<Message>().unwrap();
+        assert!(matches!(inner, Message::Noop));
+    }
+
+    /// Cloning nested Component messages should not cause stack overflow.
+    #[test]
+    fn clone_nested_component_does_not_overflow() {
+        let nested = Message::component(Message::component(Message::Noop));
+        _ = nested.clone();
+    }
+
+    /// Cloning nested Components should preserve the message structure.
+    #[test]
+    fn clone_nested_component_preserves_structure() {
+        let nested = Message::component(Message::component(Message::Noop));
+        let cloned = nested.clone();
+
+        // First level: Component
+        let Message::Component(boxed) = cloned else {
+            panic!("Expected Component message at first level");
+        };
+
+        // Second level: Component
+        let inner = (*boxed).as_any().downcast_ref::<Message>().unwrap().clone();
+        let Message::Component(boxed) = inner else {
+            panic!("Expected Component message at second level");
+        };
+
+        // Third level: Noop
+        let inner = (*boxed).as_any().downcast_ref::<Message>().unwrap().clone();
+        assert!(matches!(inner, Message::Noop));
+    }
+
+    /// Deeply nested Component messages should not cause stack overflow.
+    #[test]
+    fn clone_deeply_nested_component_does_not_overflow() {
+        let deep = Message::component(Message::component(Message::component(Message::Noop)));
+        _ = deep.clone();
     }
 }

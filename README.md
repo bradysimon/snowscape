@@ -61,7 +61,7 @@ use snowscape::stateless;
 
 // Import your own components here and add previews for them below
 fn label(name: &str) -> iced::Element<'_, ()> {
-    text(format!("Hello, {}!", name)).into()
+    text!("Hello, {}!", name).into()
 }
 
 fn goodbye<'a>() -> iced::Element<'a, ()> {
@@ -89,6 +89,11 @@ cargo run --example preview
 ```bash
 cargo run --bin preview
 ```
+
+## Running the examples
+
+You can do `cargo run -p {package_name}` to run any of the included examples.
+You can also do `cargo run --features internal` to see Snowscape's previews.
 
 ## Roadmap
 

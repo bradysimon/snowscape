@@ -1,7 +1,7 @@
 use iced::{
     Alignment::Center,
     Element,
-    widget::{button, column, text},
+    widget::{button, column, text, text::IntoFragment},
 };
 
 #[derive(Debug, Clone)]
@@ -12,7 +12,7 @@ pub enum Message {
 
 #[derive(Debug, Clone, Default)]
 pub struct App {
-    count: i32,
+    pub count: i32,
 }
 
 impl App {
@@ -40,8 +40,8 @@ pub fn minus_button<'a>() -> Element<'a, Message> {
     button("Decrement").on_press(Message::Decrement).into()
 }
 
-pub fn label<'a>(count: i32) -> Element<'a, Message> {
-    text(format!("Count: {}", count)).size(32).into()
+pub fn label<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
+    text!("Count: {}", content.into_fragment()).size(32).into()
 }
 
 // Stateless preview returning a more complex layout
@@ -51,4 +51,21 @@ pub fn counter(count: i32) -> Element<'static, Message> {
         .spacing(10)
         .padding(20)
         .into()
+}
+
+/// A counter with adjustable labels for the increment and decrement buttons.
+pub fn adjustable_counter<'a>(
+    count: i32,
+    inc_label: &'a str,
+    dec_label: &'a str,
+) -> Element<'a, Message> {
+    column![
+        label(count),
+        button(inc_label).on_press(Message::Increment),
+        button(dec_label).on_press(Message::Decrement)
+    ]
+    .align_x(Center)
+    .spacing(10)
+    .padding(20)
+    .into()
 }

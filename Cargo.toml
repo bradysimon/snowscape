@@ -4,16 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-iced = { workspace = true, features = ["svg"] }
+iced = { workspace = true, features = ["advanced", "svg"] }
 iced_anim.workspace = true
 
 [workspace]
-members = ["examples/counter"]
+members = ["examples/counter", "examples/dynamic_params", "examples/self"]
+
+[features]
+# Enables iced hot-reloading and exports some internal widgets for previewing.
+internal = ["iced/hot"]
 
 [workspace.dependencies]
-iced = "0.14.0-dev"
+iced = { git = "https://github.com/iced-rs/iced.git", branch = "master" }
 iced_anim = { git = "https://github.com/bradysimon/iced_anim", branch = "iced/master" }
-
-[patch.crates-io]
-iced.git = "https://github.com/iced-rs/iced.git"
-iced.branch = "master"

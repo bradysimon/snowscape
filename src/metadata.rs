@@ -47,16 +47,16 @@ impl Metadata {
             return true;
         }
 
-        if let Some(description) = &self.description {
-            if description.to_lowercase().contains(query) {
-                return true;
-            }
+        if let Some(description) = &self.description
+            && description.to_lowercase().contains(query)
+        {
+            return true;
         }
 
-        if let Some(group) = &self.group {
-            if group.to_lowercase().contains(query) {
-                return true;
-            }
+        if let Some(group) = &self.group
+            && group.to_lowercase().contains(query)
+        {
+            return true;
         }
 
         for tag in &self.tags {
