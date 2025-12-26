@@ -223,10 +223,10 @@ where
     }
 
     fn update(&mut self, value: Value) {
-        if let Value::Select(index, _) = value {
-            if index < self.options.len() {
-                self.selected_index = index;
-            }
+        if let Value::Select(index, _) = value
+            && index < self.options.len()
+        {
+            self.selected_index = index;
         }
     }
 

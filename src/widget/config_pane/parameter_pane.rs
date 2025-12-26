@@ -172,9 +172,11 @@ fn boolean_toggle<'a, Message: Clone + 'a>(
         button::Style {
             background: active.then(|| active_pair.color.into()),
             border: border::rounded(8),
-            text_color: active
-                .then(|| active_pair.text)
-                .unwrap_or(theme.palette().text),
+            text_color: if active {
+                active_pair.text
+            } else {
+                theme.palette().text
+            },
             ..button::text(theme, status)
         }
     };
