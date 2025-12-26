@@ -4,7 +4,7 @@ use crate::{
     dynamic::{ExtractParams, Param},
     message::AnyMessage,
     metadata::Metadata,
-    preview::{History, Preview},
+    preview::{History, Performance, Preview},
 };
 
 /// A dynamic stateless preview that renders an element based on adjustable parameters.
@@ -19,6 +19,8 @@ where
     metadata: Metadata,
     /// The history of messages emitted by the preview.
     history: History<Message>,
+    /// Performance metrics for tracking view function execution times.
+    performance: Performance,
     /// The owned data that the view function can borrow from.
     data: Data,
     /// The dynamic parameters the user can adjust.
@@ -81,6 +83,7 @@ where
             }
             crate::app::Message::ResetPreview => {
                 self.history = History::new();
+                self.performance.reset();
             }
             crate::Message::ChangeParam(index, param) => {
                 self.params.update_index(index, param);
@@ -99,7 +102,9 @@ where
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)(&self.data, &self.cached_values).map(crate::Message::component)
+        self.performance.record_view(|| {
+            (self.view_fn)(&self.data, &self.cached_values).map(crate::Message::component)
+        })
     }
 
     fn message_count(&self) -> usize {
@@ -116,6 +121,10 @@ where
 
     fn params(&self) -> &[Param] {
         &self.cached_params
+    }
+
+    fn performance(&self) -> Option<&Performance> {
+        Some(&self.performance)
     }
 }
 
@@ -191,6 +200,7 @@ where
         params: params.clone(),
         default_params: params,
         history: History::new(),
+        performance: Performance::new(),
         cached_params,
         cached_values,
         view_fn,

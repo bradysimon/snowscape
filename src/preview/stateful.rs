@@ -1,7 +1,7 @@
 use crate::{
     Metadata, Preview,
     message::AnyMessage,
-    preview::{History, Timeline},
+    preview::{History, Performance, Timeline},
 };
 use iced::{Element, Task};
 
@@ -17,6 +17,8 @@ where
     state: State,
     /// The history of messages emitted by the preview.
     history: History<Message>,
+    /// Performance metrics for tracking view/update function execution times.
+    performance: Performance,
     update_fn: fn(&mut State, Message) -> IntoTask,
     view_fn: fn(&State) -> Element<'_, Message>,
     pub(crate) metadata: Metadata,
@@ -40,6 +42,7 @@ where
             boot,
             state,
             history: History::new(),
+            performance: Performance::new(),
             update_fn,
             view_fn,
             metadata,
@@ -92,7 +95,10 @@ where
 
                 self.history.push(message.clone());
                 let message = message.clone();
-                let result = (self.update_fn)(&mut self.state, message);
+                // Track performance only when live (not during time travel replay)
+                let result = self
+                    .performance
+                    .record_update(|| (self.update_fn)(&mut self.state, message));
                 let task: Task<Message> = result.into();
 
                 // Map the task's messages back to the preview's crate::Message type
@@ -101,6 +107,7 @@ where
             crate::Message::ResetPreview => {
                 self.state = (self.boot)();
                 self.history.reset();
+                self.performance.reset();
                 Task::none()
             }
             crate::Message::TimeTravel(index) => {
@@ -132,7 +139,8 @@ where
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)(&self.state).map(crate::Message::component)
+        self.performance
+            .record_view(|| (self.view_fn)(&self.state).map(crate::Message::component))
     }
 
     fn message_count(&self) -> usize {
@@ -145,6 +153,10 @@ where
 
     fn timeline(&self) -> Option<Timeline> {
         Some(self.history.timeline())
+    }
+
+    fn performance(&self) -> Option<&Performance> {
+        Some(&self.performance)
     }
 }
 

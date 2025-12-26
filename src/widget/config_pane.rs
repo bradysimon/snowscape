@@ -28,7 +28,9 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
             ConfigTab::Messages => {
                 message_pane::message_pane(descriptor.preview.visible_messages())
             }
-            ConfigTab::Performance => performance_pane::performance_pane(),
+            ConfigTab::Performance => {
+                performance_pane::performance_pane(descriptor.preview.performance())
+            }
         };
 
         let is_horizontal_layout = size.width >= 675.0;
