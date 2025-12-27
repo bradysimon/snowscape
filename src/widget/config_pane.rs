@@ -14,7 +14,7 @@ use iced::{
 use crate::{
     app::Message,
     config_tab::ConfigTab,
-    preview::{Descriptor, Timeline},
+    preview::{Descriptor, Timeline, performance::Indicator},
     widget::{mini_badge, round_badge},
 };
 
@@ -44,13 +44,21 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
                 .map(|timeline| timeline_slider(timeline, !is_horizontal_layout)),
         };
 
+        // Get performance status for the tab indicator
+        let performance_status = descriptor
+            .preview
+            .performance()
+            .map(|p| p.overall_status())
+            .unwrap_or(Indicator::Unknown);
+
         // The header containing the config tabs and any trailing elements
         let header: Element<'_, Message> = if is_horizontal_layout {
             row![
                 config_tabs(
                     tab,
                     descriptor.preview.params().len(),
-                    descriptor.preview.message_count()
+                    descriptor.preview.message_count(),
+                    performance_status,
                 ),
                 space::horizontal(),
                 trailing,
@@ -63,7 +71,8 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
                 config_tabs(
                     tab,
                     descriptor.preview.params().len(),
-                    descriptor.preview.message_count()
+                    descriptor.preview.message_count(),
+                    performance_status,
                 ),
                 trailing,
             ]
@@ -142,10 +151,11 @@ pub fn config_tabs<'a>(
     selected_tab: ConfigTab,
     params: usize,
     messages: usize,
+    indicator: Indicator,
 ) -> Element<'a, Message> {
     row(ConfigTab::ALL.iter().map(|&variant| {
         let is_selected = variant == selected_tab;
-        config_tab(variant, is_selected, params, messages)
+        config_tab(variant, is_selected, params, messages, indicator)
     }))
     .into()
 }
@@ -156,6 +166,7 @@ fn config_tab<'a>(
     selected: bool,
     params: usize,
     messages: usize,
+    performance_status: Indicator,
 ) -> Element<'a, Message> {
     let badge_info = match tab {
         ConfigTab::Messages if messages > 0 => Some((messages, true)),
@@ -163,12 +174,18 @@ fn config_tab<'a>(
         _ => None,
     };
 
+    // Show performance status indicator only if there's data and it's not unknown
+    let show_performance_indicator =
+        tab == ConfigTab::Performance && performance_status != Indicator::Unknown;
+
     button(
         column![
             container(
                 row![
                     text(tab.name()).size(14),
                     badge_info.map(|(count, primary)| round_badge(count, primary)),
+                    show_performance_indicator
+                        .then(|| performance_pane::status_dot(performance_status)),
                 ]
                 .spacing(4)
                 .align_y(Center)

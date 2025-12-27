@@ -1,6 +1,8 @@
 use iced::widget::{container, space};
 use iced::{Color, Element};
-use snowscape::preview::{Descriptor, dynamic, stateful, stateless, stateless_with};
+use snowscape::preview::{
+    Descriptor, dynamic, performance::Indicator, stateful, stateless, stateless_with,
+};
 use snowscape::{App, ConfigTab, Metadata, widget};
 
 /// Previews various components used within Snowscape.
@@ -23,12 +25,18 @@ fn config_tabs() -> impl Into<Descriptor> {
             dynamic::select("Selected Tab", &ConfigTab::ALL, ConfigTab::default()),
             dynamic::number("Parameter Count", 0),
             dynamic::number("Message Count", 0),
+            dynamic::select(
+                "Performance Indicator",
+                &Indicator::ALL,
+                Indicator::default(),
+            ),
         ),
-        |(tab, params, messages)| {
+        |(tab, params, messages, indicator)| {
             widget::config_tabs(
                 *tab,
                 usize::try_from(*params).unwrap_or(0),
                 usize::try_from(*messages).unwrap_or(0),
+                *indicator,
             )
         },
     )

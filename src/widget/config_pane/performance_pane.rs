@@ -4,11 +4,12 @@ use iced::{
     Alignment::Center,
     Element,
     Length::Fill,
-    Theme,
+    Theme, border,
     widget::{column, container, row, scrollable, space, text},
 };
 
-use crate::{app::Message, preview::Performance};
+use crate::app::Message;
+use crate::preview::performance::{Indicator, Performance, Stats};
 
 /// A pane shown in the configuration area displaying performance metrics.
 pub fn performance_pane(performance: Option<&Performance>) -> Element<'_, Message> {
@@ -63,6 +64,7 @@ pub fn performance_pane(performance: Option<&Performance>) -> Element<'_, Messag
         .spacing(8)
         .width(Fill),
     )
+    .spacing(2)
     .into()
 }
 
@@ -78,15 +80,91 @@ fn section_header<'a>(label: &'a str) -> Element<'a, Message> {
 }
 
 /// A grid displaying timing statistics.
-fn stats_grid(stats: crate::preview::Stats) -> Element<'static, Message> {
+fn stats_grid(stats: Stats) -> Element<'static, Message> {
     column![
+        // Core stats
         stat_row("Calls", format!("{}", stats.count)),
         stat_row("Last", format_duration(stats.last)),
         stat_row("Average", format_duration(stats.avg)),
+        space::vertical().height(4),
+        // Percentiles
+        subsection_header("Percentiles"),
+        stat_row("p50", format_duration(stats.p50)),
+        stat_row("p90", format_duration(stats.p90)),
+        stat_row("p99", format_duration(stats.p99)),
+        space::vertical().height(4),
+        // Range
+        subsection_header("Range"),
         stat_row("Min", format_duration(stats.min)),
         stat_row("Max", format_duration(stats.max)),
+        space::vertical().height(4),
+        // Jank
+        jank_indicator(stats.jank_count, stats.count),
     ]
-    .spacing(4)
+    .spacing(2)
+    .into()
+}
+
+/// A subsection header within the stats grid.
+fn subsection_header(label: &'static str) -> Element<'static, Message> {
+    text(label)
+        .size(11)
+        .style(|theme: &Theme| text::Style {
+            color: Some(
+                theme
+                    .extended_palette()
+                    .background
+                    .weakest
+                    .text
+                    .scale_alpha(0.5),
+            ),
+        })
+        .into()
+}
+
+/// Jank indicator showing how many frames exceeded the budget.
+fn jank_indicator(jank_count: usize, total_count: usize) -> Element<'static, Message> {
+    if total_count == 0 {
+        return space::vertical().height(0).into();
+    }
+
+    let jank_percentage = if total_count > 0 {
+        (jank_count as f64 / total_count as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let (status_text, status_color) = if jank_count == 0 {
+        ("No jank detected", iced::Color::from_rgb(0.2, 0.8, 0.3))
+    } else if jank_percentage < 1.0 {
+        ("Occasional jank", iced::Color::from_rgb(0.7, 0.8, 0.2))
+    } else if jank_percentage < 5.0 {
+        ("Some jank", iced::Color::from_rgb(0.9, 0.6, 0.1))
+    } else {
+        ("Frequent jank", iced::Color::from_rgb(0.9, 0.3, 0.2))
+    };
+
+    row![
+        container(space::horizontal())
+            .width(8)
+            .height(8)
+            .style(move |_theme: &Theme| container::Style {
+                background: Some(status_color.into()),
+                border: border::rounded(4),
+                ..Default::default()
+            }),
+        text(if jank_count > 0 {
+            format!(
+                "{} ({} frames, {:.1}%)",
+                status_text, jank_count, jank_percentage
+            )
+        } else {
+            status_text.to_string()
+        })
+        .size(12),
+    ]
+    .align_y(Center)
+    .spacing(6)
     .into()
 }
 
@@ -128,4 +206,24 @@ fn format_duration(duration: Option<Duration>) -> String {
             }
         }
     }
+}
+
+/// A colored status dot indicator for showing performance status.
+pub fn status_dot(status: Indicator) -> Element<'static, Message> {
+    container(space::horizontal())
+        .width(8)
+        .height(8)
+        .style(move |theme: &Theme| container::Style {
+            background: match status {
+                Indicator::Healthy => Some(theme.extended_palette().success.strong.color.into()),
+                Indicator::Degraded => Some(theme.palette().warning.into()),
+                Indicator::Severe => Some(theme.palette().danger.into()),
+                Indicator::Unknown => {
+                    Some(theme.extended_palette().background.neutral.color.into())
+                }
+            },
+            border: border::rounded(4),
+            ..Default::default()
+        })
+        .into()
 }

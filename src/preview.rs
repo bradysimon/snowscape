@@ -1,7 +1,11 @@
 mod descriptor;
 pub mod dynamic;
 mod history;
-mod performance;
+
+#[cfg(not(feature = "internal"))]
+pub(crate) mod performance;
+#[cfg(feature = "internal")]
+pub mod performance;
 mod stateful;
 mod stateless;
 mod timeline;
@@ -11,7 +15,11 @@ use iced::{Element, Task};
 
 pub use descriptor::Descriptor;
 pub use history::History;
-pub use performance::{Performance, Stats};
+#[cfg(not(feature = "internal"))]
+use performance::Performance;
+#[cfg(feature = "internal")]
+pub use performance::Performance;
+
 pub use stateful::{Stateful, stateful};
 pub use stateless::{Stateless, stateless, stateless_with};
 pub use timeline::Timeline;
