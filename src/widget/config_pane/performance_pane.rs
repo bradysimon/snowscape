@@ -90,9 +90,14 @@ fn section<'a>(label: &'a str, content: Element<'a, Message>) -> Container<'a, M
 /// A grid displaying timing statistics.
 fn stats_grid(stats: Stats) -> Element<'static, Message> {
     column![
-        // Core stats
-        stat_row("Calls", format!("{}", stats.count)),
-        stat_row("Last", format_duration(stats.last)),
+        // Stats around total calls and last call
+        row![
+            stat_row("Calls", format!("{}", stats.count)),
+            space::horizontal().width(12),
+            stat_row("Last", format_duration(stats.last)),
+        ]
+        .align_y(Center)
+        .spacing(4),
         space::vertical().height(4),
         // Visual range display
         subsection_header("Timing Range"),
@@ -404,23 +409,21 @@ fn jank_indicator<'a>(
 /// A single row in the stats grid showing a label and value.
 fn stat_row(label: &'static str, value: String) -> Element<'static, Message> {
     row![
-        container(text(label).size(13))
-            .width(80)
-            .style(|theme: &Theme| container::Style {
-                text_color: Some(
-                    theme
-                        .extended_palette()
-                        .background
-                        .weakest
-                        .text
-                        .scale_alpha(0.7),
-                ),
-                ..Default::default()
-            }),
-        text(value).size(13),
+        text(label).size(12).style(|theme: &Theme| text::Style {
+            color: Some(
+                theme
+                    .extended_palette()
+                    .background
+                    .weakest
+                    .text
+                    .scale_alpha(0.6),
+            ),
+        }),
+        text(value).size(14),
     ]
+    .width(60)
     .align_y(Center)
-    .spacing(8)
+    .spacing(4)
     .into()
 }
 
@@ -429,13 +432,15 @@ fn format_duration(duration: Option<Duration>) -> String {
     match duration {
         None => "—".to_string(),
         Some(d) => {
-            let micros = d.as_micros();
-            if micros < 1_000 {
-                format!("{}µs", micros)
-            } else if micros < 1_000_000 {
-                format!("{:.2}ms", micros as f64 / 1_000.0)
+            let nanos = d.as_nanos();
+            if nanos < 1_000 {
+                format!("{}ns", nanos)
+            } else if nanos < 1_000_000 {
+                format!("{}µs", d.as_micros())
+            } else if nanos < 1_000_000_000 {
+                format!("{:.2}ms", nanos as f64 / 1_000_000.0)
             } else {
-                format!("{:.2}s", micros as f64 / 1_000_000.0)
+                format!("{:.2}s", nanos as f64 / 1_000_000_000.0)
             }
         }
     }
