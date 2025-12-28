@@ -100,9 +100,7 @@ fn stats_grid(stats: Stats) -> Element<'static, Message> {
         space::vertical().height(4),
         // Percentiles
         subsection_header("Percentiles"),
-        stat_row("p50", format_duration(stats.p50)),
-        stat_row("p90", format_duration(stats.p90)),
-        stat_row("p99", format_duration(stats.p99)),
+        percentile_bars(&stats),
         space::vertical().height(4),
         // Jank
         jank_indicator(stats.indicator(), stats.jank_count, stats.count),
@@ -264,6 +262,99 @@ fn timing_range_bar(stats: &Stats) -> Element<'static, Message> {
         .width(Fill),
     ]
     .spacing(2)
+    .into()
+}
+
+/// Visual percentile bars showing p50, p90, and p99 on the same scale.
+fn percentile_bars(stats: &Stats) -> Element<'static, Message> {
+    let (Some(p50), Some(p90), Some(p99)) = (stats.p50, stats.p90, stats.p99) else {
+        return text("—").size(12).into();
+    };
+
+    // Use p99 as the max scale (100%)
+    let max_nanos = p99.as_nanos().max(1) as f64;
+
+    let p50_pct = (p50.as_nanos() as f64 / max_nanos).clamp(0.0, 1.0);
+    let p90_pct = (p90.as_nanos() as f64 / max_nanos).clamp(0.0, 1.0);
+    // p99 is always 100% since it's the max
+
+    column![
+        percentile_bar_row("p50", p50, p50_pct),
+        percentile_bar_row("p90", p90, p90_pct),
+        percentile_bar_row("p99", p99, 1.0),
+    ]
+    .spacing(3)
+    .into()
+}
+
+/// A single percentile bar row with label, bar, and value.
+fn percentile_bar_row(
+    label: &'static str,
+    duration: Duration,
+    fill_pct: f64,
+) -> Element<'static, Message> {
+    let fill_portion = (fill_pct * 1000.0) as u16;
+
+    row![
+        // Label
+        text(label).size(11).style(|theme: &Theme| text::Style {
+            color: Some(
+                theme
+                    .extended_palette()
+                    .background
+                    .weakest
+                    .text
+                    .scale_alpha(0.7),
+            ),
+        }),
+        // Bar track (background) with fill inside
+        container(row![
+                container(space::horizontal())
+                    .width(Length::FillPortion(fill_portion.max(1)))
+                    .height(Fill)
+                    .style(|theme: &Theme| container::Style {
+                        background: Some(theme.extended_palette().primary.weak.color.into()),
+                        border: border::rounded(2),
+                        ..Default::default()
+                    }),
+                (fill_pct < 1.0)
+                    .then(|| space::horizontal()
+                        .width(Length::FillPortion(1000 - fill_portion.max(1)))),
+            ])
+        .width(Fill)
+        .height(8)
+        .style(|theme: &Theme| container::Style {
+            background: Some(
+                theme
+                    .extended_palette()
+                    .background
+                    .weak
+                    .color
+                    .scale_alpha(0.3)
+                    .into(),
+            ),
+            border: border::rounded(2),
+            ..Default::default()
+        }),
+        // Value (fixed width, right-aligned text)
+        container(text(format_duration(Some(duration))).size(11))
+            .width(40)
+            .align_x(iced::alignment::Horizontal::Right)
+            .style(|theme: &Theme| container::Style {
+                text_color: Some(
+                    theme
+                        .extended_palette()
+                        .background
+                        .weakest
+                        .text
+                        .scale_alpha(0.8),
+                ),
+                ..Default::default()
+            }),
+    ]
+    .align_y(Center)
+    .spacing(6)
+    .width(Fill)
     .into()
 }
 
