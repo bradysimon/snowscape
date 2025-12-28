@@ -10,6 +10,7 @@ use iced::{
 
 use crate::app::Message;
 use crate::preview::performance::{Indicator, Performance, Stats};
+use crate::style;
 
 /// A pane shown in the configuration area displaying performance metrics.
 pub fn performance_pane(performance: Option<&Performance>) -> Element<'_, Message> {
@@ -39,16 +40,7 @@ pub fn performance_pane(performance: Option<&Performance>) -> Element<'_, Messag
             stats_grid(update_stats)
         } else {
             text("No update data recorded (stateless preview or no interactions).")
-                .style(|theme: &Theme| text::Style {
-                    color: Some(
-                        theme
-                            .extended_palette()
-                            .background
-                            .weakest
-                            .text
-                            .scale_alpha(0.6),
-                    ),
-                })
+                .style(style::text::secondary)
                 .into()
         };
 
@@ -116,19 +108,7 @@ fn stats_grid(stats: Stats) -> Element<'static, Message> {
 
 /// A subsection header within the stats grid.
 fn subsection_header(label: &'static str) -> Element<'static, Message> {
-    text(label)
-        .size(11)
-        .style(|theme: &Theme| text::Style {
-            color: Some(
-                theme
-                    .extended_palette()
-                    .background
-                    .weakest
-                    .text
-                    .scale_alpha(0.5),
-            ),
-        })
-        .into()
+    text(label).size(11).style(style::text::faded).into()
 }
 
 /// A horizontal bar visualization showing min, average, and max timing.
@@ -141,18 +121,7 @@ fn timing_range_bar(stats: &Stats) -> Element<'static, Message> {
     if min == max {
         return row![
             text(format_duration(Some(min))).size(12),
-            text(" (no variance)")
-                .size(11)
-                .style(|theme: &Theme| text::Style {
-                    color: Some(
-                        theme
-                            .extended_palette()
-                            .background
-                            .weakest
-                            .text
-                            .scale_alpha(0.5),
-                    ),
-                }),
+            text(" (no variance)").size(11).style(style::text::faded),
         ]
         .align_y(Center)
         .into();
@@ -192,7 +161,7 @@ fn timing_range_bar(stats: &Stats) -> Element<'static, Message> {
                                 .scale_alpha(0.5)
                                 .into()
                         ),
-                        border: border::rounded(2),
+                        border: border::rounded(border::left(2)),
                         ..Default::default()
                     }),
                 // Average marker
@@ -218,7 +187,7 @@ fn timing_range_bar(stats: &Stats) -> Element<'static, Message> {
                                 .scale_alpha(0.5)
                                 .into()
                         ),
-                        border: border::rounded(2),
+                        border: border::rounded(border::right(2)),
                         ..Default::default()
                     }),
             ]
@@ -229,40 +198,13 @@ fn timing_range_bar(stats: &Stats) -> Element<'static, Message> {
         .padding([0, 1]),
         // Labels row
         row![
-            text(min_label).size(12).style(|theme: &Theme| text::Style {
-                color: Some(
-                    theme
-                        .extended_palette()
-                        .background
-                        .weakest
-                        .text
-                        .scale_alpha(0.6),
-                ),
-            }),
+            text(min_label).size(12).style(style::text::secondary),
             space::horizontal(),
             text(format!("avg: {}", avg_label))
                 .size(12)
-                .style(|theme: &Theme| text::Style {
-                    color: Some(
-                        theme
-                            .extended_palette()
-                            .background
-                            .weakest
-                            .text
-                            .scale_alpha(0.6),
-                    ),
-                }),
+                .style(style::text::secondary),
             space::horizontal(),
-            text(max_label).size(12).style(|theme: &Theme| text::Style {
-                color: Some(
-                    theme
-                        .extended_palette()
-                        .background
-                        .weakest
-                        .text
-                        .scale_alpha(0.6),
-                ),
-            }),
+            text(max_label).size(12).style(style::text::secondary),
         ]
         .width(Fill),
     ]
@@ -302,16 +244,7 @@ fn percentile_bar_row(
 
     row![
         // Label
-        text(label).size(11).style(|theme: &Theme| text::Style {
-            color: Some(
-                theme
-                    .extended_palette()
-                    .background
-                    .weakest
-                    .text
-                    .scale_alpha(0.7),
-            ),
-        }),
+        text(label).size(11).style(style::text::muted),
         // Bar track (background) with fill inside
         container(row![
                 container(space::horizontal())
@@ -342,20 +275,13 @@ fn percentile_bar_row(
             ..Default::default()
         }),
         // Value (fixed width, right-aligned text)
-        container(text(format_duration(Some(duration))).size(11))
-            .width(40)
-            .align_x(iced::alignment::Horizontal::Right)
-            .style(|theme: &Theme| container::Style {
-                text_color: Some(
-                    theme
-                        .extended_palette()
-                        .background
-                        .weakest
-                        .text
-                        .scale_alpha(0.8),
-                ),
-                ..Default::default()
-            }),
+        container(
+            text(format_duration(Some(duration)))
+                .size(11)
+                .style(style::text::subdued)
+        )
+        .width(40)
+        .align_x(iced::alignment::Horizontal::Right),
     ]
     .align_y(Center)
     .spacing(6)
@@ -409,16 +335,7 @@ fn jank_indicator<'a>(
 /// A single row in the stats grid showing a label and value.
 fn stat_row(label: &'static str, value: String) -> Element<'static, Message> {
     row![
-        text(label).size(12).style(|theme: &Theme| text::Style {
-            color: Some(
-                theme
-                    .extended_palette()
-                    .background
-                    .weakest
-                    .text
-                    .scale_alpha(0.6),
-            ),
-        }),
+        text(label).size(12).style(style::text::secondary),
         text(value).size(14),
     ]
     .width(60)

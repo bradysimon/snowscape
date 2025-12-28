@@ -123,3 +123,64 @@ pub mod pick_list {
         }
     }
 }
+
+pub mod text {
+    use iced::Theme;
+    use iced::widget::text;
+
+    /// Faded text style (50% alpha) using background weakest text color.
+    pub fn faded(theme: &Theme) -> text::Style {
+        text::Style {
+            color: Some(
+                theme
+                    .extended_palette()
+                    .background
+                    .weakest
+                    .text
+                    .scale_alpha(0.5),
+            ),
+        }
+    }
+
+    /// Secondary text style (60% alpha) using background weakest text color.
+    pub fn secondary(theme: &Theme) -> text::Style {
+        text::Style {
+            color: Some(
+                theme
+                    .extended_palette()
+                    .background
+                    .weakest
+                    .text
+                    .scale_alpha(0.6),
+            ),
+        }
+    }
+
+    /// Muted text style (70% alpha) using background weakest text color.
+    pub fn muted(theme: &Theme) -> text::Style {
+        text::Style {
+            color: Some(
+                theme
+                    .extended_palette()
+                    .background
+                    .weakest
+                    .text
+                    .scale_alpha(0.7),
+            ),
+        }
+    }
+
+    /// Subdued text style (80% alpha) using background weakest text color.
+    pub fn subdued(theme: &Theme) -> text::Style {
+        text::Style {
+            color: Some(
+                theme
+                    .extended_palette()
+                    .background
+                    .weakest
+                    .text
+                    .scale_alpha(0.8),
+            ),
+        }
+    }
+}
