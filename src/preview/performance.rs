@@ -169,8 +169,8 @@ impl Performance {
 
     /// Get the overall performance status combining view and update stats.
     pub fn overall_status(&self) -> Indicator {
-        let view_status = self.view_stats().status();
-        let update_status = self.update_stats().status();
+        let view_status = self.view_stats().indicator();
+        let update_status = self.update_stats().indicator();
         view_status.combine(update_status)
     }
 }
@@ -226,11 +226,11 @@ pub struct Stats {
 }
 
 impl Stats {
-    /// Compute the performance status for these stats.
+    /// Compute the performance indicator for these stats.
     ///
     /// Uses p90 as the primary indicator since it represents
     /// what most users will experience in practice.
-    pub fn status(&self) -> Indicator {
+    pub fn indicator(&self) -> Indicator {
         let Some(p90) = self.p90 else {
             return Indicator::Unknown;
         };

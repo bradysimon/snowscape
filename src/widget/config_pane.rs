@@ -185,7 +185,7 @@ fn config_tab<'a>(
                     text(tab.name()).size(14),
                     badge_info.map(|(count, primary)| round_badge(count, primary)),
                     show_performance_indicator
-                        .then(|| performance_pane::status_dot(performance_status)),
+                        .then(|| performance_pane::indicator_dot(performance_status)),
                 ]
                 .spacing(4)
                 .align_y(Center)

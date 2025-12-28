@@ -3,9 +3,9 @@ use std::time::Duration;
 use iced::{
     Alignment::Center,
     Element,
-    Length::Fill,
+    Length::{self, Fill, FillPortion},
     Theme, border,
-    widget::{column, container, row, scrollable, space, text},
+    widget::{Container, column, container, responsive, row, scrollable, space, text},
 };
 
 use crate::app::Message;
@@ -28,55 +28,63 @@ pub fn performance_pane(performance: Option<&Performance>) -> Element<'_, Messag
             .into();
     }
 
-    let view_section: Element<'_, Message> = if has_view_data {
-        stats_grid(view_stats)
-    } else {
-        text("No view data recorded.").into()
-    };
+    scrollable(responsive(move |size| {
+        let view_section: Element<'_, Message> = if has_view_data {
+            stats_grid(view_stats)
+        } else {
+            text("No view data recorded.").into()
+        };
 
-    let update_section: Element<'_, Message> = if has_update_data {
-        stats_grid(update_stats)
-    } else {
-        text("No update data recorded (stateless preview or no interactions).")
-            .style(|theme: &Theme| text::Style {
-                color: Some(
-                    theme
-                        .extended_palette()
-                        .background
-                        .weakest
-                        .text
-                        .scale_alpha(0.6),
-                ),
-            })
+        let update_section: Element<'_, Message> = if has_update_data {
+            stats_grid(update_stats)
+        } else {
+            text("No update data recorded (stateless preview or no interactions).")
+                .style(|theme: &Theme| text::Style {
+                    color: Some(
+                        theme
+                            .extended_palette()
+                            .background
+                            .weakest
+                            .text
+                            .scale_alpha(0.6),
+                    ),
+                })
+                .into()
+        };
+
+        if size.width >= 600.0 {
+            row![
+                section("View", view_section).width(FillPortion(1)),
+                container(space::vertical())
+                    .width(1)
+                    .height(Fill)
+                    .style(container::rounded_box),
+                section("Update", update_section).width(FillPortion(1)),
+            ]
+            .spacing(8)
+            .width(Fill)
             .into()
-    };
-
-    scrollable(
-        column![
-            // View function stats
-            section_header("View Function"),
-            view_section,
-            space::vertical().height(16),
-            // Update function stats (only for stateful previews)
-            section_header("Update Function"),
-            update_section,
-        ]
-        .spacing(8)
-        .width(Fill),
-    )
+        } else {
+            column![
+                section("View", view_section),
+                container(space::horizontal())
+                    .height(1)
+                    .width(Fill)
+                    .style(container::rounded_box),
+                section("Update", update_section),
+            ]
+            .spacing(8)
+            .width(Fill)
+            .into()
+        }
+    }))
     .spacing(2)
     .into()
 }
 
 /// A section header for performance stats.
-fn section_header<'a>(label: &'a str) -> Element<'a, Message> {
-    container(text(label).size(14))
-        .padding([4, 0])
-        .style(|theme: &Theme| container::Style {
-            text_color: Some(theme.extended_palette().primary.base.color),
-            ..Default::default()
-        })
-        .into()
+fn section<'a>(label: &'a str, content: Element<'a, Message>) -> Container<'a, Message> {
+    container(column![text(label), content]).padding(4)
 }
 
 /// A grid displaying timing statistics.
@@ -85,7 +93,10 @@ fn stats_grid(stats: Stats) -> Element<'static, Message> {
         // Core stats
         stat_row("Calls", format!("{}", stats.count)),
         stat_row("Last", format_duration(stats.last)),
-        stat_row("Average", format_duration(stats.avg)),
+        space::vertical().height(4),
+        // Visual range display
+        subsection_header("Timing Range"),
+        timing_range_bar(&stats),
         space::vertical().height(4),
         // Percentiles
         subsection_header("Percentiles"),
@@ -93,13 +104,8 @@ fn stats_grid(stats: Stats) -> Element<'static, Message> {
         stat_row("p90", format_duration(stats.p90)),
         stat_row("p99", format_duration(stats.p99)),
         space::vertical().height(4),
-        // Range
-        subsection_header("Range"),
-        stat_row("Min", format_duration(stats.min)),
-        stat_row("Max", format_duration(stats.max)),
-        space::vertical().height(4),
         // Jank
-        jank_indicator(stats.jank_count, stats.count),
+        jank_indicator(stats.indicator(), stats.jank_count, stats.count),
     ]
     .spacing(2)
     .into()
@@ -122,8 +128,151 @@ fn subsection_header(label: &'static str) -> Element<'static, Message> {
         .into()
 }
 
+/// A horizontal bar visualization showing min, average, and max timing.
+fn timing_range_bar(stats: &Stats) -> Element<'static, Message> {
+    let (Some(min), Some(max), Some(avg)) = (stats.min, stats.max, stats.avg) else {
+        return text("—").size(12).into();
+    };
+
+    // If min == max, just show a single value
+    if min == max {
+        return row![
+            text(format_duration(Some(min))).size(12),
+            text(" (no variance)")
+                .size(11)
+                .style(|theme: &Theme| text::Style {
+                    color: Some(
+                        theme
+                            .extended_palette()
+                            .background
+                            .weakest
+                            .text
+                            .scale_alpha(0.5),
+                    ),
+                }),
+        ]
+        .align_y(Center)
+        .into();
+    }
+
+    // Calculate position of average within the range (0.0 to 1.0)
+    let range = max.as_nanos() - min.as_nanos();
+    let avg_position = if range > 0 {
+        ((avg.as_nanos() - min.as_nanos()) as f64 / range as f64).clamp(0.0, 1.0)
+    } else {
+        0.5
+    };
+
+    // Convert to fill portions (use 1000 as scale for precision)
+    let left_portion = (avg_position * 1000.0) as u16;
+    let right_portion = 1000 - left_portion;
+
+    let min_label = format_duration(Some(min));
+    let avg_label = format_duration(Some(avg));
+    let max_label = format_duration(Some(max));
+
+    column![
+        // The visual bar
+        container(
+            row![
+                // Left portion (min to avg)
+                container(space::horizontal())
+                    .width(Length::FillPortion(left_portion.max(1)))
+                    .height(6)
+                    .style(|theme: &Theme| container::Style {
+                        background: Some(
+                            theme
+                                .extended_palette()
+                                .primary
+                                .weak
+                                .color
+                                .scale_alpha(0.5)
+                                .into()
+                        ),
+                        border: border::rounded(2),
+                        ..Default::default()
+                    }),
+                // Average marker
+                container(space::horizontal())
+                    .width(3)
+                    .height(12)
+                    .style(|theme: &Theme| container::Style {
+                        background: Some(theme.extended_palette().primary.base.color.into()),
+                        border: border::rounded(1),
+                        ..Default::default()
+                    }),
+                // Right portion (avg to max)
+                container(space::horizontal())
+                    .width(Length::FillPortion(right_portion.max(1)))
+                    .height(6)
+                    .style(|theme: &Theme| container::Style {
+                        background: Some(
+                            theme
+                                .extended_palette()
+                                .primary
+                                .weak
+                                .color
+                                .scale_alpha(0.5)
+                                .into()
+                        ),
+                        border: border::rounded(2),
+                        ..Default::default()
+                    }),
+            ]
+            .align_y(Center)
+            .width(Fill),
+        )
+        .width(Fill)
+        .padding([0, 1]),
+        // Labels row
+        row![
+            text(min_label).size(12).style(|theme: &Theme| text::Style {
+                color: Some(
+                    theme
+                        .extended_palette()
+                        .background
+                        .weakest
+                        .text
+                        .scale_alpha(0.6),
+                ),
+            }),
+            space::horizontal(),
+            text(format!("avg: {}", avg_label))
+                .size(12)
+                .style(|theme: &Theme| text::Style {
+                    color: Some(
+                        theme
+                            .extended_palette()
+                            .background
+                            .weakest
+                            .text
+                            .scale_alpha(0.6),
+                    ),
+                }),
+            space::horizontal(),
+            text(max_label).size(12).style(|theme: &Theme| text::Style {
+                color: Some(
+                    theme
+                        .extended_palette()
+                        .background
+                        .weakest
+                        .text
+                        .scale_alpha(0.6),
+                ),
+            }),
+        ]
+        .width(Fill),
+    ]
+    .spacing(2)
+    .into()
+}
+
 /// Jank indicator showing how many frames exceeded the budget.
-fn jank_indicator(jank_count: usize, total_count: usize) -> Element<'static, Message> {
+fn jank_indicator<'a>(
+    indicator: Indicator,
+    jank_count: usize,
+    total_count: usize,
+) -> Element<'a, Message> {
     if total_count == 0 {
         return space::vertical().height(0).into();
     }
@@ -134,25 +283,18 @@ fn jank_indicator(jank_count: usize, total_count: usize) -> Element<'static, Mes
         0.0
     };
 
-    let (status_text, status_color) = if jank_count == 0 {
-        ("No jank detected", iced::Color::from_rgb(0.2, 0.8, 0.3))
+    let status_text = if jank_count == 0 {
+        "No jank detected"
     } else if jank_percentage < 1.0 {
-        ("Occasional jank", iced::Color::from_rgb(0.7, 0.8, 0.2))
+        "Occasional jank"
     } else if jank_percentage < 5.0 {
-        ("Some jank", iced::Color::from_rgb(0.9, 0.6, 0.1))
+        "Some jank"
     } else {
-        ("Frequent jank", iced::Color::from_rgb(0.9, 0.3, 0.2))
+        "Frequent jank"
     };
 
     row![
-        container(space::horizontal())
-            .width(8)
-            .height(8)
-            .style(move |_theme: &Theme| container::Style {
-                background: Some(status_color.into()),
-                border: border::rounded(4),
-                ..Default::default()
-            }),
+        indicator_dot(indicator),
         text(if jank_count > 0 {
             format!(
                 "{} ({} frames, {:.1}%)",
@@ -208,8 +350,8 @@ fn format_duration(duration: Option<Duration>) -> String {
     }
 }
 
-/// A colored status dot indicator for showing performance status.
-pub fn status_dot(status: Indicator) -> Element<'static, Message> {
+/// A colored dot indicating the current overall performance status.
+pub fn indicator_dot(status: Indicator) -> Element<'static, Message> {
     container(space::horizontal())
         .width(8)
         .height(8)
