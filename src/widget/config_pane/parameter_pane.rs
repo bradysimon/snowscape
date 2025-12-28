@@ -4,7 +4,7 @@ use iced::widget::{
     button, column, container, pick_list, responsive, row, scrollable, slider, space, svg, table,
     text, text_input,
 };
-use iced::{Element, Length, Theme, border};
+use iced::{Color, Element, Length, Theme, border};
 
 use crate::style;
 use crate::{
@@ -209,9 +209,8 @@ fn boolean_toggle<'a, Message: Clone + 'a>(
 }
 
 /// A simple color picker with a preview swatch.
-fn color_picker(index: usize, color: iced::Color) -> Element<'static, Message> {
-    use iced::widget::container;
-    use iced::{Color, border};
+fn color_picker<'a>(index: usize, color: Color) -> Element<'a, Message> {
+    use iced::{border, widget::container};
 
     let [r, g, b, a] = color.into_rgba8();
 

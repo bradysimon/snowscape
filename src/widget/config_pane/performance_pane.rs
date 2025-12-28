@@ -80,7 +80,7 @@ fn section<'a>(label: &'a str, content: Element<'a, Message>) -> Container<'a, M
 }
 
 /// A grid displaying timing statistics.
-fn stats_grid(stats: Stats) -> Element<'static, Message> {
+fn stats_grid<'a>(stats: Stats) -> Element<'a, Message> {
     column![
         // Stats around total calls and last call
         row![
@@ -93,11 +93,11 @@ fn stats_grid(stats: Stats) -> Element<'static, Message> {
         space::vertical().height(4),
         // Visual range display
         subsection_header("Timing Range"),
-        timing_range_bar(&stats),
+        timing_range_bar(stats),
         space::vertical().height(4),
         // Percentiles
         subsection_header("Percentiles"),
-        percentile_bars(&stats),
+        percentile_bars(stats),
         space::vertical().height(4),
         // Jank
         jank_indicator(stats.indicator(), stats.jank_count, stats.count),
@@ -107,12 +107,12 @@ fn stats_grid(stats: Stats) -> Element<'static, Message> {
 }
 
 /// A subsection header within the stats grid.
-fn subsection_header(label: &'static str) -> Element<'static, Message> {
+fn subsection_header<'a>(label: &'static str) -> Element<'a, Message> {
     text(label).size(11).style(style::text::faded).into()
 }
 
 /// A horizontal bar visualization showing min, average, and max timing.
-fn timing_range_bar(stats: &Stats) -> Element<'static, Message> {
+fn timing_range_bar<'a>(stats: Stats) -> Element<'a, Message> {
     let (Some(min), Some(max), Some(avg)) = (stats.min, stats.max, stats.avg) else {
         return text("—").size(12).into();
     };
@@ -213,7 +213,7 @@ fn timing_range_bar(stats: &Stats) -> Element<'static, Message> {
 }
 
 /// Visual percentile bars showing p50, p90, and p99 on the same scale.
-fn percentile_bars(stats: &Stats) -> Element<'static, Message> {
+fn percentile_bars<'a>(stats: Stats) -> Element<'a, Message> {
     let (Some(p50), Some(p90), Some(p99)) = (stats.p50, stats.p90, stats.p99) else {
         return text("—").size(12).into();
     };
@@ -235,11 +235,11 @@ fn percentile_bars(stats: &Stats) -> Element<'static, Message> {
 }
 
 /// A single percentile bar row with label, bar, and value.
-fn percentile_bar_row(
+fn percentile_bar_row<'a>(
     label: &'static str,
     duration: Duration,
     fill_pct: f64,
-) -> Element<'static, Message> {
+) -> Element<'a, Message> {
     let fill_portion = (fill_pct * 1000.0) as u16;
 
     row![
@@ -333,7 +333,7 @@ fn jank_indicator<'a>(
 }
 
 /// A single row in the stats grid showing a label and value.
-fn stat_row(label: &'static str, value: String) -> Element<'static, Message> {
+fn stat_row<'a>(label: &'static str, value: String) -> Element<'a, Message> {
     row![
         text(label).size(12).style(style::text::secondary),
         text(value).size(14),
@@ -364,7 +364,7 @@ fn format_duration(duration: Option<Duration>) -> String {
 }
 
 /// A colored dot indicating the current overall performance status.
-pub fn indicator_dot(status: Indicator) -> Element<'static, Message> {
+pub fn indicator_dot<'a>(status: Indicator) -> Element<'a, Message> {
     container(space::horizontal())
         .width(8)
         .height(8)
