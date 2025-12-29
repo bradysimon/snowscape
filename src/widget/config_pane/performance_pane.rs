@@ -44,7 +44,7 @@ pub fn performance_pane(performance: Option<&Performance>) -> Element<'_, Messag
                 .into()
         };
 
-        if size.width >= 600.0 {
+        if size.width >= 576.0 {
             row![
                 section("View", view_section).width(FillPortion(1)),
                 container(space::vertical())
