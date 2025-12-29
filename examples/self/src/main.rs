@@ -189,7 +189,7 @@ fn performance_pane() -> impl Into<Descriptor> {
         |performance| widget::config_pane::performance_pane::performance_pane(Some(performance)),
     )
     .description(
-        "Shows performance metrics for the previewed component, including frame times \
+        "Shows performance metrics for the previewed component, including view/update times \
         and jank indicators. This helps users identify performance bottlenecks and optimize \
         their components for smoother interactions.",
     )
