@@ -1,5 +1,8 @@
+use std::time::Duration;
+
 use iced::widget::{container, space};
 use iced::{Color, Element};
+use snowscape::preview::Performance;
 use snowscape::preview::{
     Descriptor, dynamic, performance::Indicator, stateful, stateless, stateless_with,
 };
@@ -14,6 +17,7 @@ fn main() -> iced::Result {
             .preview(about_pane())
             .preview(parameter_pane())
             .preview(message_pane())
+            .preview(performance_pane())
             .preview(app_preview())
     })
 }
@@ -150,6 +154,40 @@ fn message_pane() -> impl Into<Descriptor> {
     )
 }
 
+/// Previews the performance pane widget with sample performance data.
+fn performance_pane() -> impl Into<Descriptor> {
+    stateless_with(
+        "Performance Pane",
+        Performance::new(
+            vec![
+                Duration::from_micros(10),
+                Duration::from_micros(5),
+                Duration::from_micros(8),
+                Duration::from_micros(15),
+                Duration::from_micros(3),
+                Duration::from_micros(12),
+                Duration::from_micros(10),
+            ],
+            vec![
+                Duration::from_micros(50),
+                Duration::from_micros(100),
+                Duration::from_micros(200),
+                Duration::from_micros(3_000),
+                Duration::from_micros(4_500),
+                Duration::from_micros(8_000),
+                Duration::from_micros(16_000),
+            ],
+        ),
+        |performance| widget::config_pane::performance_pane::performance_pane(Some(performance)),
+    )
+    .description(
+        "Shows performance metrics for the previewed component, including frame times \
+        and jank indicators. This helps users identify performance bottlenecks and optimize \
+        their components for smoother interactions.",
+    )
+}
+
+/// Previews the entire Snowscape application itself as a nested preview.
 fn app_preview() -> impl Into<Descriptor> {
     stateful(
         "App",
@@ -161,6 +199,7 @@ fn app_preview() -> impl Into<Descriptor> {
                 .preview(about_pane())
                 .preview(parameter_pane())
                 .preview(message_pane())
+                .preview(performance_pane())
         },
         App::internal_update,
         App::internal_view,

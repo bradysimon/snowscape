@@ -39,7 +39,7 @@ where
             data,
             view_fn,
             history: History::new(),
-            performance: Performance::new(),
+            performance: Performance::default(),
             metadata,
         }
     }

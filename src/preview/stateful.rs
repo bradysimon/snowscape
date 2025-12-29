@@ -42,7 +42,7 @@ where
             boot,
             state,
             history: History::new(),
-            performance: Performance::new(),
+            performance: Performance::default(),
             update_fn,
             view_fn,
             metadata,

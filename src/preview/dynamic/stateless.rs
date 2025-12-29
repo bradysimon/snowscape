@@ -200,7 +200,7 @@ where
         params: params.clone(),
         default_params: params,
         history: History::new(),
-        performance: Performance::new(),
+        performance: Performance::default(),
         cached_params,
         cached_values,
         view_fn,

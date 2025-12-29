@@ -18,10 +18,10 @@ pub struct Performance {
 
 impl Performance {
     /// Create a new empty `Performance` tracker.
-    pub fn new() -> Self {
+    pub fn new(view: Vec<Duration>, update: Vec<Duration>) -> Self {
         Self {
-            view_times: RefCell::new(Vec::new()),
-            update_times: Vec::new(),
+            view_times: RefCell::new(view),
+            update_times: update,
         }
     }
 
