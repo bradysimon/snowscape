@@ -1,8 +1,8 @@
 use iced::Alignment::Center;
 use iced::Length::{FillPortion, Shrink};
 use iced::widget::{
-    button, column, container, pick_list, responsive, row, scrollable, slider, space, svg, table,
-    text, text_input,
+    button, column, container, pick_list, responsive, right, row, scrollable, slider, space, svg,
+    table, text, text_input,
 };
 use iced::{Color, Element, Length, Theme, border};
 
@@ -92,7 +92,7 @@ pub fn vertical_view(params: &[Param]) -> Element<'_, Message> {
         .map(|(index, param)| labeled(&param.name, field(param, index)));
 
     // Place the undo button near the top so vertical layouts can reset params.
-    column![undo_button(), column(fields).spacing(10)]
+    column![right(undo_button()), column(fields).spacing(10)]
         .spacing(8)
         .into()
 }
