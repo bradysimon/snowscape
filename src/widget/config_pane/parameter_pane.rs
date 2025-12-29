@@ -28,6 +28,7 @@ pub fn parameter_pane(params: &[Param]) -> Element<'_, Message> {
                 table_view(params)
             }
         }))
+        .spacing(4)
         .into()
     }
 }
