@@ -5,7 +5,7 @@ use iced::{
     Element,
     Length::{self, Fill, FillPortion},
     Theme, border,
-    widget::{Container, column, container, responsive, row, scrollable, space, text},
+    widget::{Container, column, container, responsive, right, row, scrollable, space, text},
 };
 
 use crate::app::Message;
@@ -85,11 +85,15 @@ fn stats_grid<'a>(stats: Stats) -> Element<'a, Message> {
         // Stats around total calls and last call
         row![
             stat_row("Calls", format!("{}", stats.count)),
-            space::horizontal().width(12),
             stat_row("Last", format_duration(stats.last)),
+            right(jank_indicator(
+                stats.indicator(),
+                stats.jank_count,
+                stats.count
+            )),
         ]
         .align_y(Center)
-        .spacing(4),
+        .spacing(8),
         space::vertical().height(4),
         // Visual range display
         subsection_header("Timing Range"),
@@ -98,9 +102,6 @@ fn stats_grid<'a>(stats: Stats) -> Element<'a, Message> {
         // Percentiles
         subsection_header("Percentiles"),
         percentile_bars(stats),
-        space::vertical().height(4),
-        // Jank
-        jank_indicator(stats.indicator(), stats.jank_count, stats.count),
     ]
     .spacing(2)
     .into()
@@ -305,26 +306,12 @@ fn jank_indicator<'a>(
         0.0
     };
 
-    let status_text = if jank_count == 0 {
-        "No jank detected"
-    } else if jank_percentage < 1.0 {
-        "Occasional jank"
-    } else if jank_percentage < 5.0 {
-        "Some jank"
-    } else {
-        "Frequent jank"
-    };
-
     row![
         indicator_dot(indicator),
-        text(if jank_count > 0 {
-            format!(
-                "{} ({} frames, {:.1}%)",
-                status_text, jank_count, jank_percentage
-            )
-        } else {
-            status_text.to_string()
-        })
+        text(format!(
+            "{} jank frames, {:.1}%",
+            jank_count, jank_percentage
+        ))
         .size(12),
     ]
     .align_y(Center)
