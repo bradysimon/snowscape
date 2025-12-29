@@ -48,27 +48,7 @@ pub fn table_view(params: &[Param]) -> Element<'_, Message> {
             row![
                 text("Value").size(14).style(header_style),
                 space::horizontal(),
-                button(
-                    row![
-                        crate::icon::undo()
-                            .width(14)
-                            .height(14)
-                            .style(|theme: &Theme, _status| svg::Style {
-                                color: Some(theme.palette().text),
-                            }),
-                        text("Undo").size(14),
-                    ]
-                    .spacing(4)
-                    .align_y(Center)
-                )
-                .on_press(Message::ResetParams)
-                .style(|theme: &Theme, status| {
-                    button::Style {
-                        background: None,
-                        border: border::rounded(4),
-                        ..button::text(theme, status)
-                    }
-                }),
+                undo_button(),
             ],
             |(index, param): (usize, &Param)| field(param, index),
         )
@@ -80,6 +60,30 @@ pub fn table_view(params: &[Param]) -> Element<'_, Message> {
         .into()
 }
 
+/// Allows the user to undo any changes they've made to the dynamic parameters.
+pub fn undo_button<'a>() -> Element<'a, Message> {
+    button(
+        row![
+            crate::icon::undo()
+                .width(14)
+                .height(14)
+                .style(|theme: &Theme, _status| svg::Style {
+                    color: Some(theme.palette().text),
+                }),
+            text("Undo").size(14),
+        ]
+        .spacing(4)
+        .align_y(Center),
+    )
+    .on_press(Message::ResetParams)
+    .style(|theme: &Theme, status| button::Style {
+        background: None,
+        border: border::rounded(4),
+        ..button::text(theme, status)
+    })
+    .into()
+}
+
 /// Displays the parameters in a vertical layout, typically for narrow widths.
 pub fn vertical_view(params: &[Param]) -> Element<'_, Message> {
     let fields = params
@@ -87,7 +91,10 @@ pub fn vertical_view(params: &[Param]) -> Element<'_, Message> {
         .enumerate()
         .map(|(index, param)| labeled(&param.name, field(param, index)));
 
-    column(fields).spacing(10).into()
+    // Place the undo button near the top so vertical layouts can reset params.
+    column![undo_button(), column(fields).spacing(10)]
+        .spacing(8)
+        .into()
 }
 
 /// Displays an editable field for a dynamic `param`.
