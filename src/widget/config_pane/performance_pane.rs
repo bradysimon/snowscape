@@ -309,8 +309,10 @@ fn jank_indicator<'a>(
     row![
         indicator_dot(indicator),
         text(format!(
-            "{} jank frames, {:.1}%",
-            jank_count, jank_percentage
+            "{} jank {}, {:.1}%",
+            jank_count,
+            if jank_count == 1 { "frame" } else { "frames" },
+            jank_percentage
         ))
         .size(12),
     ]
