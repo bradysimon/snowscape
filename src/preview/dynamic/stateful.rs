@@ -4,7 +4,7 @@ use crate::{
     dynamic::{ExtractParams, Param},
     message::AnyMessage,
     metadata::Metadata,
-    preview::{History, Preview, Timeline},
+    preview::{History, Performance, Preview, Timeline},
 };
 
 /// A dynamic stateful preview with full update/view cycle and adjustable parameters.
@@ -32,6 +32,8 @@ where
     state: State,
     /// The history of messages emitted by the preview.
     history: History<Message>,
+    /// Performance metrics for tracking view/update function execution times.
+    performance: Performance,
     /// The update function that processes messages.
     update_fn: fn(&mut State, Message) -> IntoTask,
     /// The view function that renders the preview.
@@ -65,6 +67,7 @@ where
             boot,
             state,
             history: History::new(),
+            performance: Performance::default(),
             update_fn,
             view_fn,
         }
@@ -118,7 +121,10 @@ where
 
                 self.history.push(message.clone());
                 let message = message.clone();
-                let result = (self.update_fn)(&mut self.state, message);
+                // Track performance only when live (not during time travel replay)
+                let result = self
+                    .performance
+                    .record_update(|| (self.update_fn)(&mut self.state, message));
                 let task: Task<Message> = result.into();
 
                 // Map the task's messages back to the preview's crate::Message type
@@ -128,6 +134,7 @@ where
                 // Reset state with current parameter values
                 self.state = (self.boot)();
                 self.history.reset();
+                self.performance.reset();
                 Task::none()
             }
             crate::Message::TimeTravel(index) => {
@@ -172,7 +179,9 @@ where
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)(&self.state, &self.cached_values).map(crate::Message::component)
+        self.performance.record_view(|| {
+            (self.view_fn)(&self.state, &self.cached_values).map(crate::Message::component)
+        })
     }
 
     fn message_count(&self) -> usize {
@@ -189,6 +198,10 @@ where
 
     fn params(&self) -> &[Param] {
         &self.cached_params
+    }
+
+    fn performance(&self) -> Option<&Performance> {
+        Some(&self.performance)
     }
 }
 

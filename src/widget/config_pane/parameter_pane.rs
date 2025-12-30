@@ -1,10 +1,10 @@
 use iced::Alignment::Center;
 use iced::Length::{FillPortion, Shrink};
 use iced::widget::{
-    button, column, container, pick_list, responsive, row, scrollable, slider, space, svg, table,
-    text, text_input,
+    button, column, container, pick_list, responsive, right, row, scrollable, slider, space, svg,
+    table, text, text_input,
 };
-use iced::{Element, Length, Theme, border};
+use iced::{Color, Element, Length, Theme, border};
 
 use crate::style;
 use crate::{
@@ -28,6 +28,7 @@ pub fn parameter_pane(params: &[Param]) -> Element<'_, Message> {
                 table_view(params)
             }
         }))
+        .spacing(4)
         .into()
     }
 }
@@ -48,27 +49,7 @@ pub fn table_view(params: &[Param]) -> Element<'_, Message> {
             row![
                 text("Value").size(14).style(header_style),
                 space::horizontal(),
-                button(
-                    row![
-                        crate::icon::undo()
-                            .width(14)
-                            .height(14)
-                            .style(|theme: &Theme, _status| svg::Style {
-                                color: Some(theme.palette().text),
-                            }),
-                        text("Undo").size(14),
-                    ]
-                    .spacing(4)
-                    .align_y(Center)
-                )
-                .on_press(Message::ResetParams)
-                .style(|theme: &Theme, status| {
-                    button::Style {
-                        background: None,
-                        border: border::rounded(4),
-                        ..button::text(theme, status)
-                    }
-                }),
+                undo_button(),
             ],
             |(index, param): (usize, &Param)| field(param, index),
         )
@@ -80,6 +61,30 @@ pub fn table_view(params: &[Param]) -> Element<'_, Message> {
         .into()
 }
 
+/// Allows the user to undo any changes they've made to the dynamic parameters.
+pub fn undo_button<'a>() -> Element<'a, Message> {
+    button(
+        row![
+            crate::icon::undo()
+                .width(14)
+                .height(14)
+                .style(|theme: &Theme, _status| svg::Style {
+                    color: Some(theme.palette().text),
+                }),
+            text("Undo").size(14),
+        ]
+        .spacing(4)
+        .align_y(Center),
+    )
+    .on_press(Message::ResetParams)
+    .style(|theme: &Theme, status| button::Style {
+        background: None,
+        border: border::rounded(4),
+        ..button::text(theme, status)
+    })
+    .into()
+}
+
 /// Displays the parameters in a vertical layout, typically for narrow widths.
 pub fn vertical_view(params: &[Param]) -> Element<'_, Message> {
     let fields = params
@@ -87,7 +92,10 @@ pub fn vertical_view(params: &[Param]) -> Element<'_, Message> {
         .enumerate()
         .map(|(index, param)| labeled(&param.name, field(param, index)));
 
-    column(fields).spacing(10).into()
+    // Place the undo button near the top so vertical layouts can reset params.
+    column![right(undo_button()), column(fields).spacing(10)]
+        .spacing(8)
+        .into()
 }
 
 /// Displays an editable field for a dynamic `param`.
@@ -209,9 +217,8 @@ fn boolean_toggle<'a, Message: Clone + 'a>(
 }
 
 /// A simple color picker with a preview swatch.
-fn color_picker(index: usize, color: iced::Color) -> Element<'static, Message> {
-    use iced::widget::container;
-    use iced::{Color, border};
+fn color_picker<'a>(index: usize, color: Color) -> Element<'a, Message> {
+    use iced::{border, widget::container};
 
     let [r, g, b, a] = color.into_rgba8();
 

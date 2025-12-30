@@ -45,7 +45,7 @@ pub fn label<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
 }
 
 // Stateless preview returning a more complex layout
-pub fn counter(count: i32) -> Element<'static, Message> {
+pub fn counter<'a>(count: i32) -> Element<'a, Message> {
     column![label(count), add_button(), minus_button()]
         .align_x(Center)
         .spacing(10)

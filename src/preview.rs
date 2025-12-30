@@ -1,6 +1,11 @@
 mod descriptor;
 pub mod dynamic;
 mod history;
+
+#[cfg(not(feature = "internal"))]
+pub(crate) mod performance;
+#[cfg(feature = "internal")]
+pub mod performance;
 mod stateful;
 mod stateless;
 mod timeline;
@@ -10,6 +15,11 @@ use iced::{Element, Task};
 
 pub use descriptor::Descriptor;
 pub use history::History;
+#[cfg(not(feature = "internal"))]
+use performance::Performance;
+#[cfg(feature = "internal")]
+pub use performance::Performance;
+
 pub use stateful::{Stateful, stateful};
 pub use stateless::{Stateless, stateless, stateless_with};
 pub use timeline::Timeline;
@@ -43,5 +53,10 @@ pub trait Preview: Send {
     /// The parameters for the dynamic preview if applicable.
     fn params(&self) -> &[Param] {
         &[]
+    }
+
+    /// The performance metrics for the preview if available.
+    fn performance(&self) -> Option<&Performance> {
+        None
     }
 }

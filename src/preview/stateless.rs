@@ -1,4 +1,8 @@
-use crate::{Metadata, Preview, message::AnyMessage, preview::History};
+use crate::{
+    Metadata, Preview,
+    message::AnyMessage,
+    preview::{History, Performance},
+};
 use iced::{Element, Task};
 
 /// A stateless preview that renders a view function.
@@ -18,6 +22,8 @@ where
     view_fn: F,
     /// The history of messages emitted by the preview.
     history: History<Message>,
+    /// Performance metrics for tracking view function execution times.
+    performance: Performance,
     /// Metadata about the this preview.
     pub(crate) metadata: Metadata,
 }
@@ -33,6 +39,7 @@ where
             data,
             view_fn,
             history: History::new(),
+            performance: Performance::default(),
             metadata,
         }
     }
@@ -77,6 +84,7 @@ where
             }
             crate::app::Message::ResetPreview => {
                 self.history = History::new();
+                self.performance.reset();
             }
             _ => {}
         }
@@ -84,7 +92,8 @@ where
     }
 
     fn view(&self) -> Element<'_, crate::Message> {
-        (self.view_fn)(&self.data).map(crate::Message::component)
+        self.performance
+            .record_view(|| (self.view_fn)(&self.data).map(crate::Message::component))
     }
 
     fn message_count(&self) -> usize {
@@ -93,6 +102,10 @@ where
 
     fn visible_messages(&self) -> &'_ [String] {
         self.history.traces()
+    }
+
+    fn performance(&self) -> Option<&Performance> {
+        Some(&self.performance)
     }
 }
 

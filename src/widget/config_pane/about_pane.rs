@@ -1,9 +1,10 @@
 use iced::Alignment::Center;
 use iced::Element;
+use iced::Length::Fill;
 use iced::Length::Shrink;
 use iced::widget::{column, row, scrollable, space, text};
-use iced::{Length::Fill, Theme};
 
+use crate::style;
 use crate::widget::badge;
 use crate::{app::Message, metadata::Metadata};
 
@@ -27,16 +28,7 @@ pub fn about_pane(metadata: &Metadata) -> Element<'_, Message> {
             } else {
                 text("No description available.")
             }
-            .style(|theme: &Theme| text::Style {
-                color: Some(
-                    theme
-                        .extended_palette()
-                        .background
-                        .weakest
-                        .text
-                        .scale_alpha(0.75)
-                )
-            }),
+            .style(style::text::muted),
         ]
         .width(Fill),
     )
