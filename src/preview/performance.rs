@@ -7,6 +7,11 @@ use std::{
 /// Maximum number of timing entries to store per metric type.
 const MAX_ENTRIES: usize = 1_000_000;
 
+/// Threshold for considering a view/update call as "slow".
+/// View/update calls take up only a portion of the total frame time,
+/// so it's important for them to finish well under the frame budget.
+pub const SLOW_CALL_THRESHOLD: Duration = Duration::from_millis(1);
+
 /// Performance metrics for tracking view and update function execution times.
 #[derive(Debug, Default)]
 pub struct Performance {
@@ -127,7 +132,7 @@ impl Performance {
     pub fn view_stats(&self) -> Stats {
         let times = self.view_times.borrow();
         let (p50, p90, p99) = compute_percentiles(&times);
-        let jank_count = times.iter().filter(|&&d| d > FRAME_BUDGET_120FPS).count();
+        let slow_call_count = times.iter().filter(|&&d| d > SLOW_CALL_THRESHOLD).count();
         Stats {
             count: times.len(),
             last: times.last().copied(),
@@ -142,17 +147,17 @@ impl Performance {
             p50,
             p90,
             p99,
-            jank_count,
+            slow_call_count,
         }
     }
 
     /// Get update timing statistics as a [`Stats`] struct.
     pub fn update_stats(&self) -> Stats {
         let (p50, p90, p99) = compute_percentiles(&self.update_times);
-        let jank_count = self
+        let slow_call_count = self
             .update_times
             .iter()
-            .filter(|&&d| d > FRAME_BUDGET_120FPS)
+            .filter(|&&d| d > SLOW_CALL_THRESHOLD)
             .count();
         Stats {
             count: self.update_count(),
@@ -163,7 +168,7 @@ impl Performance {
             p50,
             p90,
             p99,
-            jank_count,
+            slow_call_count,
         }
     }
 
@@ -221,37 +226,31 @@ pub struct Stats {
     pub p90: Option<Duration>,
     /// 99th percentile.
     pub p99: Option<Duration>,
-    /// Number of measurements exceeding 16.67ms (60 FPS budget).
-    pub jank_count: usize,
+    /// Number of calls exceeding the [`SLOW_CALL_THRESHOLD`].
+    pub slow_call_count: usize,
 }
 
 impl Stats {
     /// Compute the performance indicator for these stats.
-    ///
-    /// Uses p90 as the primary indicator since it represents
-    /// what most users will experience in practice.
+    /// Uses p90 as the primary indicator since it represents what most users will experience.
     pub fn indicator(&self) -> Indicator {
         let Some(p90) = self.p90 else {
             return Indicator::Unknown;
         };
 
-        // Use p90 as primary indicator with jank percentage as secondary
-        let jank_percentage = if self.count > 0 {
-            (self.jank_count as f64 / self.count as f64) * 100.0
+        // Use p90 as primary indicator with slow call percentage as secondary
+        let slow_call_percentage = if self.count > 0 {
+            (self.slow_call_count as f64 / self.count as f64) * 100.0
         } else {
             0.0
         };
 
-        // Good: p90 under 4ms (plenty of headroom) and <1% jank
-        if p90.as_micros() <= 4_000 && jank_percentage < 1.0 {
+        if p90 <= SLOW_CALL_THRESHOLD && slow_call_percentage < 1.0 {
             Indicator::Healthy
-        }
-        // Warning: p90 under 8ms (some headroom) or 1-5% jank
-        else if p90.as_micros() <= 8_000 && jank_percentage < 5.0 {
+        } else if p90 <= SLOW_CALL_THRESHOLD * 2 && slow_call_percentage < 5.0 {
             Indicator::Degraded
-        }
-        // Error: p90 over 8ms or >5% jank
-        else {
+        } else {
+            // p90 over the threshold or >5% slow calls
             Indicator::Severe
         }
     }
@@ -263,11 +262,11 @@ pub enum Indicator {
     /// Performance status is unknown (no data).
     #[default]
     Unknown,
-    /// Performance is good (p90 ≤ 4ms, jank < 1%).
+    /// Performance is good (p90 ≤ [`SLOW_CALL_THRESHOLD`], slow calls < 1%).
     Healthy,
-    /// Performance may need attention (p90 ≤ 8ms, jank < 5%).
+    /// Performance may need attention (p90 ≤ 2 * [`SLOW_CALL_THRESHOLD`], slow calls < 5%).
     Degraded,
-    /// Performance issues detected (p90 > 8ms or jank ≥ 5%).
+    /// Performance issues detected (p90 > 2 * [`SLOW_CALL_THRESHOLD`] or slow calls ≥ 5%).
     Severe,
 }
 
@@ -302,5 +301,143 @@ impl Indicator {
     }
 }
 
-/// Frame budget threshold for 120 FPS (8.33ms).
-pub const FRAME_BUDGET_120FPS: Duration = Duration::from_micros(8_333);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Test constants for common Stats patterns
+    const BASE_STATS: Stats = Stats {
+        count: 100,
+        last: None,
+        avg: None,
+        min: None,
+        max: None,
+        p50: None,
+        p90: None,
+        p99: None,
+        slow_call_count: 0,
+    };
+
+    /// Anything over 1ms is considered a slow call, since view/update calls
+    /// should be well under frame budget since it's only a portion of the total time.
+    #[test]
+    fn slow_call_threshold() {
+        assert_eq!(SLOW_CALL_THRESHOLD, Duration::from_millis(1));
+    }
+
+    /// The higher priority indicator should be returned when combining two.
+    #[test]
+    fn combine_takes_higher_priority() {
+        assert_eq!(
+            Indicator::Healthy.combine(Indicator::Degraded),
+            Indicator::Degraded
+        );
+        assert_eq!(
+            Indicator::Degraded.combine(Indicator::Severe),
+            Indicator::Severe
+        );
+        assert_eq!(
+            Indicator::Healthy.combine(Indicator::Healthy),
+            Indicator::Healthy
+        );
+        assert_eq!(
+            Indicator::Unknown.combine(Indicator::Healthy),
+            Indicator::Healthy
+        );
+    }
+
+    #[test]
+    fn stats_indicator_unknown_when_no_p90() {
+        assert_eq!(BASE_STATS.indicator(), Indicator::Unknown);
+    }
+
+    #[test]
+    fn stats_indicator_healthy_low_p90_no_slow_calls() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(Duration::from_micros(600));
+        assert_eq!(stats.indicator(), Indicator::Healthy);
+    }
+
+    #[test]
+    fn stats_indicator_healthy_at_threshold() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(SLOW_CALL_THRESHOLD);
+        assert_eq!(stats.indicator(), Indicator::Healthy);
+    }
+
+    #[test]
+    fn stats_indicator_degraded_p90_between_thresholds() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(Duration::from_micros(1500));
+        stats.slow_call_count = 2;
+        assert_eq!(stats.indicator(), Indicator::Degraded);
+    }
+
+    #[test]
+    fn stats_indicator_degraded_low_slow_call_percentage() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(Duration::from_micros(850));
+        stats.slow_call_count = 3;
+        assert_eq!(stats.indicator(), Indicator::Degraded);
+    }
+
+    #[test]
+    fn stats_indicator_severe_high_p90() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(Duration::from_millis(3));
+        stats.slow_call_count = 20;
+        assert_eq!(stats.indicator(), Indicator::Severe);
+    }
+
+    #[test]
+    fn stats_indicator_severe_high_slow_call_percentage() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(Duration::from_micros(900));
+        stats.slow_call_count = 10;
+        assert_eq!(stats.indicator(), Indicator::Severe);
+    }
+
+    #[test]
+    fn stats_indicator_exactly_at_slow_call_threshold() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(SLOW_CALL_THRESHOLD);
+        assert_eq!(stats.indicator(), Indicator::Healthy);
+    }
+
+    #[test]
+    fn stats_indicator_just_over_threshold() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(SLOW_CALL_THRESHOLD + Duration::from_nanos(1));
+        assert_eq!(stats.indicator(), Indicator::Degraded);
+    }
+
+    #[test]
+    fn stats_indicator_at_double_threshold() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(SLOW_CALL_THRESHOLD * 2);
+        assert_eq!(stats.indicator(), Indicator::Degraded);
+    }
+
+    #[test]
+    fn stats_indicator_over_double_threshold() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(SLOW_CALL_THRESHOLD * 2 + Duration::from_nanos(1));
+        assert_eq!(stats.indicator(), Indicator::Severe);
+    }
+
+    #[test]
+    fn stats_indicator_5_percent_slow_calls_at_degraded_boundary() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(Duration::from_micros(900));
+        stats.slow_call_count = 5;
+        assert_eq!(stats.indicator(), Indicator::Severe);
+    }
+
+    #[test]
+    fn stats_indicator_4_percent_slow_calls_with_low_p90() {
+        let mut stats = BASE_STATS;
+        stats.p90 = Some(Duration::from_micros(600));
+        stats.slow_call_count = 4;
+        assert_eq!(stats.indicator(), Indicator::Degraded);
+    }
+}

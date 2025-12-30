@@ -86,9 +86,9 @@ fn stats_grid<'a>(stats: Stats) -> Element<'a, Message> {
         row![
             stat_row("Calls", format!("{}", stats.count)),
             stat_row("Last", format_duration(stats.last)),
-            right(jank_indicator(
+            right(slow_call_indicator(
                 stats.indicator(),
-                stats.jank_count,
+                stats.slow_call_count,
                 stats.count
             )),
         ]
@@ -290,18 +290,18 @@ fn percentile_bar_row<'a>(
     .into()
 }
 
-/// Jank indicator showing how many frames exceeded the budget.
-fn jank_indicator<'a>(
+/// Slow call indicator showing how many calls exceeded the performance threshold.
+fn slow_call_indicator<'a>(
     indicator: Indicator,
-    jank_count: usize,
+    slow_call_count: usize,
     total_count: usize,
 ) -> Element<'a, Message> {
     if total_count == 0 {
         return space::vertical().height(0).into();
     }
 
-    let jank_percentage = if total_count > 0 {
-        (jank_count as f64 / total_count as f64) * 100.0
+    let slow_call_percentage = if total_count > 0 {
+        (slow_call_count as f64 / total_count as f64) * 100.0
     } else {
         0.0
     };
@@ -309,10 +309,14 @@ fn jank_indicator<'a>(
     row![
         indicator_dot(indicator),
         text(format!(
-            "{} jank {}, {:.1}%",
-            jank_count,
-            if jank_count == 1 { "frame" } else { "frames" },
-            jank_percentage
+            "{} slow {}, {:.1}%",
+            slow_call_count,
+            if slow_call_count == 1 {
+                "call"
+            } else {
+                "calls"
+            },
+            slow_call_percentage
         ))
         .size(12),
     ]
