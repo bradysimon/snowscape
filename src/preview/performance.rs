@@ -245,9 +245,9 @@ impl Stats {
             0.0
         };
 
-        if p90 <= SLOW_CALL_THRESHOLD && slow_call_percentage < 1.0 {
+        if p90 < SLOW_CALL_THRESHOLD && slow_call_percentage < 1.0 {
             Indicator::Healthy
-        } else if p90 <= SLOW_CALL_THRESHOLD * 2 && slow_call_percentage < 5.0 {
+        } else if p90 < SLOW_CALL_THRESHOLD * 2 && slow_call_percentage < 5.0 {
             Indicator::Degraded
         } else {
             // p90 over the threshold or >5% slow calls
@@ -346,11 +346,13 @@ mod tests {
         );
     }
 
+    /// We need the p90 to determine the indicator; without it, it's unknown.
     #[test]
     fn stats_indicator_unknown_when_no_p90() {
         assert_eq!(BASE_STATS.indicator(), Indicator::Unknown);
     }
 
+    /// The preview is healthy when p90 is under the threshold and there are no slow calls.
     #[test]
     fn stats_indicator_healthy_low_p90_no_slow_calls() {
         let mut stats = BASE_STATS;
@@ -358,86 +360,48 @@ mod tests {
         assert_eq!(stats.indicator(), Indicator::Healthy);
     }
 
+    /// 1-5% slow calls should push to degraded, even if p90 is under threshold.
     #[test]
-    fn stats_indicator_healthy_at_threshold() {
-        let mut stats = BASE_STATS;
-        stats.p90 = Some(SLOW_CALL_THRESHOLD);
-        assert_eq!(stats.indicator(), Indicator::Healthy);
-    }
-
-    #[test]
-    fn stats_indicator_degraded_p90_between_thresholds() {
-        let mut stats = BASE_STATS;
-        stats.p90 = Some(Duration::from_micros(1500));
-        stats.slow_call_count = 2;
-        assert_eq!(stats.indicator(), Indicator::Degraded);
-    }
-
-    #[test]
-    fn stats_indicator_degraded_low_slow_call_percentage() {
+    fn stats_indicator_few_slow_calls() {
         let mut stats = BASE_STATS;
         stats.p90 = Some(Duration::from_micros(850));
         stats.slow_call_count = 3;
         assert_eq!(stats.indicator(), Indicator::Degraded);
     }
 
+    /// Having many slow calls should push to severe, regardless of p90.
     #[test]
-    fn stats_indicator_severe_high_p90() {
-        let mut stats = BASE_STATS;
-        stats.p90 = Some(Duration::from_millis(3));
-        stats.slow_call_count = 20;
-        assert_eq!(stats.indicator(), Indicator::Severe);
-    }
-
-    #[test]
-    fn stats_indicator_severe_high_slow_call_percentage() {
+    fn stats_indicator_several_slow_calls() {
         let mut stats = BASE_STATS;
         stats.p90 = Some(Duration::from_micros(900));
         stats.slow_call_count = 10;
         assert_eq!(stats.indicator(), Indicator::Severe);
     }
 
+    /// The p90 being exactly at the slow call threshold should be degraded.
     #[test]
-    fn stats_indicator_exactly_at_slow_call_threshold() {
+    fn stats_indicator_at_slow_call_threshold() {
         let mut stats = BASE_STATS;
         stats.p90 = Some(SLOW_CALL_THRESHOLD);
-        assert_eq!(stats.indicator(), Indicator::Healthy);
-    }
-
-    #[test]
-    fn stats_indicator_just_over_threshold() {
-        let mut stats = BASE_STATS;
-        stats.p90 = Some(SLOW_CALL_THRESHOLD + Duration::from_nanos(1));
         assert_eq!(stats.indicator(), Indicator::Degraded);
     }
 
+    /// Being at/over double the slow threshold should be severe.
     #[test]
     fn stats_indicator_at_double_threshold() {
         let mut stats = BASE_STATS;
         stats.p90 = Some(SLOW_CALL_THRESHOLD * 2);
-        assert_eq!(stats.indicator(), Indicator::Degraded);
-    }
-
-    #[test]
-    fn stats_indicator_over_double_threshold() {
-        let mut stats = BASE_STATS;
+        assert_eq!(stats.indicator(), Indicator::Severe);
         stats.p90 = Some(SLOW_CALL_THRESHOLD * 2 + Duration::from_nanos(1));
         assert_eq!(stats.indicator(), Indicator::Severe);
     }
 
+    /// 5% or more slow calls should be severe.
     #[test]
     fn stats_indicator_5_percent_slow_calls_at_degraded_boundary() {
         let mut stats = BASE_STATS;
         stats.p90 = Some(Duration::from_micros(900));
         stats.slow_call_count = 5;
         assert_eq!(stats.indicator(), Indicator::Severe);
-    }
-
-    #[test]
-    fn stats_indicator_4_percent_slow_calls_with_low_p90() {
-        let mut stats = BASE_STATS;
-        stats.p90 = Some(Duration::from_micros(600));
-        stats.slow_call_count = 4;
-        assert_eq!(stats.indicator(), Indicator::Degraded);
     }
 }
