@@ -93,7 +93,8 @@ cargo run --bin preview
 ## Running the examples
 
 You can do `cargo run -p {package_name}` to run any of the included examples.
-You can also do `cargo run --features internal` to see Snowscape's previews.
+You can run the `self` example with `cargo run -p self` to see Snowscape's 
+own previews.
 
 ## Roadmap
 
@@ -101,7 +102,7 @@ You can also do `cargo run --features internal` to see Snowscape's previews.
 - [X] Preview stateful components
 - [X] Improved preview metadata (descriptions, groups, tags)
 - [X] Search/filter previews
-- [ ] Custom themes
+- [X] Custom themes (via `themer` widget)
 - [ ] Layout options (centered, fullscreen, grid)
 - [ ] More I haven't thought of yet :)
 
