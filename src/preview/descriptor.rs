@@ -9,8 +9,10 @@ pub struct Descriptor {
 
 impl Descriptor {
     /// Create a new [`Descriptor`] with the given label and preview.
-    pub fn new(preview: Box<dyn Preview>) -> Self {
-        Self { preview }
+    pub fn new(preview: impl Preview + 'static) -> Self {
+        Self {
+            preview: Box::new(preview),
+        }
     }
 
     /// Get the metadata associated with the preview.
@@ -32,8 +34,6 @@ where
     P: Preview + 'static,
 {
     fn from(preview: P) -> Self {
-        Self {
-            preview: Box::new(preview),
-        }
+        Descriptor::new(preview)
     }
 }

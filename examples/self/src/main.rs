@@ -2,10 +2,8 @@ use std::time::Duration;
 
 use iced::widget::{container, space};
 use iced::{Color, Element};
-use snowscape::preview::Performance;
-use snowscape::preview::{
-    Descriptor, dynamic, performance::Indicator, stateful, stateless, stateless_with,
-};
+use snowscape::preview::{Performance, Preview};
+use snowscape::preview::{dynamic, performance::Indicator, stateful, stateless, stateless_with};
 use snowscape::{App, ConfigTab, Metadata, widget};
 
 /// Previews various components used within Snowscape.
@@ -22,7 +20,7 @@ fn main() -> iced::Result {
     })
 }
 
-fn config_tabs() -> impl Into<Descriptor> {
+fn config_tabs() -> impl Preview {
     dynamic::stateless(
         "Config Tabs",
         (
@@ -51,7 +49,7 @@ fn config_tabs() -> impl Into<Descriptor> {
     )
 }
 
-fn preview_list() -> impl Into<Descriptor> {
+fn preview_list() -> impl Preview {
     stateless_with(
         "Preview List",
         vec![
@@ -71,7 +69,7 @@ fn preview_list() -> impl Into<Descriptor> {
     )
 }
 
-fn about_pane() -> impl Into<Descriptor> {
+fn about_pane() -> impl Preview {
     stateless_with(
         "About Pane",
         Metadata {
@@ -92,7 +90,7 @@ fn about_pane() -> impl Into<Descriptor> {
 }
 
 /// Previews the parameter pane widget with its own editable state.
-fn parameter_pane() -> impl Into<Descriptor> {
+fn parameter_pane() -> impl Preview {
     struct App {
         params: Vec<dynamic::Param>,
     }
@@ -136,7 +134,7 @@ fn parameter_pane() -> impl Into<Descriptor> {
     )
 }
 
-fn message_pane() -> impl Into<Descriptor> {
+fn message_pane() -> impl Preview {
     stateless_with(
         "Message Pane",
         [
@@ -155,7 +153,7 @@ fn message_pane() -> impl Into<Descriptor> {
 }
 
 /// Previews the performance pane widget with sample performance data.
-fn performance_pane() -> impl Into<Descriptor> {
+fn performance_pane() -> impl Preview {
     stateless_with(
         "Performance Pane",
         Performance::new(
@@ -196,7 +194,7 @@ fn performance_pane() -> impl Into<Descriptor> {
 }
 
 /// Previews the entire Snowscape application itself as a nested preview.
-fn app_preview() -> impl Into<Descriptor> {
+fn app_preview() -> impl Preview {
     stateful(
         "App",
         || {

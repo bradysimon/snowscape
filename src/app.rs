@@ -66,7 +66,7 @@ impl App {
     }
 
     /// Adds a preview to the application.
-    pub fn preview(mut self, preview: impl Into<Descriptor>) -> Self {
+    pub fn preview(mut self, preview: impl Preview + 'static) -> Self {
         self.descriptors.push(preview.into());
         self
     }

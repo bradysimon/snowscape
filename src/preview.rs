@@ -13,7 +13,7 @@ mod timeline;
 use crate::{Message, preview::dynamic::Param};
 use iced::{Element, Task};
 
-pub use descriptor::Descriptor;
+pub(crate) use descriptor::Descriptor;
 pub use history::History;
 #[cfg(not(feature = "internal"))]
 use performance::Performance;
