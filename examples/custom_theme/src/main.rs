@@ -7,7 +7,7 @@ use iced::{
 };
 use snowscape::dynamic;
 
-use crate::theme::{ContainerVariant, CustomTheme};
+use crate::theme::{ContainerVariant, CustomTheme, TextVariant};
 
 /// Previews various components used within Snowscape.
 fn main() -> iced::Result {
@@ -76,8 +76,8 @@ fn product_card<'a>(
 ) -> Element<'a, Message, CustomTheme> {
     card(
         column![
-            text(title).class(theme::TextVariant::Primary),
-            text(description).class(theme::TextVariant::Secondary),
+            text(title).class(TextVariant::Primary),
+            text(description).class(TextVariant::Secondary),
             space::vertical().height(8),
             row![
                 text(format!("${price}")).size(20),
