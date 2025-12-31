@@ -5,39 +5,35 @@ use iced::{
     Length::Fill,
     widget::{Button, Text, column, container, row, space, text::IntoFragment, themer},
 };
-use snowscape::stateless;
+use snowscape::dynamic;
 
 use crate::theme::{ContainerVariant, CustomTheme};
 
 /// Previews various components used within Snowscape.
 fn main() -> iced::Result {
     snowscape::run(|app| {
-        app.title("Custom Themed Previews")
-            .preview(stateless("Product Card", || {
-                wrapper(
-                    card(
-                        column![
-                            text("Fake Product Title").class(theme::TextVariant::Primary),
-                            text("Here's a product description that goes on for a couple lines.")
-                                .class(theme::TextVariant::Secondary),
-                            space::vertical().height(8),
-                            row![
-                                text("$19.99").size(20),
-                                space::horizontal(),
-                                button("Buy Now").on_press(Message::None),
-                            ]
-                        ]
-                        .spacing(4),
-                    )
-                    .max_width(250),
-                )
-            }))
+        app.title("Custom Themed Previews").preview(
+            dynamic::stateless(
+                "Product Card",
+                (
+                    dynamic::text("Title", "Awesome Gadget"),
+                    dynamic::text(
+                        "Description",
+                        "This gadget is awesome because it has many features.",
+                    ),
+                    dynamic::number("Price", 50),
+                ),
+                |(title, description, price)| wrapper(product_card(title, description, *price)),
+            )
+            .tags(["Product", "Card", "Price"])
+            .description("A card displaying a product, the price, and a buy button."),
+        )
     })
 }
 
 #[derive(Debug, Clone)]
 enum Message {
-    None,
+    Purchase,
 }
 
 // MARK: Widgets
@@ -69,5 +65,28 @@ fn wrapper<'a>(content: impl Into<Element<'a, Message, CustomTheme>>) -> Element
             .class(ContainerVariant::Background)
             .center(Fill),
     )
+    .into()
+}
+
+/// An example product card component that you might have in your app.
+fn product_card<'a>(
+    title: &'a str,
+    description: &'a str,
+    price: i32,
+) -> Element<'a, Message, CustomTheme> {
+    card(
+        column![
+            text(title).class(theme::TextVariant::Primary),
+            text(description).class(theme::TextVariant::Secondary),
+            space::vertical().height(8),
+            row![
+                text(format!("${price}")).size(20),
+                space::horizontal(),
+                button("Buy Now").on_press(Message::Purchase),
+            ]
+        ]
+        .spacing(4),
+    )
+    .max_width(250)
     .into()
 }
