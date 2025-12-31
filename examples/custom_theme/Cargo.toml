@@ -1,0 +1,10 @@
+[package]
+name = "custom_theme"
+description = "Previews containing elements with a custom theme."
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+snowscape = { path = "../.." }
+iced = { workspace = true, features = ["advanced"] }
