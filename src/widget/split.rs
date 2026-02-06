@@ -22,7 +22,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 use iced::{
     self, Animation, Color, Element, Event, Length, Point, Rectangle, Size, Theme, Vector,
     advanced::{
-        self, Clipboard, Layout, Shell, Widget,
+        self, Layout, Shell, Widget,
         layout::{Limits, Node},
         mouse::{self, Click, Cursor, Interaction, click::Kind},
         overlay,
@@ -367,7 +367,6 @@ where
         layout: Layout<'_>,
         cursor: Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -376,9 +375,9 @@ where
             .zip(&mut tree.children)
             .zip(layout.children())
             .for_each(|((child, tree), layout)| {
-                child.as_widget_mut().update(
-                    tree, event, layout, cursor, renderer, clipboard, shell, viewport,
-                );
+                child
+                    .as_widget_mut()
+                    .update(tree, event, layout, cursor, renderer, shell, viewport);
             });
 
         if shell.is_event_captured() {
