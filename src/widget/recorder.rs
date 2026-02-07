@@ -411,7 +411,14 @@ fn record<Message>(
     };
 
     // Try to find text under cursor for smarter targeting
-    let Interaction::Mouse(
+    let Interaction::Mouse(mouse) = &mut interaction else {
+        // Non-mouse interaction (e.g., keyboard), publish as-is
+        shell.publish(on_record(interaction));
+        return;
+    };
+
+    // Get the target from the mouse interaction, or try to determine it from cursor position
+    let target = match mouse {
         Mouse::Move(target)
         | Mouse::Press {
             target: Some(target),
@@ -424,11 +431,30 @@ fn record<Message>(
         | Mouse::Click {
             target: Some(target),
             ..
-        },
-    ) = &mut interaction
-    else {
-        shell.publish(on_record(interaction));
-        return;
+        } => target,
+        Mouse::Press {
+            target: target @ None,
+            ..
+        }
+        | Mouse::Release {
+            target: target @ None,
+            ..
+        }
+        | Mouse::Click {
+            target: target @ None,
+            ..
+        } => {
+            // For press/release/click without a target, try to find one from cursor position
+            if let Some(position) = cursor.position() {
+                let relative_position = position - (bounds.position() - Point::ORIGIN);
+                *target = Some(Target::Point(relative_position));
+                target.as_mut().unwrap()
+            } else {
+                // No cursor position, can't determine target
+                shell.publish(on_record(interaction));
+                return;
+            }
+        }
     };
 
     let Target::Point(position) = *target else {
