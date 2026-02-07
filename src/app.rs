@@ -156,6 +156,7 @@ impl App {
         // Open the main window
         let (main_id, open_main) = window::open(window::Settings {
             size: Size::new(1200.0, 800.0),
+            exit_on_close_request: false,
             ..Default::default()
         });
         app.main_window = Some(main_id);
@@ -306,7 +307,6 @@ impl App {
                 // Note: Using Default position to avoid objc2 NSScreen enumeration crash on some macOS versions
                 let (id, open_task) = window::open(window::Settings {
                     size: self.test_config.window_size,
-                    position: window::Position::Default,
                     exit_on_close_request: false,
                     ..Default::default()
                 });
@@ -354,9 +354,11 @@ impl App {
                 // Don't close immediately - let StopTestRecording handle closing after screenshot
                 if self.test_window == Some(id) {
                     Task::done(Message::StopTestRecording)
-                } else {
+                } else if self.main_window == Some(id) {
                     // Main window is closing, so shut down the application
-                    iced::exit()
+                    window::close(id).chain(iced::exit())
+                } else {
+                    window::close(id)
                 }
             }
             Message::TestScreenshotCaptured(screenshot) => {
