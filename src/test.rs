@@ -214,8 +214,7 @@ where
     use std::fs;
 
     // Build the app with the configure function to get all descriptors
-    let app = configure(crate::App::default());
-    let descriptors = app.descriptors();
+    let mut app = configure(crate::App::default());
 
     let tests_dir = tests_dir.as_ref();
     if !tests_dir.exists() {
@@ -266,7 +265,7 @@ where
         };
 
         // Find matching preview by sanitized name
-        let matching_descriptor = descriptors.iter().find(|d| {
+        let matching_index = app.descriptors().iter().position(|d| {
             let label = &d.metadata().label;
             let sanitized: String = label
                 .chars()
@@ -276,7 +275,7 @@ where
             sanitized == test_name
         });
 
-        let Some(descriptor) = matching_descriptor else {
+        let Some(preview_index) = matching_index else {
             failures.push((
                 test_name.to_string(),
                 format!("No matching preview found for test '{test_name}'"),
@@ -284,11 +283,11 @@ where
             continue;
         };
 
-        // Create simulator with the preview's view
+        // Create simulator with the preview's initial view
         let mut simulator: Simulator<crate::message::Message> = Simulator::with_size(
             iced::Settings::default(),
             ice.viewport,
-            descriptor.preview.view(),
+            app.descriptors()[preview_index].preview.view(),
         );
 
         // Track if this test had any failures
@@ -298,9 +297,45 @@ where
         for instruction in &ice.instructions {
             match instruction {
                 Instruction::Interact(interaction) => {
-                    // Convert interaction to events and simulate
-                    let events = interaction_to_events(interaction);
-                    simulator.simulate(events);
+                    let events = interaction.events(|target| match target {
+                        Target::Point(p) => Some(*p),
+                        Target::Text(_) => None,
+                    });
+
+                    match events {
+                        Some(event_list) => {
+                            simulator.simulate(event_list);
+                        }
+                        None => {
+                            match interaction {
+                                Interaction::Mouse(Mouse::Click { target, .. }) => {
+                                    if let Some(Target::Text(text)) = target {
+                                        let _ = simulator.click(text.as_str());
+                                    }
+                                }
+                                Interaction::Keyboard(Keyboard::Typewrite(text)) => {
+                                    simulator.typewrite(text);
+                                }
+                                _ => {
+                                    // Fallback to event conversion for other cases
+                                    let events = interaction_to_events(interaction);
+                                    simulator.simulate(events);
+                                }
+                            }
+                        }
+                    }
+
+                    // Get messages produced by the interaction and update the preview
+                    for message in simulator.into_messages() {
+                        let _ = app.descriptors_mut()[preview_index].preview.update(message);
+                    }
+
+                    // Regenerate the simulator with the updated view
+                    simulator = Simulator::with_size(
+                        iced::Settings::default(),
+                        ice.viewport,
+                        app.descriptors()[preview_index].preview.view(),
+                    );
                 }
                 Instruction::Expect(Expectation::Text(expected_text)) => {
                     // Try to find the expected text in the UI

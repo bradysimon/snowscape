@@ -133,6 +133,11 @@ impl App {
         &self.descriptors
     }
 
+    /// Returns mutable access to the registered preview descriptors.
+    pub fn descriptors_mut(&mut self) -> &mut [Descriptor] {
+        &mut self.descriptors
+    }
+
     /// Returns the current test session, if any.
     pub fn test_session(&self) -> Option<&TestSession> {
         self.test_session.as_ref()
