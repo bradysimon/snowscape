@@ -3,4 +3,5 @@ mode: Immediate
 -----
 click "Increment"
 click "Increment"
-expect "Count: 2"
+click "Decrement"
+expect "Count: 1"
