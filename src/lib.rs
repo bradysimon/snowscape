@@ -4,6 +4,7 @@ pub mod icon;
 mod message;
 pub mod metadata;
 pub mod preview;
+pub mod screenshot;
 pub mod style;
 pub mod test;
 
@@ -25,10 +26,47 @@ pub use metadata::Metadata;
 use preview::Preview;
 pub use preview::{dynamic, stateful, stateless};
 
-pub fn run(configure: fn(App) -> App) -> iced::Result {
-    iced::daemon(move || App::setup(configure), App::update, App::view)
-        .title(App::window_title)
-        .theme(App::theme)
-        .subscription(App::subscription)
-        .run()
+/// Runs the Snowscape preview application.
+///
+/// Runs the application previews by default, and supports passing command-line arguments
+/// for capturing screenshots of a specific preview.
+///
+/// ```bash
+/// cargo run -- --screenshot --preview "Button" --output ./screenshot.png
+/// ```
+pub fn run<F>(configure: F) -> iced::Result
+where
+    F: Fn(App) -> App + 'static,
+{
+    match screenshot::parse_args() {
+        screenshot::ParseResult::ShowHelp => {
+            println!("{}", screenshot::help_message());
+            Ok(())
+        }
+        screenshot::ParseResult::Error(msg) => {
+            eprintln!("Error: {msg}\n");
+            eprintln!("Run with --help for usage information.");
+            std::process::exit(1);
+        }
+        screenshot::ParseResult::Screenshot(options) => {
+            let app = configure(App::default());
+            match screenshot::capture(&app, &options) {
+                Ok(path) => {
+                    println!("Screenshot saved: {}", path.display());
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("Failed to capture screenshot: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        screenshot::ParseResult::RunGui => {
+            iced::daemon(move || App::setup(&configure), App::update, App::view)
+                .title(App::window_title)
+                .theme(App::theme)
+                .subscription(App::subscription)
+                .run()
+        }
+    }
 }
