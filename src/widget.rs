@@ -1,9 +1,11 @@
 pub mod badge;
 pub mod config_pane;
+pub mod recorder;
 pub mod split;
 
 pub use badge::*;
 pub use config_pane::*;
+pub use recorder::recorder;
 
 use iced::theme;
 use iced::widget::{Column, button, container, pick_list, row, space, svg, text, text_input};
@@ -90,6 +92,38 @@ pub fn reset_button<'a>() -> Element<'a, Message> {
             text_color: pair.text,
             border: border::rounded(4),
             ..button::text(theme, status)
+        }
+    })
+    .into()
+}
+
+/// A button to stop recording and save the test.
+pub fn stop_recording_button<'a>() -> Element<'a, Message> {
+    #[inline]
+    fn square<'a>() -> Element<'a, Message> {
+        container(space().width(10).height(10))
+            .style(|theme: &Theme| container::background(theme.palette().text))
+            .into()
+    }
+
+    button(
+        row![square(), text("Stop Recording").size(14)]
+            .spacing(6)
+            .align_y(Center),
+    )
+    .on_press(Message::StopTestRecording)
+    .style(|theme: &Theme, status| {
+        let pair = match status {
+            button::Status::Hovered => theme.extended_palette().danger.weak,
+            button::Status::Pressed => theme.extended_palette().danger.strong,
+            button::Status::Disabled => theme.extended_palette().background.weakest,
+            _ => theme.extended_palette().danger.base,
+        };
+        button::Style {
+            background: Some(pair.color.into()),
+            text_color: pair.text,
+            border: border::rounded(4),
+            ..button::primary(theme, status)
         }
     })
     .into()

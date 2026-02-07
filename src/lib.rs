@@ -5,6 +5,7 @@ mod message;
 pub mod metadata;
 pub mod preview;
 pub mod style;
+pub mod test;
 
 #[cfg(feature = "internal")]
 pub mod widget;
@@ -18,9 +19,6 @@ use message::Message;
 #[cfg(feature = "internal")]
 pub use message::Message;
 
-#[cfg(not(feature = "internal"))]
-use app::App;
-#[cfg(feature = "internal")]
 pub use app::App;
 
 pub use metadata::Metadata;
@@ -28,8 +26,8 @@ use preview::Preview;
 pub use preview::{dynamic, stateful, stateless};
 
 pub fn run(configure: fn(App) -> App) -> iced::Result {
-    iced::application(move || App::setup(configure), App::update, App::view)
-        .title(|app: &App| app.title.clone().unwrap_or("Snowscape Previews".to_owned()))
+    iced::daemon(move || App::setup(configure), App::update, App::view)
+        .title(App::window_title)
         .theme(App::theme)
         .subscription(App::subscription)
         .run()

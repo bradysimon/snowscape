@@ -3,17 +3,19 @@ use crate::{
     Preview,
     config_tab::ConfigTab,
     preview::Descriptor,
+    test::{TestConfig, TestSession},
     widget::{
-        config_pane, header, preview_area, preview_list, search_input,
+        config_pane, header, preview_area, preview_list, recorder, search_input,
         split::{Strategy, horizontal_split, vertical_split},
     },
 };
 use iced::{
     Element,
     Length::Fill,
-    Subscription, Task, Theme, keyboard, system,
+    Size, Subscription, Task, Theme, keyboard, system,
     theme::{self, Base},
     widget::{column, container, operation, rule, scrollable, text},
+    window,
 };
 use iced_anim::{Animated, Animation, Easing};
 use std::time::Duration;
@@ -40,6 +42,18 @@ pub struct App {
     theme: Option<Animated<Theme>>,
     /// The initial theme mode used by the application.
     theme_mode: theme::Mode,
+    /// The ID of the main window.
+    main_window: Option<window::Id>,
+    /// The ID of the test window when recording.
+    test_window: Option<window::Id>,
+    /// Test configuration for the test window.
+    test_config: TestConfig,
+    /// The width input for the test window (as string for text input).
+    test_width_input: String,
+    /// The height input for the test window (as string for text input).
+    test_height_input: String,
+    /// The active test recording session, if any.
+    test_session: Option<TestSession>,
 }
 
 impl Default for App {
@@ -54,6 +68,12 @@ impl Default for App {
             selected_index: None,
             theme: None,
             theme_mode: Default::default(),
+            main_window: None,
+            test_window: None,
+            test_config: TestConfig::default(),
+            test_width_input: "800".to_string(),
+            test_height_input: "600".to_string(),
+            test_session: None,
         }
     }
 }
@@ -77,7 +97,7 @@ impl App {
     }
 
     /// The theme that the application is using.
-    pub(crate) fn theme(&self) -> Option<Theme> {
+    pub(crate) fn theme(&self, _window: window::Id) -> Option<Theme> {
         self.theme.as_ref().map(|t| t.value().clone())
     }
 
@@ -86,6 +106,36 @@ impl App {
         self.selected_index
             .and_then(|index| self.descriptors.get(index))
             .map(|descriptor| descriptor.preview.as_ref())
+    }
+
+    /// Returns true if a test recording is currently active.
+    pub fn is_recording(&self) -> bool {
+        self.test_session.as_ref().is_some_and(|s| s.is_recording)
+    }
+
+    /// Returns the test configuration.
+    pub fn test_config(&self) -> &TestConfig {
+        &self.test_config
+    }
+
+    /// Returns the test width input string.
+    pub fn test_width_input(&self) -> &str {
+        &self.test_width_input
+    }
+
+    /// Returns the test height input string.
+    pub fn test_height_input(&self) -> &str {
+        &self.test_height_input
+    }
+
+    /// Returns the registered preview descriptors.
+    pub fn descriptors(&self) -> &[Descriptor] {
+        &self.descriptors
+    }
+
+    /// Returns the current test session, if any.
+    pub fn test_session(&self) -> Option<&TestSession> {
+        self.test_session.as_ref()
     }
 
     /// Sets up the application with the given configuration function.
@@ -98,7 +148,17 @@ impl App {
             app.selected_index = Some(0);
         }
 
-        (app, App::initial_theme())
+        // Open the main window
+        let (main_id, open_main) = window::open(window::Settings {
+            size: Size::new(1200.0, 800.0),
+            ..Default::default()
+        });
+        app.main_window = Some(main_id);
+
+        (
+            app,
+            Task::batch([open_main.discard(), App::initial_theme()]),
+        )
     }
 
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
@@ -204,6 +264,148 @@ impl App {
                 self.theme_mode = mode;
                 Task::none()
             }
+            // Test-related messages
+            Message::ChangeTestWidth(width) => {
+                self.test_width_input = width.clone();
+                if let Ok(w) = width.parse::<f32>() {
+                    self.test_config.window_size.width = w;
+                }
+                Task::none()
+            }
+            Message::ChangeTestHeight(height) => {
+                self.test_height_input = height.clone();
+                if let Ok(h) = height.parse::<f32>() {
+                    self.test_config.window_size.height = h;
+                }
+                Task::none()
+            }
+            Message::ToggleTestSnapshot(enabled) => {
+                self.test_config.capture_snapshot = enabled;
+                Task::none()
+            }
+            Message::StartTestRecording => {
+                let Some(index) = self.selected_index else {
+                    return Task::none();
+                };
+                let Some(descriptor) = self.descriptors.get(index) else {
+                    return Task::none();
+                };
+
+                // Create the test session
+                let preview_name = descriptor.metadata().label.clone();
+                let session =
+                    TestSession::new(self.test_config.clone(), index, preview_name.clone());
+                self.test_session = Some(session);
+
+                // Open the test window
+                // Note: Using Default position to avoid objc2 NSScreen enumeration crash on some macOS versions
+                let (id, open_task) = window::open(window::Settings {
+                    size: self.test_config.window_size,
+                    position: window::Position::Default,
+                    exit_on_close_request: false,
+                    ..Default::default()
+                });
+                self.test_window = Some(id);
+
+                open_task.map(Message::TestWindowOpened)
+            }
+            Message::TestWindowOpened(id) => {
+                // Window is now open, store the ID for later closing
+                self.test_window = Some(id);
+                Task::none()
+            }
+            Message::RecordInteraction(interaction) => {
+                if let Some(session) = &mut self.test_session {
+                    session.record(interaction);
+                }
+                Task::none()
+            }
+            Message::StopTestRecording => {
+                let Some(session) = &self.test_session else {
+                    return Task::none();
+                };
+
+                // Save the test file
+                if let Err(e) = session.save() {
+                    eprintln!("Failed to save test: {}", e);
+                }
+
+                // Close the test window
+                if let Some(test_window_id) = self.test_window.take() {
+                    if session.config.capture_snapshot {
+                        window::screenshot(test_window_id)
+                            .map(Message::TestScreenshotCaptured)
+                            .chain(window::close(test_window_id))
+                            .chain(Task::done(Message::RemoveTestSession))
+                    } else {
+                        window::close(test_window_id).chain(Task::done(Message::RemoveTestSession))
+                    }
+                } else {
+                    Task::none()
+                }
+            }
+            Message::WindowClosed(id) => {
+                // If the test window was the one closed, stop the recording
+                // Don't close immediately - let StopTestRecording handle closing after screenshot
+                if self.test_window == Some(id) {
+                    Task::done(Message::StopTestRecording)
+                } else {
+                    // Main window is closing, so shut down the application
+                    iced::exit()
+                }
+            }
+            Message::TestScreenshotCaptured(screenshot) => {
+                // Save screenshot to disk as PNG
+                if let Some(session) = &mut self.test_session {
+                    let snapshot_name = session.next_snapshot_name();
+                    let snapshot_path = session.config.tests_dir.join(&snapshot_name);
+                    if let Err(e) = std::fs::create_dir_all(&session.config.tests_dir) {
+                        eprintln!("Failed to create tests directory: {}", e);
+                    } else {
+                        // Create an image buffer from the screenshot's RGBA data
+                        let width = screenshot.size.width;
+                        let height = screenshot.size.height;
+                        let rgba_data: &[u8] = screenshot.as_ref();
+
+                        match image::RgbaImage::from_raw(width, height, rgba_data.to_vec()) {
+                            Some(img) => {
+                                if let Err(e) = img.save(&snapshot_path) {
+                                    eprintln!("Failed to save snapshot as PNG: {}", e);
+                                }
+                            }
+                            None => {
+                                eprintln!("Failed to create image from screenshot data");
+                            }
+                        }
+                    }
+                }
+                Task::none()
+            }
+            Message::ChangeExpectText(text) => {
+                if let Some(session) = &mut self.test_session {
+                    session.expect_text_input = text;
+                }
+                Task::none()
+            }
+            Message::AddTextExpectation => {
+                if let Some(session) = &mut self.test_session {
+                    let text = std::mem::take(&mut session.expect_text_input);
+                    session.add_text_expectation(text);
+                }
+                Task::none()
+            }
+            Message::CaptureSnapshot => {
+                // Request a screenshot from the test window
+                if let Some(test_window_id) = self.test_window {
+                    window::screenshot(test_window_id).map(Message::TestScreenshotCaptured)
+                } else {
+                    Task::none()
+                }
+            }
+            Message::RemoveTestSession => {
+                self.test_session = None;
+                Task::none()
+            }
         }
     }
 
@@ -220,10 +422,22 @@ impl App {
                 },
                 _ => None,
             }),
+            window::close_requests().map(Message::WindowClosed),
         ])
     }
 
-    pub(crate) fn view(&self) -> Element<'_, Message> {
+    pub(crate) fn view(&self, window_id: window::Id) -> Element<'_, Message> {
+        // Check if this is the test window
+        if self.test_session.is_some() && Some(window_id) != self.main_window {
+            return self.view_test_window();
+        }
+
+        // Main window view
+        self.view_main_window()
+    }
+
+    /// Renders the main application window.
+    fn view_main_window(&self) -> Element<'_, Message> {
         // Build sidebar with preview list
         let sidebar = column![
             text("Previews").size(18),
@@ -250,7 +464,7 @@ impl App {
                     preview_area(self.current_preview()),
                     self.selected_index
                         .and_then(|index| self.descriptors.get(index))
-                        .map(|descriptor| { config_pane(descriptor, self.config_tab) }),
+                        .map(|descriptor| { config_pane(descriptor, self.config_tab, self) }),
                     self.config_pane_height,
                     Message::ResizeConfigPane,
                 )
@@ -279,6 +493,29 @@ impl App {
         }
     }
 
+    /// Renders the isolated test window with just the preview.
+    fn view_test_window(&self) -> Element<'_, Message> {
+        let Some(session) = &self.test_session else {
+            return text("No test session").into();
+        };
+
+        let Some(descriptor) = self.descriptors.get(session.preview_index) else {
+            return text("Preview not found").into();
+        };
+
+        // Render the preview wrapped with the recorder to capture interactions
+        let preview_content = container(descriptor.preview.view()).center(Fill);
+
+        if session.is_recording {
+            // Wrap with recorder to capture user interactions
+            recorder(preview_content)
+                .on_record(Message::RecordInteraction)
+                .into()
+        } else {
+            preview_content.into()
+        }
+    }
+
     /// Returns an iterator over the previews that match the current search query.
     fn visible_previews(&self) -> impl Iterator<Item = &Descriptor> {
         let query = self.search.trim().to_lowercase();
@@ -287,10 +524,24 @@ impl App {
             .filter(move |descriptor| descriptor.metadata().matches(&query))
     }
 
+    /// Returns the title for a given window.
+    pub(crate) fn window_title(&self, window_id: window::Id) -> String {
+        if Some(window_id) == self.main_window {
+            self.title
+                .clone()
+                .unwrap_or_else(|| "Snowscape Previews".to_owned())
+        } else if let Some(session) = &self.test_session {
+            format!("Test: {}", session.preview_name)
+        } else {
+            "Test Window".to_owned()
+        }
+    }
+
     /// An `internal` feature view method exclusively used for previewing Snowscape.
+    /// This renders the main window view without requiring a window ID.
     #[cfg(feature = "internal")]
     pub fn internal_view(&self) -> Element<'_, Message> {
-        self.view()
+        self.view_main_window()
     }
 
     /// An `internal` feature update method exclusively used for previewing Snowscape.

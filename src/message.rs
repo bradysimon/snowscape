@@ -1,10 +1,11 @@
 use std::{any::Any, fmt::Debug};
 
-use iced::{Theme, theme};
+use iced::{Theme, theme, window};
 
 use crate::{
     config_tab::ConfigTab,
     dynamic::{self},
+    test::Interaction,
 };
 
 /// Supertrait for messages that can be used in the preview system.
@@ -71,6 +72,35 @@ pub enum Message {
     ChangeThemeMode(theme::Mode),
     /// Message from a stateful component (type-erased).
     Component(Box<dyn AnyClone>),
+
+    // Test-related messages
+    /// Change the test window width configuration.
+    ChangeTestWidth(String),
+    /// Change the test window height configuration.
+    ChangeTestHeight(String),
+    /// Toggle whether to capture a snapshot at the end of the test.
+    ToggleTestSnapshot(bool),
+    /// Start recording a test for the currently selected preview.
+    StartTestRecording,
+    /// A test window was opened with the given ID.
+    TestWindowOpened(window::Id),
+    /// Record an interaction during test recording.
+    RecordInteraction(Interaction),
+    /// Stop recording and save the test.
+    StopTestRecording,
+    /// A window was closed.
+    WindowClosed(window::Id),
+    /// A screenshot was captured for the test.
+    TestScreenshotCaptured(iced::window::Screenshot),
+    /// Change the text in the expectation input field.
+    ChangeExpectText(String),
+    /// Add a text expectation to the current recording.
+    AddTextExpectation,
+    /// Capture a snapshot at the current point in the recording.
+    CaptureSnapshot,
+    /// Removes the current test session.
+    /// Should be done after ending a test recording and saving state.
+    RemoveTestSession,
 }
 
 impl std::fmt::Debug for Message {
@@ -95,6 +125,19 @@ impl std::fmt::Debug for Message {
             Self::UpdateTheme(event) => write!(f, "UpdateTheme({event:?})"),
             Self::ChangeThemeMode(arg0) => f.debug_tuple("ChangeThemeMode").field(arg0).finish(),
             Self::Component(_) => write!(f, "Component(..)"),
+            Self::ChangeTestWidth(w) => f.debug_tuple("ChangeTestWidth").field(w).finish(),
+            Self::ChangeTestHeight(h) => f.debug_tuple("ChangeTestHeight").field(h).finish(),
+            Self::ToggleTestSnapshot(b) => f.debug_tuple("ToggleTestSnapshot").field(b).finish(),
+            Self::StartTestRecording => write!(f, "StartTestRecording"),
+            Self::TestWindowOpened(id) => f.debug_tuple("TestWindowOpened").field(id).finish(),
+            Self::RecordInteraction(i) => f.debug_tuple("RecordInteraction").field(i).finish(),
+            Self::StopTestRecording => write!(f, "StopTestRecording"),
+            Self::WindowClosed(id) => f.debug_tuple("WindowClosed").field(id).finish(),
+            Self::TestScreenshotCaptured(_) => write!(f, "TestScreenshotCaptured(..)"),
+            Self::ChangeExpectText(t) => f.debug_tuple("ChangeExpectText").field(t).finish(),
+            Self::AddTextExpectation => write!(f, "AddTextExpectation"),
+            Self::CaptureSnapshot => write!(f, "CaptureSnapshot"),
+            Self::RemoveTestSession => write!(f, "RemoveTestSession"),
         }
     }
 }
@@ -130,6 +173,19 @@ impl Clone for Message {
                     Message::Component(inner.clone_box())
                 }
             }
+            Message::ChangeTestWidth(w) => Message::ChangeTestWidth(w.clone()),
+            Message::ChangeTestHeight(h) => Message::ChangeTestHeight(h.clone()),
+            Message::ToggleTestSnapshot(b) => Message::ToggleTestSnapshot(*b),
+            Message::StartTestRecording => Message::StartTestRecording,
+            Message::TestWindowOpened(id) => Message::TestWindowOpened(*id),
+            Message::RecordInteraction(i) => Message::RecordInteraction(i.clone()),
+            Message::StopTestRecording => Message::StopTestRecording,
+            Message::WindowClosed(id) => Message::WindowClosed(*id),
+            Message::TestScreenshotCaptured(s) => Message::TestScreenshotCaptured(s.clone()),
+            Message::ChangeExpectText(t) => Message::ChangeExpectText(t.clone()),
+            Message::AddTextExpectation => Message::AddTextExpectation,
+            Message::CaptureSnapshot => Message::CaptureSnapshot,
+            Message::RemoveTestSession => Message::RemoveTestSession,
         }
     }
 }
