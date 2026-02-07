@@ -12,7 +12,7 @@ use crate::{
 use iced::{
     Element,
     Length::Fill,
-    Size, Subscription, Task, Theme, keyboard, system,
+    Subscription, Task, Theme, keyboard, system,
     theme::{self, Base},
     widget::{column, container, operation, rule, scrollable, text},
     window,
@@ -155,7 +155,6 @@ impl App {
 
         // Open the main window
         let (main_id, open_main) = window::open(window::Settings {
-            size: Size::new(1200.0, 800.0),
             exit_on_close_request: false,
             ..Default::default()
         });
