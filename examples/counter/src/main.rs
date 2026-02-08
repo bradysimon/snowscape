@@ -4,7 +4,7 @@ use snowscape::{dynamic, stateful, stateless};
 /// Configures the Snowscape app with all counter previews.
 ///
 /// This function is shared between the main application and tests.
-pub fn configure(app: snowscape::App) -> snowscape::App {
+pub fn previews(app: snowscape::App) -> snowscape::App {
     app.title("Counter Previews")
         .preview(
             dynamic::stateless("Label", dynamic::text("Content", "Editable"), |content| {
@@ -35,7 +35,7 @@ pub fn configure(app: snowscape::App) -> snowscape::App {
 }
 
 pub fn main() -> iced::Result {
-    snowscape::run(configure)
+    snowscape::run(previews)
 }
 
 #[cfg(test)]
@@ -44,6 +44,6 @@ mod tests {
 
     #[test]
     fn passes_visual_tests() -> Result<(), snowscape::test::Error> {
-        snowscape::test::run(configure, "tests/")
+        snowscape::test::run(previews, "tests/")
     }
 }
