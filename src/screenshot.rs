@@ -5,8 +5,8 @@
 //! # Command Line Arguments
 //!
 //! ```bash
-//! cargo run -- --screenshot --preview "Button" --output ./screenshot.png
-//! cargo run -- --screenshot --preview "Button"  # saves to ./screenshots/button.png
+//! cargo run -- --screenshot "Button" --output ./screenshot.png
+//! cargo run -- --screenshot "Button"  # saves to ./screenshots/button.png
 //! cargo run -- --help  # shows usage
 //! ```
 
@@ -52,15 +52,9 @@ pub fn parse_args() -> ParseResult {
         return ParseResult::ShowHelp;
     }
 
-    // Check for --screenshot flag
-    let screenshot_mode = args.iter().any(|a| a == "--screenshot");
-    if !screenshot_mode {
+    // Check for --screenshot <name>
+    let Some(preview) = parse_arg(&args, "--screenshot") else {
         return ParseResult::RunGui;
-    }
-
-    // Parse --preview (required for screenshot mode)
-    let Some(preview) = parse_arg(&args, "--preview") else {
-        return ParseResult::Error("Screenshot mode requires --preview <name>".to_string());
     };
 
     // Parse --output (optional)
@@ -124,8 +118,7 @@ USAGE:
     <binary> [OPTIONS]
 
 OPTIONS:
-    --screenshot          Capture a screenshot instead of launching GUI
-    --preview <name>      Name of the preview to capture (required for screenshot)
+    --screenshot <name>   Capture a screenshot of the specified preview
     --output <path>       Output path for PNG (default: ./screenshots/<name>.png)
     --theme <name>        Theme for rendering (default: Light)
     --size <WxH>          Viewport size (default: 800x600)
@@ -136,16 +129,16 @@ EXAMPLES:
     cargo run
 
     # Capture screenshot
-    cargo run -- --screenshot --preview "My Button" --output ./button
+    cargo run -- --screenshot "My Button" --output ./button
 
-    # Capture with defaults (saves to ./screenshots/my_button)
-    cargo run -- --screenshot --preview "My Button"
+    # Capture with defaults (saves to ./screenshots/my-button)
+    cargo run -- --screenshot "My Button"
 
     # Capture with dark theme and custom size
-    cargo run -- --screenshot --preview "Card" --theme Dark --size 1200x800
+    cargo run -- --screenshot "Card" --theme Dark --size 1200x800
 
     # Capture with Dracula theme
-    cargo run -- --screenshot --preview "Card" --theme Dracula
+    cargo run -- --screenshot "Card" --theme Dracula
 "#
 }
 
