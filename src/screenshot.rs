@@ -200,15 +200,20 @@ pub fn capture(app: &crate::App, options: &Options) -> Result<PathBuf, Error> {
     let descriptor = &descriptors[preview_index];
     let label = &descriptor.metadata().label;
 
-    let output_path = options.output.clone().unwrap_or_else(|| {
+    let base_output_path = options.output.clone().unwrap_or_else(|| {
         PathBuf::from("./screenshots").join(format!("{}.png", sanitize_name(label)))
     });
 
-    if let Some(parent) = output_path.parent() {
-        std::fs::create_dir_all(parent).map_err(Error::CreateDirectory)?;
-    }
+    let parent_dir = base_output_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .to_path_buf();
 
-    // Create simulator to take a screenshot
+    std::fs::create_dir_all(&parent_dir).map_err(Error::CreateDirectory)?;
+
+    // Find an available filename (increments counter if file already exists)
+    let output_path = find_available_path(&base_output_path, &parent_dir)?;
+
     let mut simulator: Simulator<crate::message::Message> = Simulator::with_size(
         iced::Settings::default(),
         options.viewport_size,
@@ -216,30 +221,81 @@ pub fn capture(app: &crate::App, options: &Options) -> Result<PathBuf, Error> {
     );
 
     let snapshot = simulator.snapshot(&options.theme)?;
-    // matches_image will create the file if it doesn't exist.
-    // Would be nice if there was a way to explicitly create a screenshot.
-    // Note: matches_image adds the renderer name (e.g., "-wgpu") as a suffix
-    _ = snapshot.matches_image(&output_path)?;
+    // Creates the screenshot file for us.
+    snapshot.matches_image(&output_path)?;
 
-    // Calculate the actual output path (matches_image adds renderer suffix)
-    // Format: "{base_name}-{renderer}.{extension}"
-    let actual_path = output_path
-        .with_file_name(format!(
-            "{}-wgpu",
-            output_path
-                .file_stem()
-                .map(std::ffi::OsStr::to_string_lossy)
-                .unwrap_or_default()
-        ))
-        .with_extension("png");
-
+    let actual_path = find_created_file(&output_path, &parent_dir)?;
     Ok(actual_path)
+}
+
+/// Finds an available filename by incrementing a counter if needed.
+///
+/// Returns a path that doesn't conflict with existing files.
+/// Note: matches_image will add a renderer suffix (e.g., "-wgpu") to the filename.
+fn find_available_path(base_path: &PathBuf, parent_dir: &PathBuf) -> Result<PathBuf, Error> {
+    let base_stem = base_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    // Count existing files matching the pattern {base_stem}-*.png (with any renderer suffix)
+    let existing_files = std::fs::read_dir(parent_dir)
+        .map_err(Error::SaveScreenshot)?
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            let file_name = entry.file_name();
+            let file_str = file_name.to_string_lossy();
+            file_str.starts_with(&format!("{}-", base_stem)) && file_str.ends_with(".png")
+        })
+        .count();
+
+    // If files exist, append a counter to make it unique
+    if existing_files > 0 {
+        Ok(base_path
+            .with_file_name(format!("{}-{}", base_stem, existing_files))
+            .with_extension("png"))
+    } else {
+        Ok(base_path.clone())
+    }
+}
+
+/// Finds the screenshot file created by matches_image.
+///
+/// matches_image adds a renderer suffix (e.g., "-wgpu", "-tiny-skia") to the filename,
+/// so we need to search for the actual file that was created.
+fn find_created_file(expected_path: &PathBuf, parent_dir: &PathBuf) -> Result<PathBuf, Error> {
+    let final_stem = expected_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    // Find the newest file matching the pattern (it was just created)
+    std::fs::read_dir(parent_dir)
+        .map_err(Error::SaveScreenshot)?
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            let file_name = entry.file_name();
+            let file_str = file_name.to_string_lossy();
+            // Match files like: {final_stem}-{renderer}.png
+            file_str.starts_with(&format!("{}-", final_stem)) && file_str.ends_with(".png")
+        })
+        .max_by_key(|entry| entry.metadata().and_then(|m| m.modified()).ok())
+        .map(|entry| entry.path())
+        .ok_or_else(|| {
+            Error::SaveScreenshot(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!(
+                    "Screenshot file not found after creation (expected pattern: {}-*.png)",
+                    final_stem
+                ),
+            ))
+        })
 }
 
 /// Sanitizes a name for use as a filename.
 fn sanitize_name(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '_' })
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
         .to_lowercase()
 }
