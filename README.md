@@ -6,7 +6,8 @@ inspired by Storybook and SwiftUI previews.
 Snowscape makes it easy to preview specific Iced elements in isolation while
 developing your application. It provides an API for you to run an Iced app that
 displays your elements, allowing you to quickly iterate on specific components
-without having to navigate through your entire app.
+without having to navigate through your entire app. Snowscape also supports
+capturing screenshots of your previews from the command line.
 
 ## Quick Start
 
@@ -96,15 +97,27 @@ You can do `cargo run -p {package_name}` to run any of the included examples.
 You can run the `self` example with `cargo run -p self` to see Snowscape's 
 own previews.
 
-## Roadmap
+## Capture screenshots of previews
 
-- [X] Preview stateless components
-- [X] Preview stateful components
-- [X] Improved preview metadata (descriptions, groups, tags)
-- [X] Search/filter previews
-- [X] Custom themes (via `themer` widget)
-- [ ] Layout options (centered, fullscreen, grid)
-- [ ] More I haven't thought of yet :)
+Snowscape can capture screenshots of your previews from the command line
+without launching the GUI. This may be useful for documentation and 
+automated testing. This works through the same `snowscape::run` API used for
+the GUI, but instead of launching a window, it captures a snapshot of the
+preview you specify via the `--screenshot` flag passed on the command line.
+
+The `--screenshot` name passed is the name you've given to the preview.
+
+> cargo run --example preview -- --screenshot "My Button"
+
+### Options
+
+- `--screenshot <name>` - Name of the preview to capture (supports partial, case-insensitive matching)
+- `--output <path>` - Output path for the PNG file (default: `./screenshots/<name>.png`)
+  - Note: file name will include a counter if a file with the same name already exists,
+    and the renderer name (e.g., `-wgpu`) is automatically added as a suffix.
+- `--theme <name>` - Iced theme to use for rendering (default: `Light`)
+- `--size <WxH>` - Viewport size in pixels (default: `800x600`)
+- `--help` - Show help message
 
 ## License
 
