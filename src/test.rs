@@ -3,186 +3,18 @@
 //! This module provides functionality to record and run visual tests against
 //! previews using Iced's `.ice` test file format.
 
-use iced::{Size, keyboard};
-use std::path::PathBuf;
+mod config;
+mod error;
+mod session;
 
+use iced::keyboard;
+
+pub use config::Config;
+pub use error::Error;
+pub use session::Session;
 // Re-export iced_test types for convenience
 pub use iced_test::instruction::{Expectation, Interaction, Keyboard, Mouse, Target};
 pub use iced_test::{Ice, Instruction};
-
-/// Configuration for a test recording session.
-#[derive(Debug, Clone)]
-pub struct TestConfig {
-    /// The size of the test window.
-    pub window_size: Size,
-    /// The directory where tests are saved.
-    pub tests_dir: PathBuf,
-    /// Whether to capture a final snapshot for comparison.
-    pub capture_snapshot: bool,
-}
-
-impl Default for TestConfig {
-    fn default() -> Self {
-        Self {
-            window_size: Size::new(800.0, 600.0),
-            tests_dir: PathBuf::from("./tests"),
-            capture_snapshot: false,
-        }
-    }
-}
-
-impl TestConfig {
-    /// Creates a new test configuration with the given window size.
-    pub fn with_window_size(mut self, size: Size) -> Self {
-        self.window_size = size;
-        self
-    }
-
-    /// Sets the directory where tests are saved.
-    pub fn with_tests_dir(mut self, dir: impl Into<PathBuf>) -> Self {
-        self.tests_dir = dir.into();
-        self
-    }
-
-    /// Enables snapshot capture for the test.
-    pub fn with_snapshot(mut self) -> Self {
-        self.capture_snapshot = true;
-        self
-    }
-}
-
-/// State for an active test recording session.
-#[derive(Debug)]
-pub struct TestSession {
-    /// The configuration for this session.
-    pub config: TestConfig,
-    /// The index of the preview being tested.
-    pub preview_index: usize,
-    /// The name of the preview (used for the test file name).
-    pub preview_name: String,
-    /// Recorded interactions in Ice format.
-    pub instructions: Vec<Instruction>,
-    /// Whether recording is currently active.
-    pub is_recording: bool,
-    /// Current text in the expectation input field.
-    pub expect_text_input: String,
-    /// Counter for snapshot naming.
-    pub snapshot_count: usize,
-}
-
-impl TestSession {
-    /// Creates a new test session for the given preview.
-    pub fn new(config: TestConfig, preview_index: usize, preview_name: String) -> Self {
-        Self {
-            config,
-            preview_index,
-            preview_name,
-            instructions: Vec::new(),
-            is_recording: true,
-            expect_text_input: String::new(),
-            snapshot_count: 0,
-        }
-    }
-
-    /// Returns the filename for this test's `.ice` file.
-    pub fn ice_filename(&self) -> String {
-        // Sanitize the preview name for use as a filename
-        let sanitized: String = self
-            .preview_name
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect();
-        format!("{}.ice", sanitized.to_lowercase())
-    }
-
-    /// Returns the full path where the test file will be saved.
-    pub fn ice_path(&self) -> PathBuf {
-        self.config.tests_dir.join(self.ice_filename())
-    }
-
-    /// Returns the full path where the snapshot will be saved (if enabled).
-    pub fn snapshot_path(&self) -> Option<PathBuf> {
-        if self.config.capture_snapshot {
-            let sanitized: String = self
-                .preview_name
-                .chars()
-                .map(|c| if c.is_alphanumeric() { c } else { '_' })
-                .collect();
-            Some(
-                self.config
-                    .tests_dir
-                    .join(format!("{}.png", sanitized.to_lowercase())),
-            )
-        } else {
-            None
-        }
-    }
-
-    /// Records an interaction, merging with the previous one if possible.
-    pub fn record(&mut self, interaction: Interaction) {
-        // Try to merge with the last instruction if it's also an interaction
-        if let Some(Instruction::Interact(last)) = self.instructions.pop() {
-            let (merged, remainder) = last.merge(interaction);
-            self.instructions.push(Instruction::Interact(merged));
-            if let Some(r) = remainder {
-                self.instructions.push(Instruction::Interact(r));
-            }
-        } else {
-            // No previous instruction or it was an expectation, just add the new one
-            self.instructions.push(Instruction::Interact(interaction));
-        }
-    }
-
-    /// Adds a text expectation to verify the given text is visible.
-    pub fn add_text_expectation(&mut self, text: String) {
-        if !text.is_empty() {
-            self.instructions
-                .push(Instruction::Expect(Expectation::Text(text)));
-        }
-    }
-
-    /// Returns the next snapshot filename for this session.
-    pub fn next_snapshot_name(&mut self) -> String {
-        let sanitized: String = self
-            .preview_name
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect();
-        self.snapshot_count += 1;
-        format!("{}_{}.png", sanitized.to_lowercase(), self.snapshot_count)
-    }
-
-    /// Converts the session to an Ice structure for serialization.
-    pub fn to_ice(&self) -> Ice {
-        Ice {
-            viewport: self.config.window_size,
-            mode: iced_test::emulator::Mode::Immediate,
-            preset: None,
-            instructions: self.instructions.clone(),
-        }
-    }
-
-    /// Saves the test to disk using the .ice format.
-    pub fn save(&self) -> std::io::Result<()> {
-        // Ensure the tests directory exists
-        std::fs::create_dir_all(&self.config.tests_dir)?;
-
-        // Convert to Ice and write
-        let ice = self.to_ice();
-        std::fs::write(self.ice_path(), ice.to_string())?;
-
-        Ok(())
-    }
-
-    /// Returns the sanitized name used for filenames.
-    pub fn sanitized_name(&self) -> String {
-        self.preview_name
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect::<String>()
-            .to_lowercase()
-    }
-}
 
 /// Runs all `.ice` tests in the given directory against previews.
 ///
@@ -191,7 +23,7 @@ impl TestSession {
 /// ```ignore
 /// #[test]
 /// fn visual_tests() -> Result<(), snowscape::test::Error> {
-///     snowscape::test::run(my_crate::configure, "tests/")
+///     snowscape::test::run(my_crate::previews, "tests/")
 /// }
 /// ```
 ///
@@ -507,34 +339,3 @@ fn special_key_to_iced(key: &iced_test::instruction::Key) -> keyboard::Key {
         Key::Backspace => keyboard::Key::Named(keyboard::key::Named::Backspace),
     }
 }
-
-/// Errors that can occur when running tests.
-#[derive(Debug)]
-pub enum Error {
-    /// The tests directory was not found.
-    TestsDirectoryNotFound(PathBuf),
-    /// An I/O error occurred.
-    IoError(std::io::Error),
-    /// One or more tests failed.
-    TestsFailed(Vec<(String, String)>),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::TestsDirectoryNotFound(path) => {
-                write!(f, "Tests directory not found: {}", path.display())
-            }
-            Error::IoError(e) => write!(f, "I/O error: {}", e),
-            Error::TestsFailed(failures) => {
-                writeln!(f, "{} test(s) failed:", failures.len())?;
-                for (name, reason) in failures {
-                    writeln!(f, "  - {}: {}", name, reason)?;
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
-impl std::error::Error for Error {}

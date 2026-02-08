@@ -3,7 +3,7 @@ use crate::{
     Preview,
     config_tab::ConfigTab,
     preview::Descriptor,
-    test::{TestConfig, TestSession},
+    test::{Config, Session},
     widget::{
         config_pane, header, preview_area, preview_list, recorder, search_input,
         split::{Strategy, horizontal_split, vertical_split},
@@ -47,13 +47,13 @@ pub struct App {
     /// The ID of the test window when recording.
     test_window: Option<window::Id>,
     /// Test configuration for the test window.
-    test_config: TestConfig,
+    test_config: Config,
     /// The width input for the test window (as string for text input).
     test_width_input: String,
     /// The height input for the test window (as string for text input).
     test_height_input: String,
     /// The active test recording session, if any.
-    test_session: Option<TestSession>,
+    test_session: Option<Session>,
 }
 
 impl Default for App {
@@ -70,7 +70,7 @@ impl Default for App {
             theme_mode: Default::default(),
             main_window: None,
             test_window: None,
-            test_config: TestConfig::default(),
+            test_config: Config::default(),
             test_width_input: "800".to_string(),
             test_height_input: "600".to_string(),
             test_session: None,
@@ -114,7 +114,7 @@ impl App {
     }
 
     /// Returns the test configuration.
-    pub fn test_config(&self) -> &TestConfig {
+    pub fn test_config(&self) -> &Config {
         &self.test_config
     }
 
@@ -139,7 +139,7 @@ impl App {
     }
 
     /// Returns the current test session, if any.
-    pub fn test_session(&self) -> Option<&TestSession> {
+    pub fn test_session(&self) -> Option<&Session> {
         self.test_session.as_ref()
     }
 
@@ -298,8 +298,7 @@ impl App {
 
                 // Create the test session
                 let preview_name = descriptor.metadata().label.clone();
-                let session =
-                    TestSession::new(self.test_config.clone(), index, preview_name.clone());
+                let session = Session::new(self.test_config.clone(), index, preview_name.clone());
                 self.test_session = Some(session);
 
                 // Open the test window
