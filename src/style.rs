@@ -83,6 +83,42 @@ pub fn channel_slider_backgrounds(
     )
 }
 
+pub mod button {
+    use iced::widget::button;
+    use iced::{Theme, border};
+
+    /// Subtle button style for secondary actions.
+    pub fn subtle(theme: &Theme, status: button::Status) -> button::Style {
+        let palette = theme.extended_palette();
+        match status {
+            button::Status::Active => button::Style {
+                background: Some(palette.background.weak.color.into()),
+                text_color: palette.background.base.text,
+                border: border::rounded(4),
+                ..Default::default()
+            },
+            button::Status::Hovered => button::Style {
+                background: Some(palette.background.strong.color.into()),
+                text_color: palette.background.base.text,
+                border: border::rounded(4),
+                ..Default::default()
+            },
+            button::Status::Pressed => button::Style {
+                background: Some(palette.background.stronger.color.into()),
+                text_color: palette.background.stronger.text,
+                border: border::rounded(4),
+                ..Default::default()
+            },
+            button::Status::Disabled => button::Style {
+                background: Some(palette.background.weak.color.scale_alpha(0.5).into()),
+                text_color: palette.background.base.text.scale_alpha(0.5),
+                border: border::rounded(4),
+                ..Default::default()
+            },
+        }
+    }
+}
+
 pub mod container {
     use iced::widget::container;
     use iced::{Border, Color, Shadow, Theme, Vector};
