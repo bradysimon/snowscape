@@ -220,3 +220,26 @@ pub mod text {
         }
     }
 }
+
+pub mod svg {
+    use iced::Theme;
+    use iced::widget::svg;
+
+    pub fn strong_background(theme: &Theme, _status: svg::Status) -> svg::Style {
+        svg::Style {
+            color: Some(theme.extended_palette().background.strong.color),
+        }
+    }
+
+    pub fn success(theme: &Theme, _status: svg::Status) -> svg::Style {
+        svg::Style {
+            color: Some(theme.extended_palette().success.strong.color),
+        }
+    }
+
+    pub fn danger(theme: &Theme, _status: svg::Status) -> svg::Style {
+        svg::Style {
+            color: Some(theme.extended_palette().danger.strong.color),
+        }
+    }
+}
