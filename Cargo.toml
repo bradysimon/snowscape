@@ -8,7 +8,7 @@ iced = { workspace = true, features = ["advanced", "svg", "fira-sans", "tokio"] 
 iced_anim.workspace = true
 iced_test.workspace = true
 image = { workspace = true, default-features = false, features = ["png"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["fs", "rt-multi-thread", "macros"] }
 
 [workspace]
 members = ["examples/counter", "examples/custom_theme", "examples/dynamic_params", "examples/self"]

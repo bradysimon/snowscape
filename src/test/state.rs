@@ -371,25 +371,30 @@ async fn run_tests_in_thread(
     preview_index: usize,
     tests: Vec<PathBuf>,
 ) -> Vec<test::Outcome> {
-    let handle = tokio::task::spawn_blocking(move || {
-        tests
-            .into_iter()
-            .map(|path| run_test_path(&configure, preview_index, path))
-            .collect::<Vec<_>>()
-    });
+    let mut tasks = tokio::task::JoinSet::new();
 
-    match handle.await {
-        Ok(results) => results,
-        Err(error) => vec![test::Outcome::failed(
-            "test-runner",
-            format!("Test runner failed: {error}"),
-        )],
+    for path in tests {
+        let configure = configure.clone();
+        tasks.spawn(async move { run_test_path(configure, preview_index, path).await });
     }
+
+    let mut results = Vec::new();
+    while let Some(result) = tasks.join_next().await {
+        match result {
+            Ok(outcome) => results.push(outcome),
+            Err(error) => results.push(test::Outcome::failed(
+                "test-runner",
+                format!("[Internal error] Test runner failed: {error}"),
+            )),
+        }
+    }
+
+    results
 }
 
 /// Runs the test at the given `path` and returns the result.
-fn run_test_path(
-    configure: &crate::app::ConfigureFn,
+async fn run_test_path(
+    configure: crate::app::ConfigureFn,
     preview_index: usize,
     path: PathBuf,
 ) -> test::Outcome {
@@ -399,7 +404,7 @@ fn run_test_path(
         .unwrap_or("unknown")
         .to_string();
 
-    let content = match std::fs::read_to_string(&path) {
+    let content = match tokio::fs::read_to_string(&path).await {
         Ok(content) => content,
         Err(e) => {
             return test::Outcome::failed(name, format!("Failed to read test file: {e}"));
