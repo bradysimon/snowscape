@@ -45,6 +45,7 @@ fn recording_view<'a>(app: &'a App) -> Element<'a, Message> {
                 text("Add Expectation:").size(14),
                 row![
                     text_input("Expected text...", expect_input)
+                        .style(crate::style::text_input::default)
                         .on_input(|t| Message::Test(test::Message::ChangeExpectText(t)))
                         .width(Fill),
                     button(text("Expect").size(14))
@@ -98,9 +99,10 @@ fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
             column![
                 text("Name").size(12).style(crate::style::text::muted),
                 text_input(
-                    "Enter the name of the e.g. basic-increment",
+                    "Enter a test name, e.g. basic-increment",
                     &test_state.name_input
                 )
+                .style(crate::style::text_input::default)
                 .size(14)
                 .on_input(|n| Message::Test(test::Message::ChangeTestName(n))),
             ]
@@ -111,11 +113,13 @@ fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
                 text("Size").size(12).style(crate::style::text::muted),
                 row![
                     text_input("W", &test_state.width_input)
+                        .style(crate::style::text_input::default)
                         .size(14)
                         .width(60)
                         .on_input(|w| Message::Test(test::Message::ChangeWidth(w))),
                     text("×").size(14),
                     text_input("H", &test_state.height_input)
+                        .style(crate::style::text_input::default)
                         .size(14)
                         .width(60)
                         .on_input(|h| Message::Test(test::Message::ChangeHeight(h))),

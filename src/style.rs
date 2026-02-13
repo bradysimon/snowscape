@@ -221,6 +221,19 @@ pub mod text {
     }
 }
 
+pub mod text_input {
+    use iced::Theme;
+    use iced::widget::text_input;
+
+    pub fn default(theme: &Theme, status: text_input::Status) -> text_input::Style {
+        let default = text_input::default(theme, status);
+        text_input::Style {
+            border: default.border.rounded(4),
+            ..default
+        }
+    }
+}
+
 pub mod svg {
     use iced::Theme;
     use iced::widget::svg;
