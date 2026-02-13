@@ -76,7 +76,10 @@ where
         .collect();
 
     if preview_folders.is_empty() && legacy_ice_files.is_empty() {
-        println!("No test folders or .ice files found in {}", tests_dir.display());
+        println!(
+            "No test folders or .ice files found in {}",
+            tests_dir.display()
+        );
         return Ok(());
     }
 
@@ -136,10 +139,7 @@ where
             let ice = match Ice::parse(&content) {
                 Ok(ice) => ice,
                 Err(e) => {
-                    failures.push((
-                        full_test_name,
-                        format!("Failed to parse .ice file: {e}"),
-                    ));
+                    failures.push((full_test_name, format!("Failed to parse .ice file: {e}")));
                     continue;
                 }
             };

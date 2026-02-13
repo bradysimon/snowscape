@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use counter::{App, add_button, adjustable_counter, label, minus_button};
 use snowscape::{dynamic, stateful, stateless};
 
@@ -6,6 +8,7 @@ use snowscape::{dynamic, stateful, stateless};
 /// This function is shared between the main application and tests.
 pub fn previews(app: snowscape::App) -> snowscape::App {
     app.title("Counter Previews")
+        .with_tests_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests"))
         .preview(
             dynamic::stateless("Label", dynamic::text("Content", "Editable"), |content| {
                 label(content)
@@ -44,6 +47,9 @@ mod tests {
 
     #[test]
     fn passes_visual_tests() -> Result<(), snowscape::test::Error> {
-        snowscape::test::run(previews, "tests/")
+        snowscape::test::run(
+            previews,
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests"),
+        )
     }
 }

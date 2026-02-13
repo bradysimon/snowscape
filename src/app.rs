@@ -86,9 +86,18 @@ impl App {
         self
     }
 
-    /// Sets the test state (useful for previews/testing).
-    pub fn with_test_state(mut self, test: test::State) -> Self {
-        self.test = test;
+    /// Sets the path to the tests directory (useful for previews/testing).
+    pub fn with_tests_dir(mut self, path: impl AsRef<std::path::Path>) -> Self {
+        self.test = test::State {
+            config: test::Config::default().with_tests_dir(path.as_ref()),
+            ..test::State::default()
+        };
+        self
+    }
+
+    #[cfg(feature = "internal")]
+    pub fn with_test_state(mut self, test_state: test::State) -> Self {
+        self.test = test_state;
         self
     }
 
@@ -137,6 +146,19 @@ impl App {
             app.selected_index = Some(0);
         }
 
+        let refresh_task = app
+            .descriptors
+            .first()
+            .map(|descriptor| {
+                app.test
+                    .update(
+                        test::Message::RefreshList(descriptor.metadata().label.clone()),
+                        None,
+                    )
+                    .map(Message::Test)
+            })
+            .unwrap_or_else(Task::none);
+
         // Open the main window
         let (main_id, open_main) = window::open(window::Settings {
             exit_on_close_request: false,
@@ -146,7 +168,7 @@ impl App {
 
         (
             app,
-            Task::batch([open_main.discard(), App::initial_theme()]),
+            Task::batch([open_main.discard(), App::initial_theme(), refresh_task]),
         )
     }
 
@@ -155,6 +177,11 @@ impl App {
             Message::SelectPreview(index) => {
                 if index < self.descriptors.len() {
                     self.selected_index = Some(index);
+                    let preview_name = self.descriptors[index].metadata().label.clone();
+                    return self
+                        .test
+                        .update(test::Message::RefreshList(preview_name), None)
+                        .map(Message::Test);
                 }
                 Task::none()
             }
