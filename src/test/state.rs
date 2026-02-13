@@ -29,8 +29,8 @@ pub struct State {
     pub discovered_tests: Vec<TestInfo>,
     /// Results from the last test run.
     pub last_run_results: Option<Vec<TestResult>>,
-    /// Whether tests are currently running.
-    pub is_running: bool,
+    /// The scope of the current test run, if any.
+    pub run_mode: Option<RunMode>,
 }
 
 impl Default for State {
@@ -44,9 +44,15 @@ impl Default for State {
             window_id: None,
             discovered_tests: Vec::new(),
             last_run_results: None,
-            is_running: false,
+            run_mode: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum RunMode {
+    All,
+    Single,
 }
 
 /// Context needed for test operations.
@@ -78,6 +84,11 @@ impl State {
     /// Returns the current test session, if any.
     pub fn session(&self) -> Option<&Session> {
         self.session.as_ref()
+    }
+
+    /// Returns true if a test run is currently active.
+    pub fn is_running(&self) -> bool {
+        self.run_mode.is_some()
     }
 
     /// Returns the test name from user input.
@@ -247,7 +258,7 @@ impl State {
                 Task::none()
             }
             Message::RunAll => {
-                if self.discovered_tests.is_empty() || self.is_running {
+                if self.discovered_tests.is_empty() || self.is_running() {
                     return Task::none();
                 }
 
@@ -259,7 +270,7 @@ impl State {
                     return Task::none();
                 };
 
-                self.is_running = true;
+                self.run_mode = Some(RunMode::All);
                 self.last_run_results = None;
 
                 // For now, run tests synchronously in a simple manner
@@ -278,7 +289,7 @@ impl State {
                 )
             }
             Message::RunSingle(path) => {
-                if self.is_running {
+                if self.is_running() {
                     return Task::none();
                 }
 
@@ -290,8 +301,7 @@ impl State {
                     return Task::none();
                 };
 
-                self.is_running = true;
-                self.last_run_results = None;
+                self.run_mode = Some(RunMode::Single);
 
                 let preview_index = ctx.preview_index;
 
@@ -317,12 +327,39 @@ impl State {
                 Task::none()
             }
             Message::RunComplete(results) => {
-                self.is_running = false;
-                self.last_run_results = Some(results);
+                self.last_run_results = Some(match self.run_mode {
+                    Some(RunMode::Single) => {
+                        merge_run_results(self.last_run_results.take(), results)
+                    }
+                    _ => results,
+                });
+                self.run_mode = None;
                 Task::none()
             }
         }
     }
+}
+
+fn merge_run_results(
+    previous: Option<Vec<TestResult>>,
+    updates: Vec<TestResult>,
+) -> Vec<TestResult> {
+    let Some(mut existing) = previous else {
+        return updates;
+    };
+
+    for update in updates {
+        if let Some(slot) = existing
+            .iter_mut()
+            .find(|result| result.name == update.name)
+        {
+            *slot = update;
+        } else {
+            existing.push(update);
+        }
+    }
+
+    existing
 }
 
 /// Runs the given test paths in a separate thread to avoid stalling the UI,
@@ -403,5 +440,23 @@ fn run_test_path(
             passed: true,
             error: None,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The run mode of the state indicates whether a test run is currently active.
+    #[test]
+    fn is_running_reflects_run_mode() {
+        let mut state = State::default();
+        assert!(!state.is_running());
+
+        state.run_mode = Some(RunMode::All);
+        assert!(state.is_running());
+
+        state.run_mode = None;
+        assert!(!state.is_running());
     }
 }

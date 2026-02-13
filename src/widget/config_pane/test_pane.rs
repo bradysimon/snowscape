@@ -140,7 +140,7 @@ fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
 /// Section showing existing tests for the current preview.
 fn existing_tests_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
     let has_tests = !test_state.discovered_tests.is_empty();
-    let is_running = test_state.is_running;
+    let is_running = test_state.is_running();
 
     let run_all_button: Element<'a, Message> = if has_tests {
         let button = button(text("Run All").size(12))
@@ -154,16 +154,9 @@ fn existing_tests_section<'a>(test_state: &'a test::State) -> Element<'a, Messag
     };
 
     let running_indicator: Element<'a, Message> = if is_running {
-        row![
-            crate::icon::refresh()
-                .width(12)
-                .height(12)
-                .style(crate::style::svg::strong_background),
-            text("Running...").size(12).style(crate::style::text::muted),
-        ]
-        .spacing(6)
-        .align_y(Center)
-        .into()
+        container(text("Running...").size(12).style(crate::style::text::muted))
+            .padding(padding::left(8))
+            .into()
     } else {
         space::horizontal().into()
     };
