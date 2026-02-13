@@ -10,10 +10,10 @@ pub enum ConfigTab {
     Parameters,
     /// Displays messages the current preview has emitted.
     Messages,
-    /// Allows the user to record and run visual tests.
-    Tests,
     /// Shows performance metrics for the current preview.
     Performance,
+    /// Allows the user to record and run visual tests.
+    Tests,
 }
 
 impl ConfigTab {
@@ -22,8 +22,8 @@ impl ConfigTab {
         ConfigTab::About,
         ConfigTab::Parameters,
         ConfigTab::Messages,
-        ConfigTab::Tests,
         ConfigTab::Performance,
+        ConfigTab::Tests,
     ];
 
     /// A display name for this tab.
@@ -32,8 +32,8 @@ impl ConfigTab {
             ConfigTab::About => "About",
             ConfigTab::Parameters => "Parameters",
             ConfigTab::Messages => "Messages",
-            ConfigTab::Tests => "Tests",
             ConfigTab::Performance => "Performance",
+            ConfigTab::Tests => "Tests",
         }
     }
 }
