@@ -238,6 +238,12 @@ pub mod svg {
     use iced::Theme;
     use iced::widget::svg;
 
+    pub fn text(theme: &Theme, _status: svg::Status) -> svg::Style {
+        svg::Style {
+            color: Some(theme.palette().text),
+        }
+    }
+
     pub fn strong_background(theme: &Theme, _status: svg::Status) -> svg::Style {
         svg::Style {
             color: Some(theme.extended_palette().background.strong.color),

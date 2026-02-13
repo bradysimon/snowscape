@@ -292,15 +292,25 @@ fn test_row<'a>(
         text(&info.name).size(13)
     };
 
-    let run_button = button(text("▶").size(11))
-        .padding([4, 8])
-        .style(icon_button_style)
-        .on_press_maybe((!is_running).then(|| Message::Test(test::Message::RunSingle(path))));
+    let run_button = button(
+        crate::icon::play()
+            .style(crate::style::svg::text)
+            .width(12)
+            .height(12),
+    )
+    .padding([4, 8])
+    .style(icon_button_style)
+    .on_press_maybe((!is_running).then(|| Message::Test(test::Message::RunSingle(path))));
 
-    let delete_button = button(text("🗑").size(11))
-        .padding([4, 8])
-        .style(delete_button_style)
-        .on_press_maybe((!is_running).then(|| Message::Test(test::Message::Delete(path_delete))));
+    let delete_button = button(
+        crate::icon::trash()
+            .style(crate::style::svg::text)
+            .width(12)
+            .height(12),
+    )
+    .padding([4, 8])
+    .style(delete_button_style)
+    .on_press_maybe((!is_running).then(|| Message::Test(test::Message::Delete(path_delete))));
 
     let row_content = row![
         status_icon,
