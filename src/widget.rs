@@ -13,7 +13,7 @@ use iced::{Alignment::Center, Element, Length::Fill, Theme, border};
 use iced_anim::Animated;
 
 use crate::preview::Descriptor;
-use crate::{message::Message, preview::Preview};
+use crate::{message::Message, preview::Preview, test};
 
 /// The ID of the search input field.
 pub const SEARCH_INPUT_ID: &str = "search_input";
@@ -111,7 +111,7 @@ pub fn stop_recording_button<'a>() -> Element<'a, Message> {
             .spacing(6)
             .align_y(Center),
     )
-    .on_press(Message::StopTestRecording)
+    .on_press(Message::Test(test::Message::StopRecording))
     .style(|theme: &Theme, status| {
         let pair = match status {
             button::Status::Hovered => theme.extended_palette().danger.weak,

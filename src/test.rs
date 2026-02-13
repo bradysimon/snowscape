@@ -4,14 +4,20 @@
 //! previews using Iced's `.ice` test file format.
 
 mod config;
+pub mod discovery;
 mod error;
+pub mod message;
 mod session;
+pub mod state;
 
 use iced::keyboard;
 
 pub use config::Config;
+pub use discovery::TestInfo;
 pub use error::Error;
+pub use message::{Message, TestResult};
 pub use session::Session;
+pub use state::State;
 // Re-export iced_test types for convenience
 pub use iced_test::instruction::{Expectation, Interaction, Keyboard, Mouse, Target};
 pub use iced_test::{Ice, Instruction};
@@ -40,13 +46,12 @@ pub use iced_test::{Ice, Instruction};
 /// Returns `Ok(())` if all tests pass, or an error describing failures.
 pub fn run<F>(configure: F, tests_dir: impl AsRef<std::path::Path>) -> Result<(), Error>
 where
-    F: Fn(crate::App) -> crate::App,
+    F: Fn(crate::App) -> crate::App + Clone,
 {
-    use iced_test::Simulator;
     use std::fs;
 
     // Build the app with the configure function to get all descriptors
-    let mut app = configure(crate::App::default());
+    let initial_app = configure.clone()(crate::App::default());
 
     let tests_dir = tests_dir.as_ref();
     if !tests_dir.exists() {
@@ -54,26 +59,112 @@ where
     }
 
     let mut failures = Vec::new();
+    let mut test_count = 0;
 
-    // Find all .ice files
-    let ice_files: Vec<_> = fs::read_dir(tests_dir)
+    // Find all preview folders (directories in tests_dir)
+    let preview_folders: Vec<_> = fs::read_dir(tests_dir)
+        .map_err(|e| Error::IoError(e))?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().is_dir())
+        .collect();
+
+    // Also check for legacy flat .ice files in tests_dir
+    let legacy_ice_files: Vec<_> = fs::read_dir(tests_dir)
         .map_err(|e| Error::IoError(e))?
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "ice"))
         .collect();
 
-    if ice_files.is_empty() {
-        println!("No .ice test files found in {}", tests_dir.display());
+    if preview_folders.is_empty() && legacy_ice_files.is_empty() {
+        println!("No test folders or .ice files found in {}", tests_dir.display());
         return Ok(());
     }
 
-    for entry in ice_files {
+    // Process each preview folder
+    for folder_entry in preview_folders {
+        let folder_path = folder_entry.path();
+        let preview_folder_name = folder_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown");
+
+        // Find matching preview by sanitized name
+        let matching_index = initial_app.descriptors().iter().position(|d| {
+            let label = &d.metadata().label;
+            discovery::sanitize_name(label) == preview_folder_name
+        });
+
+        let Some(preview_index) = matching_index else {
+            // No matching preview found for this folder
+            println!(
+                "Warning: No matching preview found for folder '{}'",
+                preview_folder_name
+            );
+            continue;
+        };
+
+        // Find all .ice files in this preview folder
+        let ice_files: Vec<_> = match fs::read_dir(&folder_path) {
+            Ok(entries) => entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "ice"))
+                .collect(),
+            Err(_) => continue,
+        };
+
+        for entry in ice_files {
+            let path = entry.path();
+            let test_name = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown");
+
+            let full_test_name = format!("{}/{}", preview_folder_name, test_name);
+            test_count += 1;
+
+            println!("Running test: {full_test_name}");
+
+            // Load and parse the .ice file
+            let content = match fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(e) => {
+                    failures.push((full_test_name, format!("Failed to read file: {e}")));
+                    continue;
+                }
+            };
+
+            let ice = match Ice::parse(&content) {
+                Ok(ice) => ice,
+                Err(e) => {
+                    failures.push((
+                        full_test_name,
+                        format!("Failed to parse .ice file: {e}"),
+                    ));
+                    continue;
+                }
+            };
+
+            // Create a fresh app for each test to ensure isolated state
+            let mut app = configure.clone()(crate::App::default());
+
+            // Run this test against the preview
+            if let Some(error) = run_single_test(&mut app, preview_index, &ice, &full_test_name) {
+                failures.push((full_test_name, error));
+            } else {
+                println!("  ✓ Test passed: {full_test_name}");
+            }
+        }
+    }
+
+    // Process legacy flat .ice files (for backwards compatibility)
+    for entry in legacy_ice_files {
         let path = entry.path();
         let test_name = path
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("unknown");
 
+        test_count += 1;
         println!("Running test: {test_name}");
 
         // Load and parse the .ice file
@@ -96,15 +187,13 @@ where
             }
         };
 
-        // Find matching preview by sanitized name
-        let matching_index = app.descriptors().iter().position(|d| {
+        // Create a fresh app for the test
+        let initial_app = configure.clone()(crate::App::default());
+
+        // Find matching preview by sanitized name (legacy behavior)
+        let matching_index = initial_app.descriptors().iter().position(|d| {
             let label = &d.metadata().label;
-            let sanitized: String = label
-                .chars()
-                .map(|c: char| if c.is_alphanumeric() { c } else { '_' })
-                .collect::<String>()
-                .to_lowercase();
-            sanitized == test_name
+            discovery::sanitize_name(label) == test_name
         });
 
         let Some(preview_index) = matching_index else {
@@ -115,81 +204,19 @@ where
             continue;
         };
 
-        // Create simulator with the preview's initial view
-        let mut simulator: Simulator<crate::message::Message> = Simulator::with_size(
-            iced::Settings::default(),
-            ice.viewport,
-            app.descriptors()[preview_index].preview.view(),
-        );
+        // Create a fresh app for the test
+        let mut app = configure.clone()(crate::App::default());
 
-        // Track if this test had any failures
-        let failures_before = failures.len();
-
-        // Run each instruction
-        for instruction in &ice.instructions {
-            match instruction {
-                Instruction::Interact(interaction) => {
-                    let events = interaction.events(|target| match target {
-                        Target::Point(p) => Some(*p),
-                        Target::Text(_) => None,
-                    });
-
-                    match events {
-                        Some(event_list) => {
-                            simulator.simulate(event_list);
-                        }
-                        None => {
-                            match interaction {
-                                Interaction::Mouse(Mouse::Click { target, .. }) => {
-                                    if let Some(Target::Text(text)) = target {
-                                        let _ = simulator.click(text.as_str());
-                                    }
-                                }
-                                Interaction::Keyboard(Keyboard::Typewrite(text)) => {
-                                    simulator.typewrite(text);
-                                }
-                                _ => {
-                                    // Fallback to event conversion for other cases
-                                    let events = interaction_to_events(interaction);
-                                    simulator.simulate(events);
-                                }
-                            }
-                        }
-                    }
-
-                    // Get messages produced by the interaction and update the preview
-                    for message in simulator.into_messages() {
-                        let _ = app.descriptors_mut()[preview_index].preview.update(message);
-                    }
-
-                    // Regenerate the simulator with the updated view
-                    simulator = Simulator::with_size(
-                        iced::Settings::default(),
-                        ice.viewport,
-                        app.descriptors()[preview_index].preview.view(),
-                    );
-                }
-                Instruction::Expect(Expectation::Text(expected_text)) => {
-                    // Try to find the expected text in the UI
-                    match simulator.find(expected_text.clone()) {
-                        Ok(_) => {} // Text found
-                        Err(e) => {
-                            failures.push((
-                                test_name.to_string(),
-                                format!(
-                                    "Expectation failed - text '{expected_text}' not found: {e}",
-                                ),
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-
-        // Only print success if no failures were added for this test
-        if failures.len() == failures_before {
+        if let Some(error) = run_single_test(&mut app, preview_index, &ice, test_name) {
+            failures.push((test_name.to_string(), error));
+        } else {
             println!("  ✓ Test passed: {test_name}");
         }
+    }
+
+    if test_count == 0 {
+        println!("No .ice test files found in {}", tests_dir.display());
+        return Ok(());
     }
 
     if failures.is_empty() {
@@ -197,6 +224,81 @@ where
     } else {
         Err(Error::TestsFailed(failures))
     }
+}
+
+/// Runs a single test against a preview, returning an error message if it fails.
+fn run_single_test(
+    app: &mut crate::App,
+    preview_index: usize,
+    ice: &Ice,
+    _test_name: &str,
+) -> Option<String> {
+    use iced_test::Simulator;
+
+    // Create simulator with the preview's initial view
+    let mut simulator: Simulator<crate::message::Message> = Simulator::with_size(
+        iced::Settings::default(),
+        ice.viewport,
+        app.descriptors()[preview_index].preview.view(),
+    );
+
+    // Run each instruction
+    for instruction in &ice.instructions {
+        match instruction {
+            Instruction::Interact(interaction) => {
+                let events = interaction.events(|target| match target {
+                    Target::Point(p) => Some(*p),
+                    Target::Text(_) => None,
+                });
+
+                match events {
+                    Some(event_list) => {
+                        simulator.simulate(event_list);
+                    }
+                    None => {
+                        match interaction {
+                            Interaction::Mouse(Mouse::Click { target, .. }) => {
+                                if let Some(Target::Text(text)) = target {
+                                    let _ = simulator.click(text.as_str());
+                                }
+                            }
+                            Interaction::Keyboard(Keyboard::Typewrite(text)) => {
+                                simulator.typewrite(text);
+                            }
+                            _ => {
+                                // Fallback to event conversion for other cases
+                                let events = interaction_to_events(interaction);
+                                simulator.simulate(events);
+                            }
+                        }
+                    }
+                }
+
+                // Get messages produced by the interaction and update the preview
+                for message in simulator.into_messages() {
+                    let _ = app.descriptors_mut()[preview_index].preview.update(message);
+                }
+
+                // Regenerate the simulator with the updated view
+                simulator = Simulator::with_size(
+                    iced::Settings::default(),
+                    ice.viewport,
+                    app.descriptors()[preview_index].preview.view(),
+                );
+            }
+            Instruction::Expect(Expectation::Text(expected_text)) => {
+                // Try to find the expected text in the UI
+                if let Err(e) = simulator.find(expected_text.clone()) {
+                    return Some(format!(
+                        "Expectation failed - text '{}' not found: {}",
+                        expected_text, e
+                    ));
+                }
+            }
+        }
+    }
+
+    None // Test passed
 }
 
 /// Converts an Interaction to a sequence of iced Events.

@@ -3,7 +3,7 @@ use crate::{
     Preview,
     config_tab::ConfigTab,
     preview::Descriptor,
-    test::{Config, Session},
+    test,
     widget::{
         config_pane, header, preview_area, preview_list, recorder, search_input,
         split::{Strategy, horizontal_split, vertical_split},
@@ -18,9 +18,13 @@ use iced::{
     window,
 };
 use iced_anim::{Animated, Animation, Easing};
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 pub const SEARCH_INPUT_ID: &str = "search_input";
+
+/// A function to configure your app's previews.
+/// Send + Sync bound required to allow running tests off the main thread.
+pub(crate) type ConfigureFn = Arc<dyn Fn(App) -> App + Send + Sync>;
 
 /// The preview app that shows registered previews.
 pub struct App {
@@ -44,16 +48,10 @@ pub struct App {
     theme_mode: theme::Mode,
     /// The ID of the main window.
     main_window: Option<window::Id>,
-    /// The ID of the test window when recording.
-    test_window: Option<window::Id>,
-    /// Test configuration for the test window.
-    test_config: Config,
-    /// The width input for the test window (as string for text input).
-    test_width_input: String,
-    /// The height input for the test window (as string for text input).
-    test_height_input: String,
-    /// The active test recording session, if any.
-    test_session: Option<Session>,
+    /// App configuration callback used for test runs.
+    configure: Option<ConfigureFn>,
+    /// Test-related state.
+    test: test::State,
 }
 
 impl Default for App {
@@ -69,11 +67,8 @@ impl Default for App {
             theme: None,
             theme_mode: Default::default(),
             main_window: None,
-            test_window: None,
-            test_config: Config::default(),
-            test_width_input: "800".to_string(),
-            test_height_input: "600".to_string(),
-            test_session: None,
+            configure: None,
+            test: test::State::default(),
         }
     }
 }
@@ -88,6 +83,12 @@ impl App {
     /// Adds a preview to the application.
     pub fn preview(mut self, preview: impl Preview + 'static) -> Self {
         self.descriptors.push(preview.into());
+        self
+    }
+
+    /// Sets the test state (useful for previews/testing).
+    pub fn with_test_state(mut self, test: test::State) -> Self {
+        self.test = test;
         self
     }
 
@@ -110,22 +111,12 @@ impl App {
 
     /// Returns true if a test recording is currently active.
     pub fn is_recording(&self) -> bool {
-        self.test_session.as_ref().is_some_and(|s| s.is_recording)
+        self.test.is_recording()
     }
 
-    /// Returns the test configuration.
-    pub fn test_config(&self) -> &Config {
-        &self.test_config
-    }
-
-    /// Returns the test width input string.
-    pub fn test_width_input(&self) -> &str {
-        &self.test_width_input
-    }
-
-    /// Returns the test height input string.
-    pub fn test_height_input(&self) -> &str {
-        &self.test_height_input
+    /// Returns the test state.
+    pub fn test_state(&self) -> &test::State {
+        &self.test
     }
 
     /// Returns the registered preview descriptors.
@@ -138,17 +129,10 @@ impl App {
         &mut self.descriptors
     }
 
-    /// Returns the current test session, if any.
-    pub fn test_session(&self) -> Option<&Session> {
-        self.test_session.as_ref()
-    }
-
     /// Sets up the application with the given configuration function.
-    pub(crate) fn setup<F>(configure: F) -> (Self, Task<Message>)
-    where
-        F: Fn(App) -> App,
-    {
-        let mut app = configure(App::default());
+    pub(crate) fn setup(configure: ConfigureFn) -> (Self, Task<Message>) {
+        let mut app = (configure)(App::default());
+        app.configure = Some(configure.clone());
         if !app.descriptors.is_empty() {
             app.selected_index = Some(0);
         }
@@ -269,89 +253,12 @@ impl App {
                 self.theme_mode = mode;
                 Task::none()
             }
-            // Test-related messages
-            Message::ChangeTestWidth(width) => {
-                self.test_width_input = width.clone();
-                if let Ok(w) = width.parse::<f32>() {
-                    self.test_config.window_size.width = w;
-                }
-                Task::none()
-            }
-            Message::ChangeTestHeight(height) => {
-                self.test_height_input = height.clone();
-                if let Ok(h) = height.parse::<f32>() {
-                    self.test_config.window_size.height = h;
-                }
-                Task::none()
-            }
-            Message::ToggleTestSnapshot(enabled) => {
-                self.test_config.capture_snapshot = enabled;
-                Task::none()
-            }
-            Message::StartTestRecording => {
-                let Some(index) = self.selected_index else {
-                    return Task::none();
-                };
-                let Some(descriptor) = self.descriptors.get(index) else {
-                    return Task::none();
-                };
-
-                // Create the test session
-                let preview_name = descriptor.metadata().label.clone();
-                let session = Session::new(self.test_config.clone(), index, preview_name.clone());
-                self.test_session = Some(session);
-
-                // Open the test window
-                // Note: Using Default position to avoid objc2 NSScreen enumeration crash on some macOS versions
-                let (id, open_task) = window::open(window::Settings {
-                    size: self.test_config.window_size,
-                    exit_on_close_request: false,
-                    ..Default::default()
-                });
-                self.test_window = Some(id);
-
-                open_task.map(Message::TestWindowOpened)
-            }
-            Message::TestWindowOpened(id) => {
-                // Window is now open, store the ID for later closing
-                self.test_window = Some(id);
-                Task::none()
-            }
-            Message::RecordInteraction(interaction) => {
-                if let Some(session) = &mut self.test_session {
-                    session.record(interaction);
-                }
-                Task::none()
-            }
-            Message::StopTestRecording => {
-                let Some(session) = &self.test_session else {
-                    return Task::none();
-                };
-
-                // Save the test file
-                if let Err(e) = session.save() {
-                    eprintln!("Failed to save test: {}", e);
-                }
-
-                // Close the test window
-                if let Some(test_window_id) = self.test_window.take() {
-                    if session.config.capture_snapshot {
-                        window::screenshot(test_window_id)
-                            .map(Message::TestScreenshotCaptured)
-                            .chain(window::close(test_window_id))
-                            .chain(Task::done(Message::RemoveTestSession))
-                    } else {
-                        window::close(test_window_id).chain(Task::done(Message::RemoveTestSession))
-                    }
-                } else {
-                    Task::none()
-                }
-            }
             Message::WindowClosed(id) => {
                 // If the test window was the one closed, stop the recording
-                // Don't close immediately - let StopTestRecording handle closing after screenshot
-                if self.test_window == Some(id) {
-                    Task::done(Message::StopTestRecording)
+                if self.test.window_id == Some(id) {
+                    self.test
+                        .update(test::Message::StopRecording, None)
+                        .map(Message::Test)
                 } else if self.main_window == Some(id) {
                     // Main window is closing, so shut down the application
                     window::close(id).chain(iced::exit())
@@ -359,57 +266,18 @@ impl App {
                     window::close(id)
                 }
             }
-            Message::TestScreenshotCaptured(screenshot) => {
-                // Save screenshot to disk as PNG
-                if let Some(session) = &mut self.test_session {
-                    let snapshot_name = session.next_snapshot_name();
-                    let snapshot_path = session.config.tests_dir.join(&snapshot_name);
-                    if let Err(e) = std::fs::create_dir_all(&session.config.tests_dir) {
-                        eprintln!("Failed to create tests directory: {}", e);
-                    } else {
-                        // Create an image buffer from the screenshot's RGBA data
-                        let width = screenshot.size.width;
-                        let height = screenshot.size.height;
-                        let rgba_data: &[u8] = screenshot.as_ref();
-
-                        match image::RgbaImage::from_raw(width, height, rgba_data.to_vec()) {
-                            Some(img) => {
-                                if let Err(e) = img.save(&snapshot_path) {
-                                    eprintln!("Failed to save snapshot as PNG: {}", e);
-                                }
-                            }
-                            None => {
-                                eprintln!("Failed to create image from screenshot data");
-                            }
-                        }
-                    }
-                }
-                Task::none()
-            }
-            Message::ChangeExpectText(text) => {
-                if let Some(session) = &mut self.test_session {
-                    session.expect_text_input = text;
-                }
-                Task::none()
-            }
-            Message::AddTextExpectation => {
-                if let Some(session) = &mut self.test_session {
-                    let text = std::mem::take(&mut session.expect_text_input);
-                    session.add_text_expectation(text);
-                }
-                Task::none()
-            }
-            Message::CaptureSnapshot => {
-                // Request a screenshot from the test window
-                if let Some(test_window_id) = self.test_window {
-                    window::screenshot(test_window_id).map(Message::TestScreenshotCaptured)
-                } else {
-                    Task::none()
-                }
-            }
-            Message::RemoveTestSession => {
-                self.test_session = None;
-                Task::none()
+            Message::Test(msg) => {
+                // Build context for test update if we have a selected preview
+                let ctx = self.selected_index.and_then(|index| {
+                    self.descriptors
+                        .get(index)
+                        .map(|d| test::state::UpdateContext {
+                            preview_name: &d.metadata().label,
+                            preview_index: index,
+                            configure: self.configure.clone(),
+                        })
+                });
+                self.test.update(msg, ctx).map(Message::Test)
             }
         }
     }
@@ -433,7 +301,7 @@ impl App {
 
     pub(crate) fn view(&self, window_id: window::Id) -> Element<'_, Message> {
         // Check if this is the test window
-        if self.test_session.is_some() && Some(window_id) != self.main_window {
+        if self.test.session.is_some() && Some(window_id) != self.main_window {
             return self.view_test_window();
         }
 
@@ -500,7 +368,7 @@ impl App {
 
     /// Renders the isolated test window with just the preview.
     fn view_test_window(&self) -> Element<'_, Message> {
-        let Some(session) = &self.test_session else {
+        let Some(session) = &self.test.session else {
             return text("No test session").into();
         };
 
@@ -514,7 +382,7 @@ impl App {
         if session.is_recording {
             // Wrap with recorder to capture user interactions
             recorder(preview_content)
-                .on_record(Message::RecordInteraction)
+                .on_record(|i| Message::Test(test::Message::RecordInteraction(i)))
                 .into()
         } else {
             preview_content.into()
@@ -535,7 +403,7 @@ impl App {
             self.title
                 .clone()
                 .unwrap_or_else(|| "Snowscape Previews".to_owned())
-        } else if let Some(session) = &self.test_session {
+        } else if let Some(session) = &self.test.session {
             format!("Test: {}", session.preview_name)
         } else {
             "Test Window".to_owned()

@@ -4,7 +4,8 @@ use iced::widget::{container, space};
 use iced::{Color, Element};
 use snowscape::preview::{Performance, Preview};
 use snowscape::preview::{dynamic, performance::Indicator, stateful, stateless, stateless_with};
-use snowscape::{App, ConfigTab, Metadata, widget};
+use snowscape::test::discovery::TestInfo;
+use snowscape::{App, ConfigTab, Metadata, test, widget};
 
 /// Previews various components used within Snowscape.
 fn main() -> iced::Result {
@@ -16,6 +17,7 @@ fn main() -> iced::Result {
             .preview(parameter_pane())
             .preview(message_pane())
             .preview(performance_pane())
+            .preview(test_pane())
             .preview(app_preview())
     })
 }
@@ -190,6 +192,59 @@ fn performance_pane() -> impl Preview {
         "Shows performance metrics for the previewed component, including view/update times \
         and jank indicators. This helps users identify performance bottlenecks and optimize \
         their components for smoother interactions.",
+    )
+}
+
+/// Previews the test configuration pane with sample test data.
+fn test_pane() -> impl Preview {
+    stateful(
+        "Test Pane",
+        || {
+            // Create sample test state with discovered tests
+            let mut test_state = test::State::default();
+            test_state.discovered_tests = vec![
+                TestInfo {
+                    name: "basic-increment".to_string(),
+                    path: std::path::PathBuf::from("tests/counter/basic-increment.ice"),
+                    preview: "counter".to_string(),
+                    snapshot_count: 1,
+                },
+                TestInfo {
+                    name: "increment-and-decrement".to_string(),
+                    path: std::path::PathBuf::from("tests/counter/increment-and-decrement.ice"),
+                    preview: "counter".to_string(),
+                    snapshot_count: 2,
+                },
+                TestInfo {
+                    name: "edge-cases".to_string(),
+                    path: std::path::PathBuf::from("tests/counter/edge-cases.ice"),
+                    preview: "counter".to_string(),
+                    snapshot_count: 0,
+                },
+            ];
+            test_state.last_run_results = Some(vec![
+                test::TestResult {
+                    name: "basic-increment".to_string(),
+                    passed: true,
+                    error: None,
+                },
+                test::TestResult {
+                    name: "increment-and-decrement".to_string(),
+                    passed: false,
+                    error: Some("Snapshot mismatch at step 3".to_string()),
+                },
+            ]);
+
+            App::default()
+                .title("Test Pane Preview")
+                .with_test_state(test_state)
+        },
+        App::internal_update,
+        |app: &App| widget::config_pane::test_pane::test_pane(app),
+    )
+    .description(
+        "The test configuration pane allows users to create, run, and manage visual tests \
+        for previews. Tests are organized in folders by preview name and support snapshots.",
     )
 }
 

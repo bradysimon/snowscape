@@ -5,7 +5,7 @@ use iced_test::{
     instruction::{Expectation, Interaction},
 };
 
-use crate::test::Config;
+use crate::test::{Config, discovery::sanitize_name};
 
 /// State for an active test recording session.
 #[derive(Debug)]
@@ -14,8 +14,10 @@ pub struct Session {
     pub config: Config,
     /// The index of the preview being tested.
     pub preview_index: usize,
-    /// The name of the preview (used for the test file name).
+    /// The name of the preview (used for folder organization).
     pub preview_name: String,
+    /// The name of the test (used for the `.ice` filename).
+    pub test_name: String,
     /// Recorded interactions in Ice format.
     pub instructions: Vec<Instruction>,
     /// Whether recording is currently active.
@@ -28,11 +30,17 @@ pub struct Session {
 
 impl Session {
     /// Creates a new test session for the given preview.
-    pub fn new(config: Config, preview_index: usize, preview_name: String) -> Self {
+    pub fn new(
+        config: Config,
+        preview_index: usize,
+        preview_name: String,
+        test_name: String,
+    ) -> Self {
         Self {
             config,
             preview_index,
             preview_name,
+            test_name,
             instructions: Vec::new(),
             is_recording: true,
             expect_text_input: String::new(),
@@ -40,34 +48,37 @@ impl Session {
         }
     }
 
+    /// Returns the sanitized preview name for folder naming.
+    pub fn sanitized_preview_name(&self) -> String {
+        sanitize_name(&self.preview_name)
+    }
+
+    /// Returns the sanitized test name for file naming.
+    pub fn sanitized_test_name(&self) -> String {
+        sanitize_name(&self.test_name)
+    }
+
     /// Returns the filename for this test's `.ice` file.
     pub fn ice_filename(&self) -> String {
-        // Sanitize the preview name for use as a filename
-        let sanitized: String = self
-            .preview_name
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect();
-        format!("{}.ice", sanitized.to_lowercase())
+        format!("{}.ice", self.sanitized_test_name())
+    }
+
+    /// Returns the directory for this preview's tests.
+    pub fn preview_dir(&self) -> PathBuf {
+        self.config.tests_dir.join(self.sanitized_preview_name())
     }
 
     /// Returns the full path where the test file will be saved.
     pub fn ice_path(&self) -> PathBuf {
-        self.config.tests_dir.join(self.ice_filename())
+        self.preview_dir().join(self.ice_filename())
     }
 
     /// Returns the full path where the snapshot will be saved (if enabled).
     pub fn snapshot_path(&self) -> Option<PathBuf> {
         if self.config.capture_snapshot {
-            let sanitized: String = self
-                .preview_name
-                .chars()
-                .map(|c| if c.is_alphanumeric() { c } else { '_' })
-                .collect();
             Some(
-                self.config
-                    .tests_dir
-                    .join(format!("{}.png", sanitized.to_lowercase())),
+                self.preview_dir()
+                    .join(format!("{}.png", self.sanitized_test_name())),
             )
         } else {
             None
@@ -99,13 +110,8 @@ impl Session {
 
     /// Returns the next snapshot filename for this session.
     pub fn next_snapshot_name(&mut self) -> String {
-        let sanitized: String = self
-            .preview_name
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect();
         self.snapshot_count += 1;
-        format!("{}_{}.png", sanitized.to_lowercase(), self.snapshot_count)
+        format!("{}_{}.png", self.sanitized_test_name(), self.snapshot_count)
     }
 
     /// Converts the session to an Ice structure for serialization.
@@ -120,22 +126,13 @@ impl Session {
 
     /// Saves the test to disk using the .ice format.
     pub fn save(&self) -> std::io::Result<()> {
-        // Ensure the tests directory exists
-        std::fs::create_dir_all(&self.config.tests_dir)?;
+        // Ensure the preview's tests directory exists
+        std::fs::create_dir_all(self.preview_dir())?;
 
         // Convert to Ice and write
         let ice = self.to_ice();
         std::fs::write(self.ice_path(), ice.to_string())?;
 
         Ok(())
-    }
-
-    /// Returns the sanitized name used for filenames.
-    pub fn sanitized_name(&self) -> String {
-        self.preview_name
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect::<String>()
-            .to_lowercase()
     }
 }

@@ -36,8 +36,9 @@ pub use preview::{dynamic, stateful, stateless};
 /// ```
 pub fn run<F>(configure: F) -> iced::Result
 where
-    F: Fn(App) -> App + 'static,
+    F: Fn(App) -> App + Send + Sync + 'static,
 {
+    let configure = std::sync::Arc::new(configure);
     match screenshot::parse_args() {
         screenshot::ParseResult::ShowHelp => {
             println!("{}", screenshot::help_message());
@@ -49,7 +50,7 @@ where
             std::process::exit(1);
         }
         screenshot::ParseResult::Screenshot(options) => {
-            let app = configure(App::default());
+            let app = (configure)(App::default());
             match screenshot::capture(&app, &options) {
                 Ok(path) => {
                     println!("Screenshot saved: {}", path.display());
@@ -61,12 +62,14 @@ where
                 }
             }
         }
-        screenshot::ParseResult::RunGui => {
-            iced::daemon(move || App::setup(&configure), App::update, App::view)
-                .title(App::window_title)
-                .theme(App::theme)
-                .subscription(App::subscription)
-                .run()
-        }
+        screenshot::ParseResult::RunGui => iced::daemon(
+            move || App::setup(configure.clone()),
+            App::update,
+            App::view,
+        )
+        .title(App::window_title)
+        .theme(App::theme)
+        .subscription(App::subscription)
+        .run(),
     }
 }
