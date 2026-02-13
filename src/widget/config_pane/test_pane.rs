@@ -214,14 +214,11 @@ enum TestStatus<'a> {
 }
 
 /// Gets the status of a test from the last run results.
-fn get_test_status<'a>(
-    test_name: &str,
-    results: &'a Option<Vec<test::TestResult>>,
-) -> TestStatus<'a> {
+fn get_test_status<'a>(test_name: &str, results: &'a Option<Vec<test::Outcome>>) -> TestStatus<'a> {
     match results {
         Some(results) => {
             if let Some(result) = results.iter().find(|r| r.name == test_name) {
-                if result.passed {
+                if result.is_success() {
                     TestStatus::Passed
                 } else {
                     TestStatus::Failed(result.error.as_deref())
@@ -270,7 +267,7 @@ fn status_icon<'a>(status: TestStatus<'a>) -> Element<'a, Message> {
 /// A single row for an existing test.
 fn test_row<'a>(
     info: &'a test::TestInfo,
-    results: &'a Option<Vec<test::TestResult>>,
+    results: &'a Option<Vec<test::Outcome>>,
     alternate: bool,
     is_running: bool,
 ) -> Element<'a, Message> {

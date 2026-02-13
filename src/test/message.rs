@@ -4,6 +4,8 @@ use std::path::PathBuf;
 
 use iced::window;
 
+use crate::test;
+
 use super::Interaction;
 
 /// Messages for test recording and management.
@@ -44,16 +46,5 @@ pub enum Message {
     /// Delete a test by path.
     Delete(PathBuf),
     /// Test run completed with results.
-    RunComplete(Vec<TestResult>),
-}
-
-/// Result of running a single test.
-#[derive(Debug, Clone)]
-pub struct TestResult {
-    /// The name of the test.
-    pub name: String,
-    /// Whether the test passed.
-    pub passed: bool,
-    /// Error message if the test failed.
-    pub error: Option<String>,
+    RunComplete(Vec<test::Outcome>),
 }

@@ -4,10 +4,12 @@ use std::path::PathBuf;
 
 use iced::{Task, window};
 
+use crate::test;
+
 use super::{
     Config, Session,
     discovery::{TestInfo, delete_test, discover_tests},
-    message::{Message, TestResult},
+    message::Message,
 };
 
 /// Encapsulates all test-related state and logic.
@@ -28,7 +30,7 @@ pub struct State {
     /// Discovered tests for the current preview.
     pub discovered_tests: Vec<TestInfo>,
     /// Results from the last test run.
-    pub last_run_results: Option<Vec<TestResult>>,
+    pub last_run_results: Option<Vec<test::Outcome>>,
     /// The scope of the current test run, if any.
     pub run_mode: Option<RunMode>,
 }
@@ -341,9 +343,9 @@ impl State {
 }
 
 fn merge_run_results(
-    previous: Option<Vec<TestResult>>,
-    updates: Vec<TestResult>,
-) -> Vec<TestResult> {
+    previous: Option<Vec<test::Outcome>>,
+    updates: Vec<test::Outcome>,
+) -> Vec<test::Outcome> {
     let Some(mut existing) = previous else {
         return updates;
     };
@@ -368,7 +370,7 @@ async fn run_tests_in_thread(
     configure: crate::app::ConfigureFn,
     preview_index: usize,
     tests: Vec<PathBuf>,
-) -> Vec<TestResult> {
+) -> Vec<test::Outcome> {
     let handle = tokio::task::spawn_blocking(move || {
         tests
             .into_iter()
@@ -378,11 +380,10 @@ async fn run_tests_in_thread(
 
     match handle.await {
         Ok(results) => results,
-        Err(error) => vec![TestResult {
-            name: "test-runner".to_string(),
-            passed: false,
-            error: Some(format!("Test runner failed: {error}")),
-        }],
+        Err(error) => vec![test::Outcome::failed(
+            "test-runner",
+            format!("Test runner failed: {error}"),
+        )],
     }
 }
 
@@ -391,7 +392,7 @@ fn run_test_path(
     configure: &crate::app::ConfigureFn,
     preview_index: usize,
     path: PathBuf,
-) -> TestResult {
+) -> test::Outcome {
     let name = path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -401,45 +402,25 @@ fn run_test_path(
     let content = match std::fs::read_to_string(&path) {
         Ok(content) => content,
         Err(e) => {
-            return TestResult {
-                name,
-                passed: false,
-                error: Some(format!("Failed to read test file: {e}")),
-            };
+            return test::Outcome::failed(name, format!("Failed to read test file: {e}"));
         }
     };
 
     let ice = match super::Ice::parse(&content) {
         Ok(ice) => ice,
         Err(e) => {
-            return TestResult {
-                name,
-                passed: false,
-                error: Some(format!("Failed to parse .ice file: {e}")),
-            };
+            return test::Outcome::failed(name, format!("Failed to parse .ice file: {e}"));
         }
     };
 
     let mut app = (configure)(crate::App::default());
     if preview_index >= app.descriptors().len() {
-        return TestResult {
-            name,
-            passed: false,
-            error: Some("Preview index out of range for test run".to_string()),
-        };
+        return test::Outcome::failed(name, "Preview index out of range for test run");
     }
 
     match super::run_single_test(&mut app, preview_index, &ice, &name) {
-        Some(error) => TestResult {
-            name,
-            passed: false,
-            error: Some(error),
-        },
-        None => TestResult {
-            name,
-            passed: true,
-            error: None,
-        },
+        Some(error) => test::Outcome::failed(name, error),
+        None => test::Outcome::passed(name),
     }
 }
 

@@ -223,16 +223,8 @@ fn test_pane() -> impl Preview {
                 },
             ];
             test_state.last_run_results = Some(vec![
-                test::TestResult {
-                    name: "basic-increment".to_string(),
-                    passed: true,
-                    error: None,
-                },
-                test::TestResult {
-                    name: "increment-and-decrement".to_string(),
-                    passed: false,
-                    error: Some("Snapshot mismatch at step 3".to_string()),
-                },
+                test::Outcome::passed("basic-increment"),
+                test::Outcome::failed("increment-and-decrement", "Snapshot mismatch at step 3"),
             ]);
 
             App::default()

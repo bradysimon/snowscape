@@ -7,6 +7,7 @@ mod config;
 pub mod discovery;
 mod error;
 pub mod message;
+pub mod outcome;
 mod session;
 pub mod state;
 
@@ -15,7 +16,8 @@ use iced::keyboard;
 pub use config::Config;
 pub use discovery::TestInfo;
 pub use error::Error;
-pub use message::{Message, TestResult};
+pub use message::Message;
+pub use outcome::Outcome;
 pub use session::Session;
 pub use state::State;
 // Re-export iced_test types for convenience
@@ -44,7 +46,10 @@ pub use iced_test::{Ice, Instruction};
 /// # Returns
 ///
 /// Returns `Ok(())` if all tests pass, or an error describing failures.
-pub fn run<F>(configure: F, tests_dir: impl AsRef<std::path::Path>) -> Result<(), Error>
+pub fn run<F>(
+    configure: F,
+    tests_dir: impl AsRef<std::path::Path>,
+) -> std::result::Result<(), Error>
 where
     F: Fn(crate::App) -> crate::App + Clone,
 {
