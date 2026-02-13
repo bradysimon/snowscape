@@ -80,9 +80,7 @@ fn configuration_view<'a>(app: &'a App) -> Element<'a, Message> {
     ]
     .spacing(16);
 
-    container(scrollable(content).height(Fill))
-        .padding(16)
-        .into()
+    container(scrollable(content).spacing(4).height(Fill)).into()
 }
 
 /// Section for creating a new test.
