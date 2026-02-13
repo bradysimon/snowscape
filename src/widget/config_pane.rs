@@ -67,6 +67,7 @@ pub fn config_pane<'a>(
                     tab,
                     descriptor.preview.params().len(),
                     descriptor.preview.message_count(),
+                    app.test_state().discovered_tests.len(),
                     performance_status,
                 ),
                 space::horizontal(),
@@ -81,6 +82,7 @@ pub fn config_pane<'a>(
                     tab,
                     descriptor.preview.params().len(),
                     descriptor.preview.message_count(),
+                    app.test_state().discovered_tests.len(),
                     performance_status,
                 ),
                 trailing,
@@ -160,11 +162,12 @@ pub fn config_tabs<'a>(
     selected_tab: ConfigTab,
     params: usize,
     messages: usize,
+    tests: usize,
     indicator: Indicator,
 ) -> Element<'a, Message> {
     row(ConfigTab::ALL.iter().map(|&variant| {
         let is_selected = variant == selected_tab;
-        config_tab(variant, is_selected, params, messages, indicator)
+        config_tab(variant, is_selected, params, messages, tests, indicator)
     }))
     .into()
 }
@@ -175,11 +178,13 @@ fn config_tab<'a>(
     selected: bool,
     params: usize,
     messages: usize,
+    tests: usize,
     performance_status: Indicator,
 ) -> Element<'a, Message> {
     let badge_info = match tab {
         ConfigTab::Messages if messages > 0 => Some((messages, true)),
         ConfigTab::Parameters if params > 0 => Some((params, false)),
+        ConfigTab::Tests if tests > 0 => Some((tests, false)),
         _ => None,
     };
 

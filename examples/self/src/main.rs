@@ -29,17 +29,19 @@ fn config_tabs() -> impl Preview {
             dynamic::select("Selected Tab", &ConfigTab::ALL, ConfigTab::default()),
             dynamic::number("Parameter Count", 0),
             dynamic::number("Message Count", 0),
+            dynamic::number("Test Count", 0),
             dynamic::select(
                 "Performance Indicator",
                 &Indicator::ALL,
                 Indicator::default(),
             ),
         ),
-        |(tab, params, messages, indicator)| {
+        |(tab, params, messages, tests, indicator)| {
             widget::config_tabs(
                 *tab,
                 usize::try_from(*params).unwrap_or(0),
                 usize::try_from(*messages).unwrap_or(0),
+                usize::try_from(*tests).unwrap_or(0),
                 *indicator,
             )
         },
