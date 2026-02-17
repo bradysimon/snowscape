@@ -14,7 +14,7 @@ use iced::{
     Length::Fill,
     Subscription, Task, Theme, keyboard, system,
     theme::{self, Base},
-    widget::{column, container, operation, rule, scrollable, text},
+    widget::{column, container, opaque, operation, rule, scrollable, space, stack, text},
     window,
 };
 use iced_anim::{Animated, Animation, Easing};
@@ -365,8 +365,16 @@ impl App {
                 ..Default::default()
             });
 
-        // Build preview area
-        let preview_body = preview_area(self.current_preview());
+        // Prevent clicks in the main window if there's an active test recording.
+        let preview_body = if self.test.is_recording() {
+            stack![
+                preview_area(self.current_preview()),
+                opaque(space().width(Fill).height(Fill)),
+            ]
+            .into()
+        } else {
+            preview_area(self.current_preview())
+        };
 
         let preview_content = container(
             column![
