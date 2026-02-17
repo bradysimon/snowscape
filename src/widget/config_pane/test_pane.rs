@@ -162,6 +162,7 @@ fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
 /// Section showing existing tests for the current preview.
 fn existing_tests_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
     let has_tests = !test_state.discovered_tests.is_empty();
+    let run_mode = test_state.run_mode.as_ref();
     let is_running = test_state.is_running();
 
     let run_all_button: Element<'a, Message> = if has_tests {
@@ -199,7 +200,13 @@ fn existing_tests_section<'a>(test_state: &'a test::State) -> Element<'a, Messag
                     .iter()
                     .enumerate()
                     .map(|(i, info)| {
-                        test_row(info, &test_state.last_run_results, i % 2 == 1, is_running)
+                        test_row(
+                            info,
+                            &test_state.last_run_results,
+                            i % 2 == 1,
+                            is_running,
+                            run_mode,
+                        )
                     })
                     .collect::<Vec<_>>(),
             )
@@ -292,11 +299,16 @@ fn test_row<'a>(
     results: &'a Option<Vec<test::Outcome>>,
     alternate: bool,
     is_running: bool,
+    run_mode: Option<&'a test::state::RunMode>,
 ) -> Element<'a, Message> {
     let status = get_test_status(&info.name, results);
 
     let status_icon = if is_running {
-        running_status_icon()
+        match run_mode {
+            Some(test::state::RunMode::All) => running_status_icon(),
+            Some(test::state::RunMode::Single(path)) if path == &info.path => running_status_icon(),
+            _ => status_icon(status),
+        }
     } else {
         status_icon(status)
     };

@@ -52,10 +52,13 @@ impl Default for State {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+/// The mode of an active test run, indicating which tests are being executed.
+#[derive(Debug, Clone)]
 pub enum RunMode {
+    /// All tests for the current preview are being run.
     All,
-    Single,
+    /// A single test at the given path is being run.
+    Single(PathBuf),
 }
 
 /// Context needed for test operations.
@@ -311,7 +314,7 @@ impl State {
                     return Task::none();
                 };
 
-                self.run_mode = Some(RunMode::Single);
+                self.run_mode = Some(RunMode::Single(path.clone()));
 
                 let preview_index = ctx.preview_index;
 
@@ -338,7 +341,7 @@ impl State {
             }
             Message::RunComplete(results) => {
                 self.last_run_results = Some(match self.run_mode {
-                    Some(RunMode::Single) => {
+                    Some(RunMode::Single(_)) => {
                         merge_run_results(self.last_run_results.take(), results)
                     }
                     _ => results,
