@@ -294,6 +294,16 @@ impl App {
                 }
             }
             Message::Test(msg) => {
+                // Reset preview state when starting a recording to ensure consistent test runs.
+                let reset_task = if matches!(msg, test::Message::StartRecording) {
+                    self.selected_index
+                        .and_then(|index| self.descriptors.get_mut(index))
+                        .map(|descriptor| descriptor.preview.update(Message::ResetPreview))
+                        .unwrap_or_else(Task::none)
+                } else {
+                    Task::none()
+                };
+
                 // Build context for test update if we have a selected preview
                 let ctx = self.selected_index.and_then(|index| {
                     self.descriptors
@@ -304,7 +314,7 @@ impl App {
                             configure: self.configure.clone(),
                         })
                 });
-                self.test.update(msg, ctx).map(Message::Test)
+                Task::batch([reset_task, self.test.update(msg, ctx).map(Message::Test)])
             }
         }
     }
@@ -356,12 +366,20 @@ impl App {
             });
 
         // Build preview area
+        let preview_body: Element<'_, Message> = if self.test.is_recording() {
+            container(text("Recording in progress..."))
+                .center(Fill)
+                .into()
+        } else {
+            preview_area(self.current_preview())
+        };
+
         let preview_content = container(
             column![
                 header(&self.theme),
                 rule::horizontal(1).style(rule::weak),
                 horizontal_split(
-                    preview_area(self.current_preview()),
+                    preview_body,
                     self.selected_index
                         .and_then(|index| self.descriptors.get(index))
                         .map(|descriptor| { config_pane(descriptor, self.config_tab, self) }),
