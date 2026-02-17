@@ -366,13 +366,7 @@ impl App {
             });
 
         // Build preview area
-        let preview_body: Element<'_, Message> = if self.test.is_recording() {
-            container(text("Recording in progress..."))
-                .center(Fill)
-                .into()
-        } else {
-            preview_area(self.current_preview())
-        };
+        let preview_body = preview_area(self.current_preview());
 
         let preview_content = container(
             column![
