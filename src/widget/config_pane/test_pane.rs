@@ -47,6 +47,7 @@ fn recording_view<'a>(app: &'a App) -> Element<'a, Message> {
                     text_input("Expected text...", expect_input)
                         .style(crate::style::text_input::default)
                         .on_input(|t| Message::Test(test::Message::ChangeExpectText(t)))
+                        .on_submit(Message::Test(test::Message::AddTextExpectation))
                         .width(Fill),
                     button(text("Expect").size(14))
                         .on_press(Message::Test(test::Message::AddTextExpectation))
