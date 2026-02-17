@@ -229,7 +229,12 @@ impl State {
             }
             Message::AddTextExpectation => {
                 if let Some(session) = &mut self.session {
-                    let text = std::mem::take(&mut session.expect_text_input);
+                    let text = session.expect_text_input.trim();
+                    if text.is_empty() {
+                        return Task::none();
+                    }
+                    let text = text.to_string();
+                    session.expect_text_input.clear();
                     session.add_text_expectation(text);
                 }
                 Task::none()
