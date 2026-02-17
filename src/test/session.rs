@@ -87,8 +87,11 @@ impl Session {
 
     /// Records an interaction, merging with the previous one if possible.
     pub fn record(&mut self, interaction: Interaction) {
-        // Try to merge with the last instruction if it's also an interaction
-        if let Some(Instruction::Interact(last)) = self.instructions.pop() {
+        // Try to merge with the last instruction if it's also an interaction.
+        // Preserve expectations when a new interaction is recorded.
+        let last = self.instructions.last().cloned();
+        if let Some(Instruction::Interact(last)) = last {
+            self.instructions.pop();
             let (merged, remainder) = last.merge(interaction);
             self.instructions.push(Instruction::Interact(merged));
             if let Some(r) = remainder {
@@ -134,5 +137,35 @@ impl Session {
         std::fs::write(self.ice_path(), ice.to_string())?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use iced::Point;
+    use iced_test::instruction::{Expectation, Mouse, Target};
+
+    /// Expectations the user adds should be preserved when recording interactions,
+    /// which means they shouldn't be merged away when a new interaction is recorded.
+    #[test]
+    fn record_preserves_expectations() {
+        let mut session = Session::new(
+            Config::default(),
+            0,
+            "preview".to_string(),
+            "test".to_string(),
+        );
+
+        session.add_text_expectation("Count: 5".to_string());
+        session.record(Interaction::Mouse(Mouse::Move(Target::Point(Point::new(
+            10.0, 10.0,
+        )))));
+
+        assert_eq!(session.instructions.len(), 2);
+        assert!(session.instructions.iter().any(|instruction| {
+            matches!(instruction, Instruction::Expect(Expectation::Text(_)))
+        }));
     }
 }
