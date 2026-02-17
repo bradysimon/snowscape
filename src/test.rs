@@ -9,6 +9,7 @@ mod error;
 pub mod message;
 pub mod outcome;
 mod session;
+mod size_input;
 pub mod state;
 
 use iced::keyboard;

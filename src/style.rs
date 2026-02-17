@@ -219,6 +219,12 @@ pub mod text {
             ),
         }
     }
+
+    pub fn danger(theme: &Theme) -> text::Style {
+        text::Style {
+            color: Some(theme.extended_palette().danger.strong.color),
+        }
+    }
 }
 
 pub mod text_input {
@@ -231,6 +237,17 @@ pub mod text_input {
             border: default.border.rounded(4),
             ..default
         }
+    }
+
+    /// A text input with a danger border when the content is invalid.
+    pub fn validated(theme: &Theme, status: text_input::Status, valid: bool) -> text_input::Style {
+        let mut style = default(theme, status);
+        if !valid {
+            style.border = style
+                .border
+                .color(theme.extended_palette().danger.strong.color);
+        }
+        style
     }
 }
 

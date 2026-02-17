@@ -86,12 +86,21 @@ fn configuration_view<'a>(app: &'a App) -> Element<'a, Message> {
 
 /// Section for creating a new test.
 fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
+    let has_size_error = !test_state.width_input.is_valid() || !test_state.height_input.is_valid();
+    let size_error = has_size_error.then(|| {
+        text("Invalid size")
+            .size(14)
+            .style(crate::style::text::danger)
+    });
+
     column![
         row![
             text("New Test"),
+            size_error,
             space::horizontal(),
             record_button(test_state.can_record()),
         ]
+        .spacing(8)
         .align_y(Center),
         // Test name and window size on same row
         row![
@@ -112,14 +121,22 @@ fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
             column![
                 text("Size").size(12).style(crate::style::text::muted),
                 row![
-                    text_input("W", &test_state.width_input)
-                        .style(crate::style::text_input::default)
+                    text_input("W", test_state.width_input.display())
+                        .style(|theme, status| crate::style::text_input::validated(
+                            theme,
+                            status,
+                            test_state.width_input.is_valid()
+                        ))
                         .size(14)
                         .width(60)
                         .on_input(|w| Message::Test(test::Message::ChangeWidth(w))),
                     text("×").size(14),
-                    text_input("H", &test_state.height_input)
-                        .style(crate::style::text_input::default)
+                    text_input("H", test_state.height_input.display())
+                        .style(|theme, status| crate::style::text_input::validated(
+                            theme,
+                            status,
+                            test_state.height_input.is_valid()
+                        ))
                         .size(14)
                         .width(60)
                         .on_input(|h| Message::Test(test::Message::ChangeHeight(h))),

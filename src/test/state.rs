@@ -10,6 +10,7 @@ use super::{
     Config, Session,
     discovery::{TestInfo, delete_test, discover_tests},
     message::Message,
+    size_input::SizeInput,
 };
 
 /// Encapsulates all test-related state and logic.
@@ -17,10 +18,10 @@ use super::{
 pub struct State {
     /// Test configuration for the test window.
     pub config: Config,
-    /// The width input for the test window (as string for text input).
-    pub width_input: String,
-    /// The height input for the test window (as string for text input).
-    pub height_input: String,
+    /// The width input for the test window.
+    pub width_input: SizeInput,
+    /// The height input for the test window.
+    pub height_input: SizeInput,
     /// The test name input for naming new tests.
     pub name_input: String,
     /// The active test recording session, if any.
@@ -39,8 +40,8 @@ impl Default for State {
     fn default() -> Self {
         Self {
             config: Config::default(),
-            width_input: "800".to_string(),
-            height_input: "600".to_string(),
+            width_input: SizeInput::new("800"),
+            height_input: SizeInput::new("600"),
             name_input: String::new(),
             session: None,
             window_id: None,
@@ -81,6 +82,8 @@ impl State {
     /// Returns true if a test can be started (name is entered).
     pub fn can_record(&self) -> bool {
         !self.name_input.trim().is_empty()
+            && self.width_input.is_valid()
+            && self.height_input.is_valid()
     }
 
     /// Returns the current test session, if any.
@@ -104,15 +107,15 @@ impl State {
     pub fn update(&mut self, message: Message, ctx: Option<UpdateContext<'_>>) -> Task<Message> {
         match message {
             Message::ChangeWidth(width) => {
-                self.width_input = width.clone();
-                if let Ok(w) = width.parse::<f32>() {
+                self.width_input.update(width);
+                if let Some(w) = self.width_input.value() {
                     self.config.window_size.width = w;
                 }
                 Task::none()
             }
             Message::ChangeHeight(height) => {
-                self.height_input = height.clone();
-                if let Ok(h) = height.parse::<f32>() {
+                self.height_input.update(height);
+                if let Some(h) = self.height_input.value() {
                     self.config.window_size.height = h;
                 }
                 Task::none()
@@ -444,5 +447,37 @@ mod tests {
 
         state.run_mode = None;
         assert!(!state.is_running());
+    }
+
+    /// The record button requires a non-empty name and valid size inputs.
+    #[test]
+    fn can_record_requires_valid_sizes() {
+        let mut state = State::default();
+        state.name_input = "test-name".to_string();
+
+        state.width_input.update("".to_string());
+        assert!(!state.can_record());
+    }
+
+    /// The record button accepts positive size inputs.
+    #[test]
+    fn can_record_accepts_positive_sizes() {
+        let mut state = State::default();
+        state.name_input = "test-name".to_string();
+        state.width_input.update("800".to_string());
+        state.height_input.update("600".to_string());
+
+        assert!(state.can_record());
+    }
+
+    /// The record button remains disabled when the name is empty.
+    #[test]
+    fn can_record_requires_name() {
+        let mut state = State::default();
+        state.name_input = "".to_string();
+        state.width_input.update("800".to_string());
+        state.height_input.update("600".to_string());
+
+        assert!(!state.can_record());
     }
 }
