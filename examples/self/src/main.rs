@@ -209,19 +209,19 @@ fn test_pane() -> impl Preview {
                     name: "basic-increment".to_string(),
                     path: std::path::PathBuf::from("tests/counter/basic-increment.ice"),
                     preview: "counter".to_string(),
-                    snapshot_count: 1,
+                    has_snapshot: true,
                 },
                 TestInfo {
                     name: "increment-and-decrement".to_string(),
                     path: std::path::PathBuf::from("tests/counter/increment-and-decrement.ice"),
                     preview: "counter".to_string(),
-                    snapshot_count: 2,
+                    has_snapshot: true,
                 },
                 TestInfo {
                     name: "edge-cases".to_string(),
                     path: std::path::PathBuf::from("tests/counter/edge-cases.ice"),
                     preview: "counter".to_string(),
-                    snapshot_count: 0,
+                    has_snapshot: false,
                 },
             ];
             test_state.last_run_results = Some(vec![

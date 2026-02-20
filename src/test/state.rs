@@ -184,45 +184,14 @@ impl State {
                     eprintln!("Failed to save test: {}", e);
                 }
 
+                capture_snapshot_for_session(session, ctx);
+
                 // Close the test window
                 if let Some(test_window_id) = self.window_id.take() {
-                    if session.config.capture_snapshot {
-                        window::screenshot(test_window_id)
-                            .map(Message::ScreenshotCaptured)
-                            .chain(window::close(test_window_id))
-                            .chain(Task::done(Message::RemoveSession))
-                    } else {
-                        window::close(test_window_id).chain(Task::done(Message::RemoveSession))
-                    }
+                    window::close(test_window_id).chain(Task::done(Message::RemoveSession))
                 } else {
                     Task::none()
                 }
-            }
-            Message::ScreenshotCaptured(screenshot) => {
-                if let Some(session) = &mut self.session {
-                    let snapshot_name = session.snapshot_name();
-                    let snapshot_path = session.preview_dir().join(&snapshot_name);
-
-                    if let Err(e) = std::fs::create_dir_all(session.preview_dir()) {
-                        eprintln!("Failed to create tests directory: {}", e);
-                    } else {
-                        let width = screenshot.size.width;
-                        let height = screenshot.size.height;
-                        let rgba_data: &[u8] = screenshot.as_ref();
-
-                        match image::RgbaImage::from_raw(width, height, rgba_data.to_vec()) {
-                            Some(img) => {
-                                if let Err(e) = img.save(&snapshot_path) {
-                                    eprintln!("Failed to save snapshot as PNG: {}", e);
-                                }
-                            }
-                            None => {
-                                eprintln!("Failed to create image from screenshot data");
-                            }
-                        }
-                    }
-                }
-                Task::none()
             }
             Message::ChangeExpectText(text) => {
                 if let Some(session) = &mut self.session {
@@ -346,6 +315,37 @@ impl State {
     }
 }
 
+/// Captures a baseline snapshot for the completed recording session, when enabled.
+fn capture_snapshot_for_session(session: &Session, ctx: Option<UpdateContext<'_>>) {
+    if !session.config.capture_snapshot {
+        return;
+    }
+
+    let Some(ctx) = ctx else {
+        eprintln!("Failed to capture snapshot: missing update context");
+        return;
+    };
+
+    let Some(configure) = ctx.configure.clone() else {
+        eprintln!("Failed to capture snapshot: missing configure callback");
+        return;
+    };
+
+    let mut app = (configure)(crate::App::default());
+    let ice = session.to_ice();
+
+    if let Some(snapshot_path) = session.snapshot_path() {
+        if let Err(e) = super::capture_baseline_screenshot(
+            &mut app,
+            session.preview_index,
+            &ice,
+            &snapshot_path,
+        ) {
+            eprintln!("Failed to capture snapshot: {}", e);
+        }
+    }
+}
+
 fn merge_run_results(
     previous: Option<Vec<test::Outcome>>,
     updates: Vec<test::Outcome>,
@@ -427,7 +427,7 @@ async fn run_test_path(
         return test::Outcome::failed(name, "Preview index out of range for test run");
     }
 
-    match super::run_single_test(&mut app, preview_index, &ice, &name) {
+    match super::run_single_test(&mut app, preview_index, &ice, &path) {
         Some(error) => test::Outcome::failed(name, error),
         None => test::Outcome::passed(name),
     }

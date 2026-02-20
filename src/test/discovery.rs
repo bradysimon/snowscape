@@ -11,8 +11,8 @@ pub struct TestInfo {
     pub path: PathBuf,
     /// The preview this test belongs to (folder name).
     pub preview: String,
-    /// Number of associated snapshot files.
-    pub snapshot_count: usize,
+    /// Whether a snapshot exists for this test.
+    pub has_snapshot: bool,
 }
 
 /// Sanitizes a name for use as a folder or filename.
@@ -60,14 +60,14 @@ pub fn discover_tests(tests_dir: &Path, preview_name: &str) -> Vec<TestInfo> {
             continue;
         };
 
-        // Count associated snapshots (files matching {test_name}_*.png)
-        let snapshot_count = count_snapshots(&preview_dir, file_stem);
+        // Determine whether an associated snapshot exists.
+        let has_snapshot = has_snapshot(&preview_dir, file_stem);
 
         tests.push(TestInfo {
             name: file_stem.to_string(),
             path,
             preview: sanitized_preview.clone(),
-            snapshot_count,
+            has_snapshot,
         });
     }
 
@@ -76,22 +76,24 @@ pub fn discover_tests(tests_dir: &Path, preview_name: &str) -> Vec<TestInfo> {
     tests
 }
 
-/// Counts the number of snapshot files associated with a test.
-fn count_snapshots(dir: &Path, test_name: &str) -> usize {
-    let prefix = format!("{}_", test_name);
-
+/// Returns whether a snapshot file is associated with a test.
+fn has_snapshot(dir: &Path, test_name: &str) -> bool {
     std::fs::read_dir(dir)
         .map(|entries| {
             entries
                 .filter_map(Result::ok)
                 .filter(|e| {
-                    let name = e.file_name();
-                    let name_str = name.to_string_lossy();
-                    name_str.starts_with(&prefix) && name_str.ends_with(".png")
+                    let path = e.path();
+                    path.extension().and_then(|e| e.to_str()) == Some("png")
+                        && path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .is_some_and(|stem| is_associated_snapshot_stem(test_name, stem))
                 })
-                .count()
+                .next()
+                .is_some()
         })
-        .unwrap_or(0)
+        .unwrap_or(false)
 }
 
 /// Deletes a test and all associated snapshot files.
@@ -116,12 +118,16 @@ pub fn delete_test(path: &Path) -> std::io::Result<()> {
     std::fs::remove_file(path)?;
 
     // Delete associated snapshots
-    let prefix = format!("{}_", test_name);
     if let Ok(entries) = std::fs::read_dir(parent) {
         for entry in entries.filter_map(Result::ok) {
-            let name = entry.file_name();
-            let name_str = name.to_string_lossy();
-            if name_str.starts_with(&prefix) && name_str.ends_with(".png") {
+            let file_path = entry.path();
+            let is_png = file_path.extension().and_then(|e| e.to_str()) == Some("png");
+            let is_associated = file_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .is_some_and(|stem| is_associated_snapshot_stem(test_name, stem));
+
+            if is_png && is_associated {
                 let _ = std::fs::remove_file(entry.path());
             }
         }
@@ -137,6 +143,16 @@ pub fn delete_test(path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+fn is_associated_snapshot_stem(test_name: &str, stem: &str) -> bool {
+    if stem == test_name {
+        return true;
+    }
+
+    stem.strip_prefix(test_name)
+        .and_then(|rest| rest.chars().next())
+        .is_some_and(|separator| matches!(separator, '.' | '-' | '_'))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,5 +163,17 @@ mod tests {
         assert_eq!(sanitize_name("my button"), "my_button");
         assert_eq!(sanitize_name("Test-Name"), "test-name");
         assert_eq!(sanitize_name("A/B Test"), "a_b_test");
+    }
+
+    #[test]
+    fn associated_snapshot_stem_matches_current_and_legacy_names() {
+        assert!(is_associated_snapshot_stem("test", "test"));
+        assert!(is_associated_snapshot_stem("test", "test.failed"));
+        assert!(is_associated_snapshot_stem("test", "test-wgpu"));
+        assert!(is_associated_snapshot_stem("test", "test_failed"));
+        assert!(is_associated_snapshot_stem("test", "test.failed-wgpu"));
+
+        assert!(!is_associated_snapshot_stem("test", "testcase"));
+        assert!(!is_associated_snapshot_stem("test", "other-test"));
     }
 }

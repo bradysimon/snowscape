@@ -131,8 +131,6 @@ where
             let full_test_name = format!("{}/{}", preview_folder_name, test_name);
             test_count += 1;
 
-            println!("Running test: {full_test_name}");
-
             // Load and parse the .ice file
             let content = match fs::read_to_string(&path) {
                 Ok(c) => c,
@@ -154,10 +152,8 @@ where
             let mut app = configure.clone()(crate::App::default());
 
             // Run this test against the preview
-            if let Some(error) = run_single_test(&mut app, preview_index, &ice, &full_test_name) {
+            if let Some(error) = run_single_test(&mut app, preview_index, &ice, &path) {
                 failures.push((full_test_name, error));
-            } else {
-                println!("  ✓ Test passed: {full_test_name}");
             }
         }
     }
@@ -171,8 +167,6 @@ where
             .unwrap_or("unknown");
 
         test_count += 1;
-        println!("Running test: {test_name}");
-
         // Load and parse the .ice file
         let content = match fs::read_to_string(&path) {
             Ok(c) => c,
@@ -213,10 +207,8 @@ where
         // Create a fresh app for the test
         let mut app = configure.clone()(crate::App::default());
 
-        if let Some(error) = run_single_test(&mut app, preview_index, &ice, test_name) {
+        if let Some(error) = run_single_test(&mut app, preview_index, &ice, &path) {
             failures.push((test_name.to_string(), error));
-        } else {
-            println!("  ✓ Test passed: {test_name}");
         }
     }
 
@@ -233,12 +225,157 @@ where
 }
 
 /// Runs a single test against a preview, returning an error message if it fails.
+///
+/// If snapshot validation is enabled, this compares against `{name}-{renderer}.png`.
 fn run_single_test(
     app: &mut crate::App,
     preview_index: usize,
     ice: &Ice,
-    _test_name: &str,
+    test_path: &std::path::Path,
 ) -> Option<String> {
+    if let Err(error) = replay_test(app, preview_index, ice, true) {
+        return Some(error);
+    }
+
+    let expected_image_path = test_path.with_extension("png");
+    if expected_image_path.exists() || has_renderer_variant(&expected_image_path) {
+        let mut simulator: iced_test::Simulator<crate::message::Message> = iced_test::Simulator::with_size(
+            iced::Settings::default(),
+            ice.viewport,
+            app.descriptors()[preview_index].preview.view(),
+        );
+
+        let snapshot = match simulator.snapshot(&iced::Theme::Light) {
+            Ok(snapshot) => snapshot,
+            Err(e) => {
+                return Some(format!(
+                    "Failed to capture screenshot for '{}': {}",
+                    expected_image_path.display(),
+                    e
+                ));
+            }
+        };
+
+        let renderer = match detect_snapshot_renderer(&snapshot) {
+            Ok(renderer) => renderer,
+            Err(e) => {
+                return Some(format!(
+                    "Failed to detect renderer for screenshot '{}': {}",
+                    expected_image_path.display(),
+                    e
+                ));
+            }
+        };
+
+        let expected_renderer_path = renderer_variant_path(&expected_image_path, &renderer);
+        if !expected_renderer_path.exists() {
+            return Some(format!(
+                "Screenshot baseline missing for renderer '{}': '{}'",
+                renderer,
+                expected_renderer_path.display()
+            ));
+        }
+
+        match snapshot.matches_image(&expected_image_path) {
+            Ok(true) => {}
+            Ok(false) => {
+                let failed_image_path = renderer_failed_path(&expected_image_path, &renderer);
+
+                let failed_save_message =
+                    match save_failed_snapshot(&snapshot, &failed_image_path, &renderer) {
+                    Ok(()) => {
+                        format!(
+                            "Saved actual screenshot to '{}'",
+                            failed_image_path.display()
+                        )
+                    }
+                    Err(save_error) => save_error,
+                };
+
+                return Some(format!(
+                    "Screenshot does not match '{}'. {}",
+                    expected_image_path.display(),
+                    failed_save_message
+                ));
+            }
+            Err(compare_error) => {
+                return Some(format!(
+                    "Failed to compare screenshot '{}': {}",
+                    expected_image_path.display(),
+                    compare_error
+                ));
+            }
+        }
+    }
+
+    None // Test passed
+}
+
+/// Captures/updates a baseline screenshot by replaying a test in the simulator.
+///
+/// Expectations are ignored in this mode so screenshots can still be generated
+/// while recording even if expectations are incomplete.
+/// Baselines are written using the renderer suffix: `{name}-{renderer}.png`.
+pub(crate) fn capture_baseline_screenshot(
+    app: &mut crate::App,
+    preview_index: usize,
+    ice: &Ice,
+    output_path: &std::path::Path,
+) -> Result<(), String> {
+    replay_test(app, preview_index, ice, false)?;
+
+    let mut simulator: iced_test::Simulator<crate::message::Message> = iced_test::Simulator::with_size(
+        iced::Settings::default(),
+        ice.viewport,
+        app.descriptors()[preview_index].preview.view(),
+    );
+
+    let snapshot = simulator
+        .snapshot(&iced::Theme::Light)
+        .map_err(|e| format!("Failed to capture screenshot '{}': {}", output_path.display(), e))?;
+
+    let parent_dir = output_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+
+    std::fs::create_dir_all(parent_dir).map_err(|e| {
+        format!(
+            "Failed to create screenshot directory '{}': {}",
+            parent_dir.display(),
+            e
+        )
+    })?;
+
+    remove_renderer_variants(output_path)?;
+
+    if output_path.exists() {
+        let _ = std::fs::remove_file(output_path);
+    }
+
+    snapshot
+        .matches_image(output_path)
+        .map_err(|e| format!("Failed to save screenshot '{}': {}", output_path.display(), e))?;
+
+    let renderer = detect_snapshot_renderer(&snapshot)
+        .map_err(|e| format!("Failed to detect renderer for '{}': {}", output_path.display(), e))?;
+    let renderer_path = renderer_variant_path(output_path, &renderer);
+
+    if renderer_path.exists() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Screenshot was not written to renderer-specific path '{}'",
+            renderer_path.display()
+        ))
+    }
+}
+
+fn replay_test(
+    app: &mut crate::App,
+    preview_index: usize,
+    ice: &Ice,
+    enforce_expectations: bool,
+) -> Result<(), String> {
     use iced_test::Simulator;
 
     // Create simulator with the preview's initial view
@@ -294,17 +431,228 @@ fn run_single_test(
             }
             Instruction::Expect(Expectation::Text(expected_text)) => {
                 // Try to find the expected text in the UI
-                if let Err(e) = simulator.find(expected_text.clone()) {
-                    return Some(format!(
-                        "Expectation failed - text '{}' not found: {}",
-                        expected_text, e
-                    ));
+                if enforce_expectations {
+                    if let Err(e) = simulator.find(expected_text.clone()) {
+                        return Err(format!(
+                            "Expectation failed - text '{}' not found: {}",
+                            expected_text, e
+                        ));
+                    }
                 }
             }
         }
     }
 
-    None // Test passed
+    Ok(())
+}
+
+/// Finds the most recent renderer-suffixed snapshot matching a base path.
+fn find_renderer_suffixed_image(base_path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let parent_dir = base_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+
+    let base_stem = base_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())?;
+
+    std::fs::read_dir(parent_dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            let file_name = entry.file_name();
+            let file_str = file_name.to_string_lossy();
+            file_str.starts_with(&format!("{}-", base_stem)) && file_str.ends_with(".png")
+        })
+        .max_by_key(|entry| entry.metadata().and_then(|m| m.modified()).ok())
+        .map(|entry| entry.path())
+}
+
+/// Detects the active renderer by writing a temporary snapshot and parsing its suffix.
+fn detect_snapshot_renderer(snapshot: &iced_test::simulator::Snapshot) -> Result<String, String> {
+    let unique_suffix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+
+    let temp_base = std::env::temp_dir().join(format!(
+        "snowscape-renderer-detect-{}-{}.png",
+        std::process::id(),
+        unique_suffix
+    ));
+
+    snapshot.matches_image(&temp_base).map_err(|e| {
+        format!(
+            "Failed to render temporary screenshot for renderer detection '{}': {}",
+            temp_base.display(),
+            e
+        )
+    })?;
+
+    let renderer_file = find_renderer_suffixed_image(&temp_base).ok_or_else(|| {
+        format!(
+            "Could not find renderer output for temporary screenshot '{}'",
+            temp_base.display()
+        )
+    })?;
+
+    let temp_stem = temp_base
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    let renderer = renderer_file
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .and_then(|stem| stem.strip_prefix(&format!("{}-", temp_stem)))
+        .ok_or_else(|| {
+            format!(
+                "Failed to parse renderer name from '{}'",
+                renderer_file.display()
+            )
+        })?
+        .to_string();
+
+    let _ = std::fs::remove_file(&renderer_file);
+    let _ = std::fs::remove_file(&temp_base);
+
+    Ok(renderer)
+}
+
+/// Returns the renderer-specific snapshot path, e.g. `{name}-{renderer}.png`.
+fn renderer_variant_path(base_path: &std::path::Path, renderer: &str) -> std::path::PathBuf {
+    let stem = base_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    base_path
+        .with_file_name(format!("{}-{}", stem, renderer))
+        .with_extension("png")
+}
+
+/// Returns the renderer-specific failure artifact path, e.g. `{name}-{renderer}.failed.png`.
+fn renderer_failed_path(base_path: &std::path::Path, renderer: &str) -> std::path::PathBuf {
+    let stem = base_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    base_path.with_file_name(format!("{}-{}.failed.png", stem, renderer))
+}
+
+/// Returns whether any renderer-specific snapshot exists for the given base path.
+fn has_renderer_variant(base_path: &std::path::Path) -> bool {
+    find_renderer_suffixed_image(base_path).is_some()
+}
+
+/// Saves a failed snapshot to the exact renderer-specific failed artifact path.
+fn save_failed_snapshot(
+    snapshot: &iced_test::simulator::Snapshot,
+    output_path: &std::path::Path,
+    renderer: &str,
+) -> Result<(), String> {
+    let unique_suffix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+
+    let output_stem = output_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "failed".to_string())
+        .replace('.', "-");
+
+    let temp_base = output_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join(format!("{}-artifact-{}.png", output_stem, unique_suffix));
+
+    let rendered_output_path = renderer_variant_path(&temp_base, renderer);
+
+    if output_path.exists() {
+        std::fs::remove_file(output_path).map_err(|e| {
+            format!(
+                "Failed to overwrite existing failed screenshot '{}': {}",
+                output_path.display(),
+                e
+            )
+        })?;
+    }
+
+    if rendered_output_path.exists() {
+        std::fs::remove_file(&rendered_output_path).map_err(|e| {
+            format!(
+                "Failed to overwrite existing failed renderer screenshot '{}': {}",
+                rendered_output_path.display(),
+                e
+            )
+        })?;
+    }
+
+    snapshot.matches_image(&temp_base).map_err(|e| {
+        format!(
+            "Failed to save actual screenshot to '{}': {}",
+            output_path.display(),
+            e
+        )
+    })?;
+
+    if !rendered_output_path.exists() {
+        return Err(format!(
+            "Failed to save actual screenshot to '{}': renderer output '{}' was not created",
+            output_path.display(),
+            rendered_output_path.display()
+        ));
+    }
+
+    std::fs::rename(&rendered_output_path, output_path).map_err(|e| {
+        format!(
+            "Failed to save actual screenshot to '{}': {}",
+            output_path.display(),
+            e
+        )
+    })?;
+
+    let _ = std::fs::remove_file(&temp_base);
+
+    Ok(())
+}
+
+/// Removes all renderer-suffixed snapshots for a given base name.
+fn remove_renderer_variants(base_path: &std::path::Path) -> Result<(), String> {
+    let parent_dir = base_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+
+    let base_stem = base_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    let entries = std::fs::read_dir(parent_dir).map_err(|e| {
+        format!(
+            "Failed to read screenshot directory '{}': {}",
+            parent_dir.display(),
+            e
+        )
+    })?;
+
+    for entry in entries.filter_map(Result::ok) {
+        let file_name = entry.file_name();
+        let file_str = file_name.to_string_lossy();
+        if file_str.starts_with(&format!("{}-", base_stem)) && file_str.ends_with(".png") {
+            std::fs::remove_file(entry.path()).map_err(|e| {
+                format!(
+                    "Failed to remove old renderer screenshot '{}': {}",
+                    entry.path().display(),
+                    e
+                )
+            })?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Converts an Interaction to a sequence of iced Events.
@@ -445,5 +793,19 @@ fn special_key_to_iced(key: &iced_test::instruction::Key) -> keyboard::Key {
         Key::Escape => keyboard::Key::Named(keyboard::key::Named::Escape),
         Key::Tab => keyboard::Key::Named(keyboard::key::Named::Tab),
         Key::Backspace => keyboard::Key::Named(keyboard::key::Named::Backspace),
+    }
+}
+
+#[cfg(test)]
+mod naming_tests {
+    #[test]
+    fn renderer_failed_path_preserves_failed_suffix() {
+        let base = std::path::Path::new("tests/counter/test.png");
+        let failed = super::renderer_failed_path(base, "wgpu");
+
+        assert_eq!(
+            failed,
+            std::path::PathBuf::from("tests/counter/test-wgpu.failed.png")
+        );
     }
 }

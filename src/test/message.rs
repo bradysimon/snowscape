@@ -27,8 +27,6 @@ pub enum Message {
     RecordInteraction(Interaction),
     /// Stop recording and save the test.
     StopRecording,
-    /// A screenshot was captured for the test.
-    ScreenshotCaptured(window::Screenshot),
     /// Change the text in the expectation input field.
     ChangeExpectText(String),
     /// Add a text expectation to the current recording.
