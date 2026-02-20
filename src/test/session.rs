@@ -24,8 +24,6 @@ pub struct Session {
     pub is_recording: bool,
     /// Current text in the expectation input field.
     pub expect_text_input: String,
-    /// Counter for snapshot naming.
-    pub snapshot_count: usize,
 }
 
 impl Session {
@@ -44,7 +42,6 @@ impl Session {
             instructions: Vec::new(),
             is_recording: true,
             expect_text_input: String::new(),
-            snapshot_count: 0,
         }
     }
 
@@ -111,10 +108,9 @@ impl Session {
         }
     }
 
-    /// Returns the next snapshot filename for this session.
-    pub fn next_snapshot_name(&mut self) -> String {
-        self.snapshot_count += 1;
-        format!("{}_{}.png", self.sanitized_test_name(), self.snapshot_count)
+    /// Returns the name to use for a snapshot filename for this session.
+    pub fn snapshot_name(&self) -> String {
+        format!("{}.png", self.sanitized_test_name())
     }
 
     /// Converts the session to an Ice structure for serialization.

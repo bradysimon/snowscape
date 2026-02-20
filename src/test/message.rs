@@ -33,8 +33,6 @@ pub enum Message {
     ChangeExpectText(String),
     /// Add a text expectation to the current recording.
     AddTextExpectation,
-    /// Capture a snapshot at the current point in the recording.
-    CaptureSnapshot,
     /// Removes the current test session after saving.
     RemoveSession,
     /// Refresh the list of discovered tests for the current preview.

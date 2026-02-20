@@ -200,7 +200,7 @@ impl State {
             }
             Message::ScreenshotCaptured(screenshot) => {
                 if let Some(session) = &mut self.session {
-                    let snapshot_name = session.next_snapshot_name();
+                    let snapshot_name = session.snapshot_name();
                     let snapshot_path = session.preview_dir().join(&snapshot_name);
 
                     if let Err(e) = std::fs::create_dir_all(session.preview_dir()) {
@@ -241,13 +241,6 @@ impl State {
                     session.add_text_expectation(text);
                 }
                 Task::none()
-            }
-            Message::CaptureSnapshot => {
-                if let Some(test_window_id) = self.window_id {
-                    window::screenshot(test_window_id).map(Message::ScreenshotCaptured)
-                } else {
-                    Task::none()
-                }
             }
             Message::RemoveSession => {
                 // Get the preview name before clearing session for refresh

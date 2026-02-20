@@ -57,10 +57,6 @@ fn recording_view<'a>(app: &'a App) -> Element<'a, Message> {
                 .align_y(Center),
             ]
             .spacing(4),
-            // Snapshot button
-            button(text("Capture Snapshot").size(14))
-                .on_press(Message::Test(test::Message::CaptureSnapshot))
-                .padding([8, 16]),
             // Stop recording
             container(stop_recording_button()).padding(padding::top(8)),
         ]
