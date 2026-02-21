@@ -298,7 +298,14 @@ impl State {
                     .unwrap_or("")
                     .to_string();
 
+                let test_name = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
                 self.discovered_tests = discover_tests(&self.config.tests_dir, &preview_name);
+                self.remove_test_result(&test_name);
                 Task::none()
             }
             Message::RunComplete(results) => {
@@ -310,6 +317,15 @@ impl State {
                 });
                 self.run_mode = None;
                 Task::none()
+            }
+        }
+    }
+
+    /// Removes the test result with the given `test_name` from the last run results, if present.
+    fn remove_test_result(&mut self, test_name: &str) {
+        if let Some(results) = self.last_run_results.as_mut() {
+            if let Some(index) = results.iter().position(|item| item.name == test_name) {
+                results.remove(index);
             }
         }
     }
@@ -480,5 +496,30 @@ mod tests {
         state.height_input.update("600".to_string());
 
         assert!(!state.can_record());
+    }
+
+    /// We should be able to remove test results by name.
+    #[test]
+    fn remove_test_result() {
+        let mut state = State::default();
+        state.last_run_results = Some(vec![
+            test::Outcome::passed("test1"),
+            test::Outcome::failed("test2", "Error message"),
+        ]);
+
+        state.remove_test_result("test1");
+        assert_eq!(
+            state.last_run_results,
+            Some(vec![test::Outcome::failed("test2", "Error message")])
+        );
+
+        state.remove_test_result("nonexistent");
+        assert_eq!(
+            state.last_run_results,
+            Some(vec![test::Outcome::failed("test2", "Error message")])
+        );
+
+        state.remove_test_result("test2");
+        assert_eq!(state.last_run_results, Some(vec![]));
     }
 }

@@ -1,5 +1,5 @@
 /// The outcome from running a single test.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Outcome {
     /// The name of the test.
     pub name: String,
