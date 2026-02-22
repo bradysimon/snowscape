@@ -94,12 +94,13 @@ fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
             .style(crate::style::text::danger)
     });
     let test_name = test_state.name_input.as_str();
-    let saved_test_name: Cow<'_, str> = if is_sanitized(test_name) {
+    let is_sanitized = is_sanitized(test_name);
+    let saved_test_name: Cow<'_, str> = if is_sanitized {
         Cow::Borrowed(test_name)
     } else {
         Cow::Owned(sanitize_name(test_name))
     };
-    let saved_name_hint = container((!test_state.name_input.trim().is_empty()).then(|| {
+    let saved_name_hint = container((!is_sanitized).then(|| {
         text(format!("Will be saved as: {}.ice", saved_test_name))
             .size(12)
             .style(crate::style::text::muted)
