@@ -8,7 +8,7 @@ use crate::test;
 
 use super::{
     Config, Session,
-    discovery::{TestInfo, delete_test, discover_tests},
+    discovery::{TestInfo, delete_test, discover_tests, sanitize_name},
     message::Message,
     size_input::SizeInput,
 };
@@ -84,9 +84,10 @@ impl State {
 
     /// Returns true if a test can be started (name is entered).
     pub fn can_record(&self) -> bool {
-        !self.name_input.trim().is_empty()
-            && self.width_input.is_valid()
+        self.width_input.is_valid()
             && self.height_input.is_valid()
+            && !self.name_input.trim().is_empty()
+            && !self.is_existing_test(self.test_name())
     }
 
     /// Returns the current test session, if any.
@@ -100,8 +101,8 @@ impl State {
     }
 
     /// Returns the test name from user input.
-    fn test_name(&self) -> String {
-        self.name_input.trim().to_string()
+    fn test_name(&self) -> &str {
+        self.name_input.trim()
     }
 
     /// Updates the test state based on the given message.
@@ -147,7 +148,7 @@ impl State {
                     self.config.clone(),
                     ctx.preview_index,
                     ctx.preview_name.to_string(),
-                    test_name,
+                    test_name.to_string(),
                 );
                 self.session = Some(session);
 
@@ -329,6 +330,15 @@ impl State {
             }
         }
     }
+
+    /// Whether the given `test_name` already exists in the discovered tests.
+    fn is_existing_test(&self, test_name: &str) -> bool {
+        let sanitized_name = sanitize_name(test_name);
+
+        self.discovered_tests
+            .iter()
+            .any(|test| sanitize_name(&test.name) == sanitized_name)
+    }
 }
 
 /// Captures a baseline snapshot for the completed recording session, when enabled.
@@ -496,6 +506,54 @@ mod tests {
         state.height_input.update("600".to_string());
 
         assert!(!state.can_record());
+    }
+
+    /// The record button stays disabled when the entered name conflicts after sanitization.
+    #[test]
+    fn can_record_rejects_sanitized_name_conflict() {
+        let mut state = State::default();
+        state.name_input = "some test".to_string();
+        state.width_input.update("800".to_string());
+        state.height_input.update("600".to_string());
+        state.discovered_tests = vec![TestInfo {
+            name: "some-test".to_string(),
+            path: PathBuf::from("./tests/counter/some-test.ice"),
+            preview: "counter".to_string(),
+            has_snapshot: false,
+        }];
+
+        assert!(!state.can_record());
+    }
+
+    /// Existing test detection compares names by their sanitized form.
+    #[test]
+    fn is_existing_test_uses_sanitized_names() {
+        let mut state = State::default();
+        state.discovered_tests = vec![TestInfo {
+            name: "some-test".to_string(),
+            path: PathBuf::from("./tests/counter/some-test.ice"),
+            preview: "counter".to_string(),
+            has_snapshot: false,
+        }];
+
+        assert!(state.is_existing_test("some test"));
+        assert!(state.is_existing_test("  SOME TEST  "));
+        assert!(!state.is_existing_test("different test"));
+    }
+
+    /// Existing test detection also handles hyphens and spaces consistently.
+    #[test]
+    fn is_existing_test_matches_hyphen_and_space_variants() {
+        let mut state = State::default();
+        state.discovered_tests = vec![TestInfo {
+            name: "some-test".to_string(),
+            path: PathBuf::from("./tests/counter/some-test.ice"),
+            preview: "counter".to_string(),
+            has_snapshot: false,
+        }];
+
+        assert!(state.is_existing_test("some-test"));
+        assert!(state.is_existing_test("some test"));
     }
 
     /// We should be able to remove test results by name.

@@ -15,19 +15,29 @@ pub struct TestInfo {
     pub has_snapshot: bool,
 }
 
+/// Whether the given `name` is already sanitized.
+pub fn is_sanitized(name: &str) -> bool {
+    name.chars().eq(sanitized_chars(name))
+}
+
 /// Sanitizes a name for use as a folder or filename.
-/// Replaces non-alphanumeric characters with underscores and lowercases.
+/// Replaces non-alphanumeric characters with hyphens and lowercases.
 pub fn sanitize_name(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>()
-        .to_lowercase()
+    sanitized_chars(name).collect()
+}
+
+/// Sanitizes the `name` and returns an iterator of characters for comparison.
+/// Avoids allocating a new string when just checking if a name is sanitized.
+fn sanitized_chars(name: &str) -> impl Iterator<Item = char> + '_ {
+    name.trim().chars().flat_map(|c| {
+        let sanitized = if c.is_alphanumeric() || c == '-' {
+            c
+        } else {
+            '-'
+        };
+
+        sanitized.to_lowercase()
+    })
 }
 
 /// Discovers all tests for a given preview in the tests directory.
@@ -157,12 +167,35 @@ fn is_associated_snapshot_stem(test_name: &str, stem: &str) -> bool {
 mod tests {
     use super::*;
 
+    /// Leading and trailing whitespace should be trimmed.
     #[test]
-    fn test_sanitize_name() {
+    fn sanitize_name_trims_content() {
+        assert_eq!(sanitize_name("  counter  "), "counter");
+    }
+
+    /// All test names should be converted to lowercase for consistency.
+    #[test]
+    fn sanitize_name_lowercases_text() {
         assert_eq!(sanitize_name("Counter"), "counter");
-        assert_eq!(sanitize_name("my button"), "my_button");
-        assert_eq!(sanitize_name("Test-Name"), "test-name");
-        assert_eq!(sanitize_name("A/B Test"), "a_b_test");
+    }
+
+    /// Non-alphanumeric characters should be replaced with hyphens.
+    #[test]
+    fn sanitize_name_replaces_non_alphanumeric_characters() {
+        assert_eq!(sanitize_name("A/B Test"), "a-b-test");
+    }
+
+    #[test]
+    fn is_sanitized_true_for_valid_kebab_name() {
+        assert!(is_sanitized("basic-increment"));
+    }
+
+    #[test]
+    fn is_sanitized_false_for_name_needing_changes() {
+        assert!(!is_sanitized("Basic Increment"));
+        assert!(!is_sanitized("basic_increment"));
+        assert!(!is_sanitized("basic increment"));
+        assert!(!is_sanitized(" basic-increment "));
     }
 
     #[test]

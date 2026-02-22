@@ -13,6 +13,8 @@ use iced::{
 
 use crate::{app::App, message::Message, test, widget::stop_recording_button};
 
+use crate::test::discovery::{is_sanitized, sanitize_name};
+
 /// The test configuration pane content.
 pub fn test_pane<'a>(app: &'a App) -> Element<'a, Message> {
     if app.is_recording() {
@@ -83,12 +85,26 @@ fn configuration_view<'a>(app: &'a App) -> Element<'a, Message> {
 
 /// Section for creating a new test.
 fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
+    use std::borrow::Cow;
+
     let has_size_error = !test_state.width_input.is_valid() || !test_state.height_input.is_valid();
     let size_error = has_size_error.then(|| {
         text("Invalid size")
             .size(14)
             .style(crate::style::text::danger)
     });
+    let test_name = test_state.name_input.as_str();
+    let saved_test_name: Cow<'_, str> = if is_sanitized(test_name) {
+        Cow::Borrowed(test_name)
+    } else {
+        Cow::Owned(sanitize_name(test_name))
+    };
+    let saved_name_hint = container((!test_state.name_input.trim().is_empty()).then(|| {
+        text(format!("Will be saved as: {}.ice", saved_test_name))
+            .size(12)
+            .style(crate::style::text::muted)
+    }))
+    .height(16);
 
     column![
         row![
@@ -111,6 +127,7 @@ fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
                 .style(crate::style::text_input::default)
                 .size(14)
                 .on_input(|n| Message::Test(test::Message::ChangeTestName(n))),
+                saved_name_hint,
             ]
             .spacing(4)
             .width(Fill),
@@ -143,8 +160,7 @@ fn new_test_section<'a>(test_state: &'a test::State) -> Element<'a, Message> {
             ]
             .spacing(4),
         ]
-        .spacing(12)
-        .align_y(iced::Alignment::End),
+        .spacing(12),
         // Snapshot option
         checkbox(test_state.config.capture_snapshot)
             .label("Capture snapshot at end")
