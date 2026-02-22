@@ -90,18 +90,14 @@ pub fn discover_tests(tests_dir: &Path, preview_name: &str) -> Vec<TestInfo> {
 fn has_snapshot(dir: &Path, test_name: &str) -> bool {
     std::fs::read_dir(dir)
         .map(|entries| {
-            entries
-                .filter_map(Result::ok)
-                .filter(|e| {
-                    let path = e.path();
-                    path.extension().and_then(|e| e.to_str()) == Some("png")
-                        && path
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .is_some_and(|stem| is_associated_snapshot_stem(test_name, stem))
-                })
-                .next()
-                .is_some()
+            entries.filter_map(Result::ok).any(|e| {
+                let path = e.path();
+                path.extension().and_then(|e| e.to_str()) == Some("png")
+                    && path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .is_some_and(|stem| is_associated_snapshot_stem(test_name, stem))
+            })
         })
         .unwrap_or(false)
 }
@@ -144,10 +140,10 @@ pub fn delete_test(path: &Path) -> std::io::Result<()> {
     }
 
     // Remove the preview folder if it's now empty
-    if let Ok(remaining) = std::fs::read_dir(parent) {
-        if remaining.count() == 0 {
-            let _ = std::fs::remove_dir(parent);
-        }
+    if let Ok(remaining) = std::fs::read_dir(parent)
+        && remaining.count() == 0
+    {
+        let _ = std::fs::remove_dir(parent);
     }
 
     Ok(())

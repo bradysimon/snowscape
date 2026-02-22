@@ -69,14 +69,14 @@ where
 
     // Find all preview folders (directories in tests_dir)
     let preview_folders: Vec<_> = fs::read_dir(tests_dir)
-        .map_err(|e| Error::IoError(e))?
+        .map_err(Error::IoError)?
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.path().is_dir())
         .collect();
 
     // Also check for legacy flat .ice files in tests_dir
     let legacy_ice_files: Vec<_> = fs::read_dir(tests_dir)
-        .map_err(|e| Error::IoError(e))?
+        .map_err(Error::IoError)?
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "ice"))
         .collect();
@@ -431,14 +431,13 @@ fn replay_test(
             }
             Instruction::Expect(Expectation::Text(expected_text)) => {
                 // Try to find the expected text in the UI
-                if enforce_expectations {
-                    if let Err(e) = simulator.find(expected_text.clone()) {
+                if enforce_expectations
+                    && let Err(e) = simulator.find(expected_text.clone()) {
                         return Err(format!(
                             "Expectation failed - text '{}' not found: {}",
                             expected_text, e
                         ));
                     }
-                }
             }
         }
     }

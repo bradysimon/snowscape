@@ -326,11 +326,10 @@ impl State {
 
     /// Removes the test result with the given `test_name` from the last run results, if present.
     fn remove_test_result(&mut self, test_name: &str) {
-        if let Some(results) = self.last_run_results.as_mut() {
-            if let Some(index) = results.iter().position(|item| item.name == test_name) {
+        if let Some(results) = self.last_run_results.as_mut()
+            && let Some(index) = results.iter().position(|item| item.name == test_name) {
                 results.remove(index);
             }
-        }
     }
 
     /// Whether the given `test_name` already exists in the discovered tests.
@@ -362,8 +361,8 @@ fn capture_snapshot_for_session(session: &Session, ctx: Option<UpdateContext<'_>
     let mut app = (configure)(crate::App::default());
     let ice = session.to_ice();
 
-    if let Some(snapshot_path) = session.snapshot_path() {
-        if let Err(e) = super::capture_baseline_screenshot(
+    if let Some(snapshot_path) = session.snapshot_path()
+        && let Err(e) = super::capture_baseline_screenshot(
             &mut app,
             session.preview_index,
             &ice,
@@ -371,7 +370,6 @@ fn capture_snapshot_for_session(session: &Session, ctx: Option<UpdateContext<'_>
         ) {
             eprintln!("Failed to capture snapshot: {}", e);
         }
-    }
 }
 
 fn merge_run_results(

@@ -103,8 +103,8 @@ where
         }
 
         // Only record from widget if there's no overlay
-        if !self.has_overlay {
-            if let Some(on_record) = &self.on_record {
+        if !self.has_overlay
+            && let Some(on_record) = &self.on_record {
                 let state = tree.state.downcast_mut::<State>();
 
                 record(
@@ -124,7 +124,6 @@ where
                     },
                 );
             }
-        }
 
         self.content.as_widget_mut().update(
             &mut tree.children[0],
@@ -391,11 +390,10 @@ fn record<Message>(
     operate: impl FnMut(&mut dyn widget::Operation),
 ) {
     // Only process mouse events if cursor is over bounds
-    if let Event::Mouse(_) = event {
-        if !cursor.is_over(bounds) {
+    if let Event::Mouse(_) = event
+        && !cursor.is_over(bounds) {
             return;
         }
-    }
 
     // Convert cursor position to be relative to content bounds
     let interaction = if let Event::Mouse(mouse::Event::CursorMoved { position }) = event {

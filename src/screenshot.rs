@@ -13,7 +13,7 @@
 use iced::theme::Base;
 use iced::{Size, Theme};
 use iced_test::Simulator;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Parsed screenshot options from CLI args.
 #[derive(Debug, Clone)]
@@ -225,7 +225,7 @@ pub fn capture(app: &crate::App, options: &Options) -> Result<PathBuf, Error> {
 ///
 /// Returns a path that doesn't conflict with existing files.
 /// Note: matches_image will add a renderer suffix (e.g., "-wgpu") to the filename.
-fn find_available_path(base_path: &PathBuf, parent_dir: &PathBuf) -> Result<PathBuf, Error> {
+fn find_available_path(base_path: &Path, parent_dir: &Path) -> Result<PathBuf, Error> {
     let base_stem = base_path
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
@@ -248,7 +248,7 @@ fn find_available_path(base_path: &PathBuf, parent_dir: &PathBuf) -> Result<Path
             .with_file_name(format!("{}-{}", base_stem, existing_files))
             .with_extension("png"))
     } else {
-        Ok(base_path.clone())
+        Ok(base_path.to_path_buf())
     }
 }
 
@@ -256,7 +256,7 @@ fn find_available_path(base_path: &PathBuf, parent_dir: &PathBuf) -> Result<Path
 ///
 /// matches_image adds a renderer suffix (e.g., "-wgpu", "-tiny-skia") to the filename,
 /// so we need to search for the actual file that was created.
-fn find_created_file(expected_path: &PathBuf, parent_dir: &PathBuf) -> Result<PathBuf, Error> {
+fn find_created_file(expected_path: &Path, parent_dir: &Path) -> Result<PathBuf, Error> {
     let final_stem = expected_path
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
