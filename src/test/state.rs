@@ -68,6 +68,8 @@ pub struct UpdateContext<'a> {
     /// The index of the currently selected preview.
     pub preview_index: usize,
     /// Callback to build a fresh app for running tests.
+    /// Starting a test run needs the `configuration` to spin up the
+    /// preview instance and run the test instructions against it.
     pub configure: Option<crate::app::ConfigureFn>,
 }
 
@@ -260,7 +262,7 @@ impl State {
                 let preview_index = ctx.preview_index;
 
                 Task::perform(
-                    async move { run_tests_in_thread(configure, preview_index, tests).await },
+                    run_tests_in_thread(configure, preview_index, tests),
                     Message::RunComplete,
                 )
             }
@@ -282,7 +284,7 @@ impl State {
                 let preview_index = ctx.preview_index;
 
                 Task::perform(
-                    async move { run_tests_in_thread(configure, preview_index, vec![path]).await },
+                    run_tests_in_thread(configure, preview_index, vec![path]),
                     Message::RunComplete,
                 )
             }
@@ -405,7 +407,7 @@ async fn run_tests_in_thread(
 
     for path in tests {
         let configure = configure.clone();
-        tasks.spawn(async move { run_test_path(configure, preview_index, path).await });
+        tasks.spawn(run_test_path(configure, preview_index, path));
     }
 
     let mut results = Vec::new();
