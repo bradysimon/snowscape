@@ -8,8 +8,10 @@ pub mod discovery;
 mod error;
 pub mod message;
 pub mod outcome;
+mod runner;
 mod session;
 mod size_input;
+mod snapshot;
 pub mod state;
 
 use iced::keyboard;
@@ -239,11 +241,12 @@ fn run_single_test(
 
     let expected_image_path = test_path.with_extension("png");
     if expected_image_path.exists() || has_renderer_variant(&expected_image_path) {
-        let mut simulator: iced_test::Simulator<crate::message::Message> = iced_test::Simulator::with_size(
-            iced::Settings::default(),
-            ice.viewport,
-            app.descriptors()[preview_index].preview.view(),
-        );
+        let mut simulator: iced_test::Simulator<crate::message::Message> =
+            iced_test::Simulator::with_size(
+                iced::Settings::default(),
+                ice.viewport,
+                app.descriptors()[preview_index].preview.view(),
+            );
 
         let snapshot = match simulator.snapshot(&iced::Theme::Light) {
             Ok(snapshot) => snapshot,
@@ -283,14 +286,14 @@ fn run_single_test(
 
                 let failed_save_message =
                     match save_failed_snapshot(&snapshot, &failed_image_path, &renderer) {
-                    Ok(()) => {
-                        format!(
-                            "Saved actual screenshot to '{}'",
-                            failed_image_path.display()
-                        )
-                    }
-                    Err(save_error) => save_error,
-                };
+                        Ok(()) => {
+                            format!(
+                                "Saved actual screenshot to '{}'",
+                                failed_image_path.display()
+                            )
+                        }
+                        Err(save_error) => save_error,
+                    };
 
                 return Some(format!(
                     "Screenshot does not match '{}'. {}",
@@ -324,15 +327,20 @@ pub(crate) fn capture_baseline_screenshot(
 ) -> Result<(), String> {
     replay_test(app, preview_index, ice, false)?;
 
-    let mut simulator: iced_test::Simulator<crate::message::Message> = iced_test::Simulator::with_size(
-        iced::Settings::default(),
-        ice.viewport,
-        app.descriptors()[preview_index].preview.view(),
-    );
+    let mut simulator: iced_test::Simulator<crate::message::Message> =
+        iced_test::Simulator::with_size(
+            iced::Settings::default(),
+            ice.viewport,
+            app.descriptors()[preview_index].preview.view(),
+        );
 
-    let snapshot = simulator
-        .snapshot(&iced::Theme::Light)
-        .map_err(|e| format!("Failed to capture screenshot '{}': {}", output_path.display(), e))?;
+    let snapshot = simulator.snapshot(&iced::Theme::Light).map_err(|e| {
+        format!(
+            "Failed to capture screenshot '{}': {}",
+            output_path.display(),
+            e
+        )
+    })?;
 
     let parent_dir = output_path
         .parent()
@@ -352,12 +360,21 @@ pub(crate) fn capture_baseline_screenshot(
         let _ = std::fs::remove_file(output_path);
     }
 
-    snapshot
-        .matches_image(output_path)
-        .map_err(|e| format!("Failed to save screenshot '{}': {}", output_path.display(), e))?;
+    snapshot.matches_image(output_path).map_err(|e| {
+        format!(
+            "Failed to save screenshot '{}': {}",
+            output_path.display(),
+            e
+        )
+    })?;
 
-    let renderer = detect_snapshot_renderer(&snapshot)
-        .map_err(|e| format!("Failed to detect renderer for '{}': {}", output_path.display(), e))?;
+    let renderer = detect_snapshot_renderer(&snapshot).map_err(|e| {
+        format!(
+            "Failed to detect renderer for '{}': {}",
+            output_path.display(),
+            e
+        )
+    })?;
     let renderer_path = renderer_variant_path(output_path, &renderer);
 
     if renderer_path.exists() {
@@ -431,13 +448,12 @@ fn replay_test(
             }
             Instruction::Expect(Expectation::Text(expected_text)) => {
                 // Try to find the expected text in the UI
-                if enforce_expectations
-                    && let Err(e) = simulator.find(expected_text.clone()) {
-                        return Err(format!(
-                            "Expectation failed - text '{}' not found: {}",
-                            expected_text, e
-                        ));
-                    }
+                if enforce_expectations && let Err(e) = simulator.find(expected_text.clone()) {
+                    return Err(format!(
+                        "Expectation failed - text '{}' not found: {}",
+                        expected_text, e
+                    ));
+                }
             }
         }
     }

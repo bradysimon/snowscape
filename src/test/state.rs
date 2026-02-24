@@ -187,7 +187,8 @@ impl State {
                     eprintln!("Failed to save test: {}", e);
                 }
 
-                capture_snapshot_for_session(session, ctx);
+                let configure = ctx.and_then(|context| context.configure.clone());
+                super::snapshot::capture_snapshot_for_session(session, configure);
 
                 // Close the test window
                 if let Some(test_window_id) = self.window_id.take() {
@@ -262,7 +263,7 @@ impl State {
                 let preview_index = ctx.preview_index;
 
                 Task::perform(
-                    run_tests_in_thread(configure, preview_index, tests),
+                    super::runner::run_tests_in_thread(configure, preview_index, tests),
                     Message::RunComplete,
                 )
             }
@@ -284,7 +285,7 @@ impl State {
                 let preview_index = ctx.preview_index;
 
                 Task::perform(
-                    run_tests_in_thread(configure, preview_index, vec![path]),
+                    super::runner::run_tests_in_thread(configure, preview_index, vec![path]),
                     Message::RunComplete,
                 )
             }
@@ -314,7 +315,7 @@ impl State {
             Message::RunComplete(results) => {
                 self.last_run_results = Some(match self.run_mode {
                     Some(RunMode::Single(_)) => {
-                        merge_run_results(self.last_run_results.take(), results)
+                        super::runner::merge_run_results(self.last_run_results.take(), results)
                     }
                     _ => results,
                 });
@@ -339,123 +340,6 @@ impl State {
         self.discovered_tests
             .iter()
             .any(|test| sanitize_name(&test.name) == sanitized_name)
-    }
-}
-
-/// Captures a baseline snapshot for the completed recording session, when enabled.
-fn capture_snapshot_for_session(session: &Session, ctx: Option<UpdateContext<'_>>) {
-    if !session.config.capture_snapshot {
-        return;
-    }
-
-    let Some(ctx) = ctx else {
-        eprintln!("Failed to capture snapshot: missing update context");
-        return;
-    };
-
-    let Some(configure) = ctx.configure.clone() else {
-        eprintln!("Failed to capture snapshot: missing configure callback");
-        return;
-    };
-
-    let mut app = (configure)(crate::App::default());
-    let ice = session.to_ice();
-
-    if let Some(snapshot_path) = session.snapshot_path()
-        && let Err(e) = super::capture_baseline_screenshot(
-            &mut app,
-            session.preview_index,
-            &ice,
-            &snapshot_path,
-        ) {
-            eprintln!("Failed to capture snapshot: {}", e);
-        }
-}
-
-fn merge_run_results(
-    previous: Option<Vec<test::Outcome>>,
-    updates: Vec<test::Outcome>,
-) -> Vec<test::Outcome> {
-    let Some(mut existing) = previous else {
-        return updates;
-    };
-
-    for update in updates {
-        if let Some(slot) = existing
-            .iter_mut()
-            .find(|result| result.name == update.name)
-        {
-            *slot = update;
-        } else {
-            existing.push(update);
-        }
-    }
-
-    existing
-}
-
-/// Runs the given test paths in a separate thread to avoid stalling the UI,
-/// returning the test results when all are complete.
-async fn run_tests_in_thread(
-    configure: crate::app::ConfigureFn,
-    preview_index: usize,
-    tests: Vec<PathBuf>,
-) -> Vec<test::Outcome> {
-    let mut tasks = tokio::task::JoinSet::new();
-
-    for path in tests {
-        let configure = configure.clone();
-        tasks.spawn(run_test_path(configure, preview_index, path));
-    }
-
-    let mut results = Vec::new();
-    while let Some(result) = tasks.join_next().await {
-        match result {
-            Ok(outcome) => results.push(outcome),
-            Err(error) => results.push(test::Outcome::failed(
-                "test-runner",
-                format!("[Internal error] Test runner failed: {error}"),
-            )),
-        }
-    }
-
-    results
-}
-
-/// Runs the test at the given `path` and returns the result.
-async fn run_test_path(
-    configure: crate::app::ConfigureFn,
-    preview_index: usize,
-    path: PathBuf,
-) -> test::Outcome {
-    let name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("unknown")
-        .to_string();
-
-    let content = match tokio::fs::read_to_string(&path).await {
-        Ok(content) => content,
-        Err(e) => {
-            return test::Outcome::failed(name, format!("Failed to read test file: {e}"));
-        }
-    };
-
-    let ice = match super::Ice::parse(&content) {
-        Ok(ice) => ice,
-        Err(e) => {
-            return test::Outcome::failed(name, format!("Failed to parse .ice file: {e}"));
-        }
-    };
-
-    let mut app = (configure)(crate::App::default());
-    if preview_index >= app.descriptors().len() {
-        return test::Outcome::failed(name, "Preview index out of range for test run");
-    }
-
-    match super::run_single_test(&mut app, preview_index, &ice, &path) {
-        Some(error) => test::Outcome::failed(name, error),
-        None => test::Outcome::passed(name),
     }
 }
 
