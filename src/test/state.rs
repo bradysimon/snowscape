@@ -328,9 +328,10 @@ impl State {
     /// Removes the test result with the given `test_name` from the last run results, if present.
     fn remove_test_result(&mut self, test_name: &str) {
         if let Some(results) = self.last_run_results.as_mut()
-            && let Some(index) = results.iter().position(|item| item.name == test_name) {
-                results.remove(index);
-            }
+            && let Some(index) = results.iter().position(|item| item.name == test_name)
+        {
+            results.remove(index);
+        }
     }
 
     /// Whether the given `test_name` already exists in the discovered tests.

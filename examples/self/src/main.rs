@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use iced::widget::{container, space};
+use iced::widget::{button, column, container, space, text};
 use iced::{Color, Element};
 use snowscape::preview::{Performance, Preview};
 use snowscape::preview::{dynamic, performance::Indicator, stateful, stateless, stateless_with};
@@ -9,17 +9,22 @@ use snowscape::{App, ConfigTab, Metadata, test, widget};
 
 /// Previews various components used within Snowscape.
 fn main() -> iced::Result {
-    snowscape::run(|app| {
-        app.title("Snowscape Previews")
-            .preview(config_tabs())
-            .preview(preview_list())
-            .preview(about_pane())
-            .preview(parameter_pane())
-            .preview(message_pane())
-            .preview(performance_pane())
-            .preview(test_pane())
-            .preview(app_preview())
-    })
+    snowscape::run(previews)
+}
+
+/// Configures the Snowscape app with all self-previews.
+pub fn previews(app: App) -> App {
+    app.title("Snowscape Previews")
+        .with_tests_dir(format!("{}/tests", env!("CARGO_MANIFEST_DIR")))
+        .preview(config_tabs())
+        .preview(preview_list())
+        .preview(about_pane())
+        .preview(parameter_pane())
+        .preview(message_pane())
+        .preview(performance_pane())
+        .preview(test_pane())
+        .preview(dialog_preview())
+        .preview(app_preview())
 }
 
 fn config_tabs() -> impl Preview {
@@ -242,6 +247,83 @@ fn test_pane() -> impl Preview {
     )
 }
 
+/// Previews the dialog widget with open/close interactions.
+fn dialog_preview() -> impl Preview {
+    #[derive(Debug, Clone)]
+    enum Message {
+        Open,
+        Close,
+    }
+
+    struct DialogDemo {
+        open: bool,
+        closed_count: u32,
+    }
+
+    impl Default for DialogDemo {
+        fn default() -> Self {
+            Self {
+                open: false,
+                closed_count: 0,
+            }
+        }
+    }
+
+    impl DialogDemo {
+        fn update(&mut self, message: Message) {
+            match message {
+                Message::Open => self.open = true,
+                Message::Close => {
+                    self.open = false;
+                    self.closed_count += 1;
+                }
+            }
+        }
+
+        fn view(&self) -> Element<'_, Message> {
+            let base = container(
+                column![
+                    button("Open Dialog").on_press(Message::Open),
+                    text(format!("Dialog open: {}", self.open)),
+                    text(format!("Closed count: {}", self.closed_count)),
+                ]
+                .spacing(10)
+                .padding(20),
+            )
+            .width(iced::Length::Fill)
+            .height(iced::Length::Fill);
+
+            let content = container(
+                column![
+                    text("Dialog Content"),
+                    text("A dialog that appears over the main content with a backdrop behind it."),
+                    text("Click the backdrop, press Esc, or use the top-right close button."),
+                ]
+                .spacing(8),
+            )
+            .width(iced::Length::Fill);
+
+            widget::dialog(base, content)
+                .open(self.open)
+                .title("Dialog Title")
+                .on_close(Message::Close)
+                .backdrop_close(true)
+                .esc_close(true)
+                .animate(true)
+                .push_action(button("Confirm").on_press(Message::Close))
+                .into()
+        }
+    }
+
+    stateful(
+        "Dialog",
+        DialogDemo::default,
+        DialogDemo::update,
+        DialogDemo::view,
+    )
+    .description("A stateful preview to validate opening and closing the dialog widget.")
+}
+
 /// Previews the entire Snowscape application itself as a nested preview.
 fn app_preview() -> impl Preview {
     stateful(
@@ -255,9 +337,21 @@ fn app_preview() -> impl Preview {
                 .preview(parameter_pane())
                 .preview(message_pane())
                 .preview(performance_pane())
+                .preview(test_pane())
+                .preview(dialog_preview())
         },
         App::internal_update,
         App::internal_view,
     )
     .description("A nested preview of the entire Snowscape application itself!")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn passes_visual_tests() -> Result<(), snowscape::test::Error> {
+        snowscape::test::run(previews, format!("{}/tests", env!("CARGO_MANIFEST_DIR")))
+    }
 }

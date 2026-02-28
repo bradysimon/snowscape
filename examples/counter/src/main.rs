@@ -47,9 +47,6 @@ mod tests {
 
     #[test]
     fn passes_visual_tests() -> Result<(), snowscape::test::Error> {
-        snowscape::test::run(
-            previews,
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests"),
-        )
+        snowscape::test::run(previews, format!("{}/tests", env!("CARGO_MANIFEST_DIR")))
     }
 }

@@ -1,10 +1,12 @@
 pub mod badge;
 pub mod config_pane;
+pub mod dialog;
 pub mod recorder;
 pub mod split;
 
 pub use badge::*;
 pub use config_pane::*;
+pub use dialog::dialog;
 pub use recorder::recorder;
 
 use iced::theme;
