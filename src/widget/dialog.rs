@@ -34,11 +34,15 @@ pub enum Message {
     Closed,
 }
 
+/// The visual status of the dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Status {
+    /// The dialog is fully closed.
     #[default]
     Closed,
+    /// The dialog is open and visible.
     Open,
+    /// The dialog is in the process of closing and animating out.
     Closing,
 }
 
