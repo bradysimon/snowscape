@@ -89,11 +89,11 @@ pub mod button {
 
     pub const BORDER_RADIUS: f32 = 4.0;
 
-    pub fn primary(theme: &Theme, status: button::Status) -> button::Style {
-        let primary = iced::widget::button::primary(theme, status);
+    pub fn danger(theme: &Theme, status: button::Status) -> button::Style {
+        let danger = iced::widget::button::danger(theme, status);
         button::Style {
-            border: primary.border.rounded(BORDER_RADIUS),
-            ..primary
+            border: danger.border.rounded(BORDER_RADIUS),
+            ..danger
         }
     }
 

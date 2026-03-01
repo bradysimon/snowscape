@@ -475,7 +475,7 @@ impl App {
                 .push_action(
                     button("Delete")
                         .on_press(Message::ConfirmDeleteTest)
-                        .style(crate::style::button::primary),
+                        .style(crate::style::button::danger),
                 )
                 .push_action(
                     button("Cancel")
