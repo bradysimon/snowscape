@@ -1,8 +1,9 @@
+use std::path::PathBuf;
 use std::{any::Any, fmt::Debug};
 
 use iced::{Theme, theme, window};
 
-use crate::{config_tab::ConfigTab, dynamic, test};
+use crate::{config_tab::ConfigTab, dynamic, test, widget::dialog};
 
 /// Supertrait for messages that can be used in the preview system.
 /// - `Any`: Previews support any type of message via downcasting
@@ -72,6 +73,12 @@ pub enum Message {
     WindowClosed(window::Id),
     /// Test-related messages.
     Test(test::Message),
+    /// Opens a confirmation dialog before deleting a test at the given path.
+    OpenDeleteTestDialog(PathBuf),
+    /// Dialog lifecycle messages.
+    Dialog(dialog::Message),
+    /// Confirms deletion of the test currently selected in the dialog.
+    ConfirmDeleteTest,
 }
 
 impl std::fmt::Debug for Message {
@@ -98,6 +105,11 @@ impl std::fmt::Debug for Message {
             Self::Component(_) => write!(f, "Component(..)"),
             Self::WindowClosed(id) => f.debug_tuple("WindowClosed").field(id).finish(),
             Self::Test(msg) => f.debug_tuple("Test").field(msg).finish(),
+            Self::OpenDeleteTestDialog(path) => {
+                f.debug_tuple("OpenDeleteTestDialog").field(path).finish()
+            }
+            Self::Dialog(msg) => f.debug_tuple("Dialog").field(msg).finish(),
+            Self::ConfirmDeleteTest => write!(f, "ConfirmDeleteTest"),
         }
     }
 }
@@ -133,6 +145,9 @@ impl Clone for Message {
                 Message::Component(inner) => Message::Component(clone_component_payload(&**inner)),
                 Message::WindowClosed(id) => Message::WindowClosed(*id),
                 Message::Test(msg) => Message::Test(msg.clone()),
+                Message::OpenDeleteTestDialog(path) => Message::OpenDeleteTestDialog(path.clone()),
+                Message::Dialog(msg) => Message::Dialog(*msg),
+                Message::ConfirmDeleteTest => Message::ConfirmDeleteTest,
             }
         }
 

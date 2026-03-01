@@ -353,7 +353,7 @@ fn test_row<'a>(
     )
     .padding([4, 8])
     .style(delete_button_style)
-    .on_press_maybe((!is_running).then(|| Message::Test(test::Message::Delete(path_delete))));
+    .on_press_maybe((!is_running).then(|| Message::OpenDeleteTestDialog(path_delete)));
 
     let row_content = row![
         status_icon,

@@ -1,9 +1,8 @@
 //! A composable dialog wrapper that can show modal content over a base element.
 //!
-//! This combines a `Widget` impl with normal Elements used within the dialog to
-//! avoid making the widget re-implement core things like buttons. The `Dialog`
-//! struct is the user-facing API, which then gets converted to a `ResolvedDialog`
-//! in the `From<Dialog> for Element` implementation.
+//! The dialog lifecycle is externally controlled with [`State`] and lifecycle
+//! events are emitted as [`Message`] so parent state can keep content mounted
+//! until close animations are fully complete.
 use iced::{
     Alignment, Animation, Color, Element, Event,
     Length::Fill,
@@ -15,6 +14,7 @@ use iced::{
         renderer::{self, Quad},
         widget::{Operation, Tree, tree},
     },
+    alignment::Horizontal::Right,
     animation, keyboard,
     time::{Duration, Instant},
     touch,
@@ -22,19 +22,157 @@ use iced::{
     window,
 };
 
-/// Creates a new [`Dialog`] wrapping the given `base` and `content` widgets.
+/// Dialog lifecycle message emitted by the dialog widget.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Message {
+    /// The user requested the dialog to close.
+    RequestClose,
+    /// The dialog has finished closing.
+    Closed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Status {
+    #[default]
+    Closed,
+    Open,
+    Closing,
+}
+
+/// External dialog state managed by the parent app.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct State {
+    status: Status,
+}
+
+impl State {
+    /// Sets the dialog state to open.
+    pub fn open(&mut self) {
+        self.status = Status::Open;
+    }
+
+    /// Requests the dialog to start closing.
+    pub fn request_close(&mut self) {
+        if self.status != Status::Closed {
+            self.status = Status::Closing;
+        }
+    }
+
+    /// Marks the dialog as fully closed.
+    pub fn close(&mut self) {
+        self.status = Status::Closed;
+    }
+
+    /// Applies a dialog lifecycle message to this state.
+    pub fn update(&mut self, message: Message) {
+        match message {
+            Message::RequestClose => self.request_close(),
+            Message::Closed => self.close(),
+        }
+    }
+
+    /// Returns the current status.
+    pub fn status(&self) -> Status {
+        self.status
+    }
+
+    /// Returns true when the dialog target state is open.
+    pub fn is_open(&self) -> bool {
+        self.status == Status::Open
+    }
+
+    /// Returns true while dialog content should be rendered.
+    pub fn is_visible(&self) -> bool {
+        self.status != Status::Closed
+    }
+}
+
+/// Creates a new [`Dialog`] wrapping the given `base` element.
+///
+/// The external [`State`] controls whether the dialog target is open or closing.
 pub fn dialog<'a, Message, Renderer>(
     base: impl Into<Element<'a, Message, Theme, Renderer>>,
-    content: impl Into<Element<'a, Message, Theme, Renderer>>,
+    state: &'a State,
+    config: Option<Config<'a, Message, Renderer>>,
 ) -> Dialog<'a, Message, Renderer>
 where
     Message: Clone + 'a,
     Renderer: iced::advanced::Renderer + 'a,
 {
-    Dialog::new(base, content)
+    Dialog::new(base, state, config)
+}
+
+/// Describes what to show inside a [`Dialog`] panel.
+///
+/// Bundles the body content, optional title, and footer action buttons into a
+/// single value that can be passed as `Option<Config>` to [`dialog()`].
+pub struct Config<'a, Message, Renderer = iced::Renderer>
+where
+    Message: Clone + 'a,
+    Renderer: iced::advanced::Renderer + 'a,
+{
+    /// Optional title shown in the dialog header.
+    title: Option<String>,
+    /// Body content shown inside the dialog panel.
+    content: Element<'a, Message, Theme, Renderer>,
+    /// Optional close button label shown next to the close icon.
+    close_label: Option<String>,
+    /// Footer action widgets rendered at the bottom of the panel.
+    actions: Vec<Element<'a, Message, Theme, Renderer>>,
+}
+
+impl<'a, Message, Renderer> Config<'a, Message, Renderer>
+where
+    Message: Clone + 'a,
+    Renderer: iced::advanced::Renderer + 'a,
+{
+    /// Creates a new [`Config`] with the given body content.
+    pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
+        Self {
+            content: content.into(),
+            title: None,
+            close_label: None,
+            actions: Vec::new(),
+        }
+    }
+
+    /// Sets an optional dialog title shown in the header.
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets an optional close button label shown next to the close icon.
+    #[must_use]
+    pub fn close_label(mut self, label: impl Into<String>) -> Self {
+        self.close_label = Some(label.into());
+        self
+    }
+
+    /// Adds an action element to the dialog footer.
+    #[must_use]
+    pub fn push_action(mut self, action: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
+        self.actions.push(action.into());
+        self
+    }
+
+    /// Adds multiple action elements to the dialog footer.
+    #[must_use]
+    pub fn actions(
+        mut self,
+        actions: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
+    ) -> Self {
+        self.actions.extend(actions);
+        self
+    }
 }
 
 /// A composable dialog wrapper that can show modal content over a base element.
+///
+/// Use [`dialog()`] to create a `Dialog`, passing `Some(config)` to show a
+/// dialog or `None` to hide it. The dialog will animate open/closed
+/// automatically when the config transitions between `Some` and `None`.
 pub struct Dialog<'a, Message, Renderer>
 where
     Message: Clone + 'a,
@@ -42,16 +180,19 @@ where
 {
     /// The underlying content that remains visible behind the dialog.
     base: Element<'a, Message, Theme, Renderer>,
-    /// Optional body content shown inside the dialog panel.
+    /// Body content shown inside the dialog panel.
     ///
-    /// This is consumed during conversion to `Element` when runtime parts are built.
-    content: Option<Element<'a, Message, Theme, Renderer>>,
+    /// Always populated — when `config` is `None`, a transparent placeholder is
+    /// used so the widget tree structure stays stable for close animations.
+    content: Element<'a, Message, Theme, Renderer>,
     /// Whether the dialog should be shown.
     open: bool,
-    /// Message published when the dialog requests dismissal.
-    on_close: Option<Message>,
+    /// Callback used to map dialog lifecycle events into app messages.
+    on_update: Option<fn(self::Message) -> Message>,
     /// Optional title shown in the dialog header.
     title: Option<String>,
+    /// Optional close button label shown next to the close icon.
+    close_label: Option<String>,
     /// Whether clicking the backdrop triggers the close message.
     backdrop_close: bool,
     /// Whether pressing `Esc` triggers the close message.
@@ -67,42 +208,44 @@ where
     Message: Clone + 'a,
     Renderer: iced::advanced::Renderer + 'a,
 {
-    /// Creates a new [`Dialog`] with the given base and content widgets.
+    /// Creates a new [`Dialog`] with the given base element and optional config.
+    ///
+    /// When `config` is `Some`, the dialog is open. When `None`, it is closed
+    /// (but still present in the widget tree so close animations can run).
     pub fn new(
         base: impl Into<Element<'a, Message, Theme, Renderer>>,
-        content: impl Into<Element<'a, Message, Theme, Renderer>>,
+        state: &State,
+        config: Option<Config<'a, Message, Renderer>>,
     ) -> Self {
+        let (content, title, close_label, actions, open) = match config {
+            Some(config) => (
+                config.content,
+                config.title,
+                config.close_label,
+                config.actions,
+                state.is_open(),
+            ),
+            None => (space().into(), None, None, Vec::new(), false),
+        };
+
         Self {
             base: base.into(),
-            content: Some(content.into()),
-            open: true,
-            on_close: None,
-            title: None,
+            content,
+            open,
+            on_update: None,
+            title,
+            close_label,
             backdrop_close: true,
             esc_close: true,
             animate: true,
-            actions: Vec::new(),
+            actions,
         }
     }
 
-    /// Sets whether the dialog is open.
+    /// Sets the app message mapper for dialog lifecycle events.
     #[must_use]
-    pub fn open(mut self, open: bool) -> Self {
-        self.open = open;
-        self
-    }
-
-    /// Sets the message published when the dialog should close.
-    #[must_use]
-    pub fn on_close(mut self, message: Message) -> Self {
-        self.on_close = Some(message);
-        self
-    }
-
-    /// Sets an optional dialog title shown in the header.
-    #[must_use]
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
+    pub fn on_update(mut self, mapper: fn(self::Message) -> Message) -> Self {
+        self.on_update = Some(mapper);
         self
     }
 
@@ -127,33 +270,6 @@ where
         self
     }
 
-    /// Replaces content with an optional value.
-    #[must_use]
-    pub fn content_maybe<T>(mut self, content: Option<T>) -> Self
-    where
-        T: Into<Element<'a, Message, Theme, Renderer>>,
-    {
-        self.content = content.map(Into::into);
-        self
-    }
-
-    /// Adds an action element to the dialog footer.
-    #[must_use]
-    pub fn push_action(mut self, action: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
-        self.actions.push(action.into());
-        self
-    }
-
-    /// Adds multiple action elements to the dialog footer.
-    #[must_use]
-    pub fn actions(
-        mut self,
-        actions: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
-    ) -> Self {
-        self.actions.extend(actions);
-        self
-    }
-
     /// Builds the finalized overlay widgets used by the runtime dialog.
     ///
     /// This function takes the builder-time dialog configuration and constructs:
@@ -165,6 +281,7 @@ where
     fn build_overlay_parts(
         content: Element<'a, Message, Theme, Renderer>,
         title_text: Option<String>,
+        close_label: Option<String>,
         actions: Vec<Element<'a, Message, Theme, Renderer>>,
         close_message: Option<Message>,
         backdrop_close: bool,
@@ -175,38 +292,38 @@ where
     where
         Renderer: iced::advanced::svg::Renderer + iced::advanced::text::Renderer,
     {
+        let close_content: Element<'a, Message, Theme, Renderer> = if let Some(label) = close_label
+        {
+            row![
+                crate::icon::xmark()
+                    .width(14)
+                    .height(14)
+                    .style(crate::style::svg::text),
+                text(label).size(14),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center)
+            .into()
+        } else {
+            crate::icon::xmark()
+                .width(16)
+                .height(16)
+                .style(crate::style::svg::text)
+                .into()
+        };
+
         let close_button: Element<'a, Message, Theme, Renderer> =
             if let Some(message) = close_message.clone() {
-                button(
-                    row![
-                        crate::icon::xmark()
-                            .width(14)
-                            .height(14)
-                            .style(crate::style::svg::text),
-                        text("Close").size(14),
-                    ]
-                    .spacing(6)
-                    .align_y(Alignment::Center),
-                )
-                .padding(6)
-                .style(crate::style::button::ghost_subtle)
-                .on_press(message)
-                .into()
+                button(close_content)
+                    .padding(6)
+                    .style(crate::style::button::ghost_subtle)
+                    .on_press(message)
+                    .into()
             } else {
-                button(
-                    row![
-                        crate::icon::xmark()
-                            .width(14)
-                            .height(14)
-                            .style(crate::style::svg::text),
-                        text("Close").size(14),
-                    ]
-                    .spacing(6)
-                    .align_y(Alignment::Center),
-                )
-                .padding(6)
-                .style(crate::style::button::ghost_subtle)
-                .into()
+                button(close_content)
+                    .padding(6)
+                    .style(crate::style::button::ghost_subtle)
+                    .into()
             };
 
         let title: Element<'a, Message, Theme, Renderer> = if let Some(title) = title_text {
@@ -217,12 +334,12 @@ where
 
         let header = row![title, space::horizontal(), close_button].align_y(Alignment::Center);
 
-        let body = column![header, content].spacing(12);
-        let body = if actions.is_empty() {
-            body
-        } else {
-            body.push(row(actions).spacing(8).align_y(Alignment::Center))
-        };
+        let body = column![
+            column![header, content].spacing(8),
+            (!actions.is_empty()).then(|| row(actions).spacing(8).align_y(Alignment::Center))
+        ]
+        .spacing(8)
+        .align_x(Right);
 
         let panel: Element<'a, Message, Theme, Renderer> = container(body)
             .padding(16)
@@ -261,8 +378,9 @@ where
             base,
             content,
             open,
-            on_close,
+            on_update,
             title,
+            close_label,
             backdrop_close,
             esc_close,
             animate,
@@ -270,15 +388,21 @@ where
             ..
         } = dialog;
 
-        let Some(content) = content else {
-            return base;
-        };
+        let close_intent_message = on_update.map(|map| {
+            if animate {
+                map(self::Message::RequestClose)
+            } else {
+                map(self::Message::Closed)
+            }
+        });
+        let on_closed = on_update.map(|map| map(self::Message::Closed));
 
         let (backdrop_target, panel) = Dialog::build_overlay_parts(
             content,
             title.clone(),
+            close_label,
             actions,
-            on_close.clone(),
+            close_intent_message.clone(),
             backdrop_close,
         );
 
@@ -287,7 +411,8 @@ where
             backdrop_target,
             panel,
             open,
-            on_close,
+            on_close_intent: close_intent_message,
+            on_closed,
             esc_close,
             animate,
         })
@@ -312,23 +437,28 @@ where
     backdrop_target: Element<'a, Message, Theme, Renderer>,
     panel: Element<'a, Message, Theme, Renderer>,
     open: bool,
-    on_close: Option<Message>,
+    on_close_intent: Option<Message>,
+    on_closed: Option<Message>,
     esc_close: bool,
     animate: bool,
 }
 
-struct State {
+struct WidgetState {
     visibility: Animation<bool>,
     now: Instant,
+    was_open: bool,
+    closed_emitted: bool,
 }
 
-impl State {
+impl WidgetState {
     fn new() -> Self {
         Self {
             visibility: Animation::new(false)
                 .duration(Duration::from_millis(500))
                 .easing(animation::Easing::EaseInOutBack),
             now: Instant::now(),
+            was_open: false,
+            closed_emitted: false,
         }
     }
 }
@@ -339,7 +469,7 @@ where
     Renderer: iced::advanced::Renderer + 'a,
 {
     /// Returns the current progress of the dialog animation, from `0.0` to `1.0`.
-    fn progress(&self, state: &State) -> f32 {
+    fn progress(&self, state: &WidgetState) -> f32 {
         if self.animate {
             state.visibility.interpolate(0.0, 1.0, state.now)
         } else if self.open {
@@ -350,9 +480,17 @@ where
     }
 
     /// Returns whether the dialog is currently showing or animating.
-    fn is_showing(&self, state: &State) -> bool {
+    fn is_showing(&self, state: &WidgetState) -> bool {
         let progress = self.progress(state);
         progress > 0.0 || self.open || (self.animate && state.visibility.is_animating(state.now))
+    }
+
+    fn did_close(&self, state: &WidgetState) -> bool {
+        self.animate
+            && !self.open
+            && state.was_open
+            && !state.visibility.is_animating(state.now)
+            && self.progress(state) <= f32::EPSILON
     }
 }
 
@@ -363,11 +501,11 @@ where
     Renderer: iced::advanced::Renderer,
 {
     fn tag(&self) -> tree::Tag {
-        tree::Tag::of::<State>()
+        tree::Tag::of::<WidgetState>()
     }
 
     fn state(&self) -> tree::State {
-        tree::State::new(State::new())
+        tree::State::new(WidgetState::new())
     }
 
     fn children(&self) -> Vec<Tree> {
@@ -424,7 +562,12 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
-        let state = tree.state.downcast_mut::<State>();
+        let state = tree.state.downcast_mut::<WidgetState>();
+
+        if self.open {
+            state.was_open = true;
+            state.closed_emitted = false;
+        }
 
         if let Event::Window(window::Event::RedrawRequested(now)) = event {
             state.now = *now;
@@ -446,6 +589,14 @@ where
                 // Kick off the animation on state changes (e.g. open/close click).
                 shell.request_redraw();
             }
+        }
+
+        if self.did_close(state) && !state.closed_emitted {
+            if let Some(message) = &self.on_closed {
+                shell.publish(message.clone());
+            }
+            state.closed_emitted = true;
+            state.was_open = false;
         }
 
         let mut children = layout.children();
@@ -489,7 +640,7 @@ where
             );
 
             if self.esc_close
-                && let Some(message) = &self.on_close
+                && let Some(message) = &self.on_close_intent
                 && let Event::Keyboard(keyboard::Event::KeyPressed { key, .. }) = event
                 && matches!(
                     key.as_ref(),
@@ -531,7 +682,7 @@ where
         cursor: mouse::Cursor,
         viewport: &Rectangle,
     ) {
-        let state = tree.state.downcast_ref::<State>();
+        let state = tree.state.downcast_ref::<WidgetState>();
 
         let mut children = layout.children();
         let Some(base_layout) = children.next() else {
@@ -593,7 +744,7 @@ where
         viewport: &Rectangle,
         renderer: &Renderer,
     ) -> mouse::Interaction {
-        let state = tree.state.downcast_ref::<State>();
+        let state = tree.state.downcast_ref::<WidgetState>();
 
         let mut children = layout.children();
         let Some(base_layout) = children.next() else {

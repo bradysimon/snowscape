@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use iced::widget::{button, column, container, space, text};
+use iced::Alignment::Center;
+use iced::Length::Fill;
+use iced::widget::{button, column, container, row, space, text};
 use iced::{Color, Element};
 use snowscape::preview::{Performance, Preview};
 use snowscape::preview::{dynamic, performance::Indicator, stateful, stateless, stateless_with};
@@ -252,18 +254,22 @@ fn dialog_preview() -> impl Preview {
     #[derive(Debug, Clone)]
     enum Message {
         Open,
-        Close,
+        Increment,
+        Decrement,
+        Dialog(widget::dialog::Message),
     }
 
     struct DialogDemo {
-        open: bool,
+        counter: i32,
+        dialog_state: widget::dialog::State,
         closed_count: u32,
     }
 
     impl Default for DialogDemo {
         fn default() -> Self {
             Self {
-                open: false,
+                counter: 0,
+                dialog_state: widget::dialog::State::default(),
                 closed_count: 0,
             }
         }
@@ -272,10 +278,15 @@ fn dialog_preview() -> impl Preview {
     impl DialogDemo {
         fn update(&mut self, message: Message) {
             match message {
-                Message::Open => self.open = true,
-                Message::Close => {
-                    self.open = false;
-                    self.closed_count += 1;
+                Message::Open => self.dialog_state.open(),
+                Message::Increment => self.counter += 1,
+                Message::Decrement => self.counter -= 1,
+                Message::Dialog(dialog_message) => {
+                    self.dialog_state.update(dialog_message);
+
+                    if matches!(dialog_message, widget::dialog::Message::Closed) {
+                        self.closed_count += 1;
+                    }
                 }
             }
         }
@@ -284,33 +295,46 @@ fn dialog_preview() -> impl Preview {
             let base = container(
                 column![
                     button("Open Dialog").on_press(Message::Open),
-                    text(format!("Dialog open: {}", self.open)),
+                    text(format!("Dialog status: {:?}", self.dialog_state.status())),
                     text(format!("Closed count: {}", self.closed_count)),
                 ]
                 .spacing(10)
                 .padding(20),
             )
-            .width(iced::Length::Fill)
-            .height(iced::Length::Fill);
+            .width(Fill)
+            .height(Fill);
 
-            let content = container(
-                column![
-                    text("Dialog Content"),
-                    text("A dialog that appears over the main content with a backdrop behind it."),
-                    text("Click the backdrop, press Esc, or use the top-right close button."),
-                ]
-                .spacing(8),
-            )
-            .width(iced::Length::Fill);
-
-            widget::dialog(base, content)
-                .open(self.open)
+            let config = self.dialog_state.is_visible().then(|| {
+                widget::dialog::Config::new(
+                    container(
+                        column![
+                            row![
+                                button("-").on_press(Message::Decrement),
+                                text!("{}", self.counter).width(40).line_height(1.0).center(),
+                                button("+").on_press(Message::Increment),
+                            ]
+                            .spacing(4)
+                            .align_y(Center),
+                            text("A dialog that appears over the main content with a backdrop behind it."),
+                            text("Click the backdrop, press Esc, or use the top-right close button."),
+                        ]
+                        .spacing(8),
+                    )
+                    .width(Fill),
+                )
                 .title("Dialog Title")
-                .on_close(Message::Close)
+                .close_label("Close")
+                .push_action(
+                    button("Confirm")
+                        .on_press(Message::Dialog(widget::dialog::Message::RequestClose)),
+                )
+            });
+
+            widget::dialog(base, &self.dialog_state, config)
+                .on_update(Message::Dialog)
                 .backdrop_close(true)
                 .esc_close(true)
                 .animate(true)
-                .push_action(button("Confirm").on_press(Message::Close))
                 .into()
         }
     }

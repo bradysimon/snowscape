@@ -87,6 +87,16 @@ pub mod button {
     use iced::widget::button;
     use iced::{Theme, border};
 
+    pub const BORDER_RADIUS: f32 = 4.0;
+
+    pub fn primary(theme: &Theme, status: button::Status) -> button::Style {
+        let primary = iced::widget::button::primary(theme, status);
+        button::Style {
+            border: primary.border.rounded(BORDER_RADIUS),
+            ..primary
+        }
+    }
+
     /// Subtle button style for secondary actions.
     pub fn subtle(theme: &Theme, status: button::Status) -> button::Style {
         let palette = theme.extended_palette();
@@ -94,25 +104,25 @@ pub mod button {
             button::Status::Active => button::Style {
                 background: Some(palette.background.weak.color.into()),
                 text_color: palette.background.base.text,
-                border: border::rounded(4),
+                border: border::rounded(BORDER_RADIUS),
                 ..Default::default()
             },
             button::Status::Hovered => button::Style {
                 background: Some(palette.background.strong.color.into()),
                 text_color: palette.background.base.text,
-                border: border::rounded(4),
+                border: border::rounded(BORDER_RADIUS),
                 ..Default::default()
             },
             button::Status::Pressed => button::Style {
                 background: Some(palette.background.stronger.color.into()),
                 text_color: palette.background.stronger.text,
-                border: border::rounded(4),
+                border: border::rounded(BORDER_RADIUS),
                 ..Default::default()
             },
             button::Status::Disabled => button::Style {
                 background: Some(palette.background.weak.color.scale_alpha(0.5).into()),
                 text_color: palette.background.base.text.scale_alpha(0.5),
-                border: border::rounded(4),
+                border: border::rounded(BORDER_RADIUS),
                 ..Default::default()
             },
         }
@@ -126,25 +136,25 @@ pub mod button {
             button::Status::Active => button::Style {
                 background: None,
                 text_color: palette.background.base.text,
-                border: border::rounded(4),
+                border: border::rounded(BORDER_RADIUS),
                 ..Default::default()
             },
             button::Status::Hovered => button::Style {
                 background: Some(palette.background.weak.color.into()),
                 text_color: palette.background.base.text,
-                border: border::rounded(4),
+                border: border::rounded(BORDER_RADIUS),
                 ..Default::default()
             },
             button::Status::Pressed => button::Style {
                 background: Some(palette.background.strong.color.into()),
                 text_color: palette.background.strong.text,
-                border: border::rounded(4),
+                border: border::rounded(BORDER_RADIUS),
                 ..Default::default()
             },
             button::Status::Disabled => button::Style {
                 background: None,
                 text_color: palette.background.base.text.scale_alpha(0.5),
-                border: border::rounded(4),
+                border: border::rounded(BORDER_RADIUS),
                 ..Default::default()
             },
         }

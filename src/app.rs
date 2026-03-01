@@ -14,17 +14,23 @@ use iced::{
     Length::Fill,
     Subscription, Task, Theme, keyboard, system,
     theme::{self, Base},
-    widget::{column, container, opaque, operation, rule, scrollable, space, stack, text},
+    widget::{button, column, container, opaque, operation, rule, scrollable, space, stack, text},
     window,
 };
 use iced_anim::{Animated, Animation, Easing};
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 pub const SEARCH_INPUT_ID: &str = "search_input";
 
 /// A function to configure your app's previews.
 /// Send + Sync bound required to allow running tests off the main thread.
 pub(crate) type ConfigureFn = Arc<dyn Fn(App) -> App + Send + Sync>;
+
+#[derive(Debug, Clone)]
+struct DeleteTestDialog {
+    path: PathBuf,
+    name: String,
+}
 
 /// The preview app that shows registered previews.
 pub struct App {
@@ -52,6 +58,10 @@ pub struct App {
     configure: Option<ConfigureFn>,
     /// Test-related state.
     test: test::State,
+    /// Pending delete confirmation dialog state.
+    delete_test_dialog: Option<DeleteTestDialog>,
+    /// Explicit lifecycle state for the delete confirmation dialog.
+    delete_dialog_state: crate::widget::dialog::State,
 }
 
 impl Default for App {
@@ -69,6 +79,8 @@ impl Default for App {
             main_window: None,
             configure: None,
             test: test::State::default(),
+            delete_test_dialog: None,
+            delete_dialog_state: crate::widget::dialog::State::default(),
         }
     }
 }
@@ -316,6 +328,52 @@ impl App {
                 });
                 Task::batch([reset_task, self.test.update(msg, ctx).map(Message::Test)])
             }
+            Message::OpenDeleteTestDialog(path) => {
+                let name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("this test")
+                    .to_owned();
+
+                self.delete_test_dialog = Some(DeleteTestDialog { path, name });
+                self.delete_dialog_state.open();
+                Task::none()
+            }
+            Message::Dialog(message) => {
+                match message {
+                    crate::widget::dialog::Message::RequestClose => {
+                        self.delete_dialog_state.request_close();
+                    }
+                    crate::widget::dialog::Message::Closed => {
+                        self.delete_dialog_state.close();
+                        self.delete_test_dialog = None;
+                    }
+                }
+
+                Task::none()
+            }
+            Message::ConfirmDeleteTest => {
+                let Some(dialog) = self.delete_test_dialog.take() else {
+                    return Task::none();
+                };
+
+                self.delete_dialog_state.close();
+
+                // Build context for test update if we have a selected preview
+                let ctx = self.selected_index.and_then(|index| {
+                    self.descriptors
+                        .get(index)
+                        .map(|d| test::state::UpdateContext {
+                            preview_name: &d.metadata().label,
+                            preview_index: index,
+                            configure: self.configure.clone(),
+                        })
+                });
+
+                self.test
+                    .update(test::Message::Delete(dialog.path), ctx)
+                    .map(Message::Test)
+            }
         }
     }
 
@@ -403,6 +461,38 @@ impl App {
             Message::ResizeSidebar,
         )
         .strategy(Strategy::Start);
+
+        let delete_config = if self.delete_dialog_state.is_visible() {
+            self.delete_test_dialog.as_ref().map(|dialog| {
+                crate::widget::dialog::Config::new(
+                    column![
+                        text("Are you sure you want to delete this test?").size(16),
+                        text(&dialog.name).size(13).style(crate::style::text::muted),
+                    ]
+                    .spacing(8),
+                )
+                .title("Delete Test")
+                .push_action(
+                    button("Delete")
+                        .on_press(Message::ConfirmDeleteTest)
+                        .style(crate::style::button::primary),
+                )
+                .push_action(
+                    button("Cancel")
+                        .on_press(Message::Dialog(
+                            crate::widget::dialog::Message::RequestClose,
+                        ))
+                        .style(crate::style::button::ghost_subtle),
+                )
+            })
+        } else {
+            None
+        };
+
+        let page: Element<'_, Message> =
+            crate::widget::dialog(page, &self.delete_dialog_state, delete_config)
+                .on_update(Message::Dialog)
+                .into();
 
         if let Some(theme) = self.theme.as_ref() {
             Animation::new(theme, page)
