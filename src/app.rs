@@ -467,7 +467,7 @@ impl App {
                 crate::widget::dialog::Config::new(
                     column![
                         text("Are you sure you want to delete this test?").size(16),
-                        text(&dialog.name).size(13).style(crate::style::text::muted),
+                        text(&dialog.name).size(14).style(crate::style::text::muted),
                     ]
                     .spacing(8),
                 )
