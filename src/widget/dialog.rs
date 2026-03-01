@@ -834,16 +834,43 @@ where
         translation: Vector,
     ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         let mut children = layout.children();
-        let _base_layout = children.next()?;
+        let base_layout = children.next()?;
         let _backdrop_layout = children.next()?;
         let panel_layout = children.next()?;
 
-        self.panel.as_widget_mut().overlay(
-            &mut tree.children[2],
-            panel_layout,
+        let show_panel_overlay = {
+            let state = tree.state.downcast_ref::<WidgetState>();
+            self.is_showing(state)
+        };
+
+        let (base_and_backdrop, panel_tree) = tree.children.split_at_mut(2);
+        let base_tree = &mut base_and_backdrop[0];
+        let panel_tree = &mut panel_tree[0];
+
+        let mut overlays = Vec::new();
+
+        if let Some(base_overlay) = self.base.as_widget_mut().overlay(
+            base_tree,
+            base_layout,
             renderer,
             viewport,
             translation,
-        )
+        ) {
+            overlays.push(base_overlay);
+        }
+
+        if show_panel_overlay
+            && let Some(panel_overlay) = self.panel.as_widget_mut().overlay(
+                panel_tree,
+                panel_layout,
+                renderer,
+                viewport,
+                translation,
+            )
+        {
+            overlays.push(panel_overlay);
+        }
+
+        (!overlays.is_empty()).then(|| overlay::Group::with_children(overlays).overlay())
     }
 }

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use iced::Alignment::Center;
 use iced::Length::Fill;
-use iced::widget::{button, column, container, row, space, text};
+use iced::widget::{button, column, container, pick_list, row, space, text};
 use iced::{Color, Element};
 use snowscape::preview::{Performance, Preview};
 use snowscape::preview::{dynamic, performance::Indicator, stateful, stateless, stateless_with};
@@ -251,16 +251,54 @@ fn test_pane() -> impl Preview {
 
 /// Previews the dialog widget with open/close interactions.
 fn dialog_preview() -> impl Preview {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    enum Flavor {
+        #[default]
+        Vanilla,
+        Chocolate,
+        Strawberry,
+        CookiesAndCream,
+        Butterscotch,
+        Pecan,
+    }
+
+    impl Flavor {
+        const ALL: [Flavor; 6] = [
+            Flavor::Vanilla,
+            Flavor::Chocolate,
+            Flavor::Strawberry,
+            Flavor::CookiesAndCream,
+            Flavor::Butterscotch,
+            Flavor::Pecan,
+        ];
+    }
+
+    impl std::fmt::Display for Flavor {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let label = match self {
+                Flavor::Vanilla => "Vanilla",
+                Flavor::Chocolate => "Chocolate",
+                Flavor::Strawberry => "Strawberry",
+                Flavor::CookiesAndCream => "Cookies and Cream",
+                Flavor::Butterscotch => "Butterscotch",
+                Flavor::Pecan => "Pecan",
+            };
+            write!(f, "{label}")
+        }
+    }
+
     #[derive(Debug, Clone)]
     enum Message {
         Open,
         Increment,
         Decrement,
+        SelectFlavor(Flavor),
         Dialog(widget::dialog::Message),
     }
 
     struct DialogDemo {
         counter: i32,
+        flavor: Flavor,
         dialog_state: widget::dialog::State,
         closed_count: u32,
     }
@@ -269,6 +307,7 @@ fn dialog_preview() -> impl Preview {
         fn default() -> Self {
             Self {
                 counter: 0,
+                flavor: Flavor::default(),
                 dialog_state: widget::dialog::State::default(),
                 closed_count: 0,
             }
@@ -281,6 +320,7 @@ fn dialog_preview() -> impl Preview {
                 Message::Open => self.dialog_state.open(),
                 Message::Increment => self.counter += 1,
                 Message::Decrement => self.counter -= 1,
+                Message::SelectFlavor(flavor) => self.flavor = flavor,
                 Message::Dialog(dialog_message) => {
                     self.dialog_state.update(dialog_message);
 
@@ -312,6 +352,13 @@ fn dialog_preview() -> impl Preview {
                                 button("-").on_press(Message::Decrement),
                                 text!("{}", self.counter).width(40).line_height(1.0).center(),
                                 button("+").on_press(Message::Increment),
+                                space::horizontal(),
+                                pick_list(
+                                    &Flavor::ALL[..],
+                                    Some(self.flavor),
+                                    Message::SelectFlavor
+                                )
+                                .placeholder("Select flavor")
                             ]
                             .spacing(4)
                             .align_y(Center),
