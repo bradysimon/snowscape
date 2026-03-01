@@ -371,6 +371,7 @@ fn dialog_preview() -> impl Preview {
                 )
                 .title("Dialog Title")
                 .close_label("Close")
+                .width(500)
                 .push_action(
                     button("Confirm")
                         .on_press(Message::Dialog(widget::dialog::Message::RequestClose)),

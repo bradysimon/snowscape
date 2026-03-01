@@ -5,7 +5,7 @@
 //! until close animations are fully complete.
 use iced::{
     Alignment, Animation, Color, Element, Event,
-    Length::Fill,
+    Length::{self, Fill},
     Rectangle, Size, Theme, Vector,
     advanced::{
         Layout, Shell,
@@ -21,6 +21,9 @@ use iced::{
     widget::{button, column, container, mouse_area, row, space, text},
     window,
 };
+
+/// The default width used by a dialog panel.
+pub const DEFAULT_WIDTH: Length = Length::Fixed(400.0);
 
 /// Dialog lifecycle message emitted by the dialog widget.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,10 +116,12 @@ where
 {
     /// Optional title shown in the dialog header.
     title: Option<String>,
-    /// Body content shown inside the dialog panel.
-    content: Element<'a, Message, Theme, Renderer>,
     /// Optional close button label shown next to the close icon.
     close_label: Option<String>,
+    /// The width of the dialog panel.
+    width: Length,
+    /// Body content shown inside the dialog panel.
+    content: Element<'a, Message, Theme, Renderer>,
     /// Footer action widgets rendered at the bottom of the panel.
     actions: Vec<Element<'a, Message, Theme, Renderer>>,
 }
@@ -129,9 +134,10 @@ where
     /// Creates a new [`Config`] with the given body content.
     pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
         Self {
-            content: content.into(),
             title: None,
             close_label: None,
+            width: DEFAULT_WIDTH,
+            content: content.into(),
             actions: Vec::new(),
         }
     }
@@ -147,6 +153,16 @@ where
     #[must_use]
     pub fn close_label(mut self, label: impl Into<String>) -> Self {
         self.close_label = Some(label.into());
+        self
+    }
+
+    /// Sets the width of the dialog panel.
+    ///
+    /// Some designs like Material recommend widths between 280-560px.
+    /// See: [`DEFAULT_WIDTH`]
+    #[must_use]
+    pub fn width(mut self, width: impl Into<Length>) -> Self {
+        self.width = width.into();
         self
     }
 
@@ -193,6 +209,8 @@ where
     title: Option<String>,
     /// Optional close button label shown next to the close icon.
     close_label: Option<String>,
+    /// The width of the dialog panel.
+    width: Length,
     /// Whether clicking the backdrop triggers the close message.
     backdrop_close: bool,
     /// Whether pressing `Esc` triggers the close message.
@@ -217,15 +235,16 @@ where
         state: &State,
         config: Option<Config<'a, Message, Renderer>>,
     ) -> Self {
-        let (content, title, close_label, actions, open) = match config {
+        let (content, title, close_label, width, actions, open) = match config {
             Some(config) => (
                 config.content,
                 config.title,
                 config.close_label,
+                config.width,
                 config.actions,
                 state.is_open(),
             ),
-            None => (space().into(), None, None, Vec::new(), false),
+            None => (space().into(), None, None, DEFAULT_WIDTH, Vec::new(), false),
         };
 
         Self {
@@ -235,6 +254,7 @@ where
             on_update: None,
             title,
             close_label,
+            width,
             backdrop_close: true,
             esc_close: true,
             animate: true,
@@ -282,6 +302,7 @@ where
         content: Element<'a, Message, Theme, Renderer>,
         title_text: Option<String>,
         close_label: Option<String>,
+        width: Length,
         actions: Vec<Element<'a, Message, Theme, Renderer>>,
         close_message: Option<Message>,
         backdrop_close: bool,
@@ -329,7 +350,7 @@ where
         let title: Element<'a, Message, Theme, Renderer> = if let Some(title) = title_text {
             text(title).size(18).into()
         } else {
-            space::horizontal().into()
+            space().into()
         };
 
         let header = row![title, space::horizontal(), close_button].align_y(Alignment::Center);
@@ -343,8 +364,7 @@ where
 
         let panel: Element<'a, Message, Theme, Renderer> = container(body)
             .padding(16)
-            .max_width(500)
-            .width(Fill)
+            .width(width)
             .style(crate::style::container::dialog_panel)
             .into();
 
@@ -381,6 +401,7 @@ where
             on_update,
             title,
             close_label,
+            width,
             backdrop_close,
             esc_close,
             animate,
@@ -401,6 +422,7 @@ where
             content,
             title.clone(),
             close_label,
+            width,
             actions,
             close_intent_message.clone(),
             backdrop_close,
