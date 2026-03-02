@@ -341,6 +341,9 @@ impl App {
             }
             Message::Dialog(message) => {
                 match message {
+                    crate::widget::dialog::Message::Opened => {
+                        self.delete_dialog_state.opened();
+                    }
                     crate::widget::dialog::Message::RequestClose => {
                         self.delete_dialog_state.request_close();
                     }

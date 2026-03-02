@@ -28,6 +28,8 @@ pub const DEFAULT_WIDTH: Length = Length::Fixed(400.0);
 /// Dialog lifecycle message emitted by the dialog widget.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Message {
+    /// The dialog has finished opening.
+    Opened,
     /// The user requested the dialog to close.
     RequestClose,
     /// The dialog has finished closing.
@@ -35,11 +37,13 @@ pub enum Message {
 }
 
 /// The visual status of the dialog.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum Status {
     /// The dialog is fully closed.
     #[default]
     Closed,
+    /// The dialog is in the process of opening and animating in.
+    Opening,
     /// The dialog is open and visible.
     Open,
     /// The dialog is in the process of closing and animating out.
@@ -55,6 +59,11 @@ pub struct State {
 impl State {
     /// Sets the dialog state to open.
     pub fn open(&mut self) {
+        self.status = Status::Opening;
+    }
+
+    /// Marks the dialog as fully open.
+    pub fn opened(&mut self) {
         self.status = Status::Open;
     }
 
@@ -73,6 +82,7 @@ impl State {
     /// Applies a dialog lifecycle message to this state.
     pub fn update(&mut self, message: Message) {
         match message {
+            Message::Opened => self.opened(),
             Message::RequestClose => self.request_close(),
             Message::Closed => self.close(),
         }
@@ -85,7 +95,7 @@ impl State {
 
     /// Returns true when the dialog target state is open.
     pub fn is_open(&self) -> bool {
-        self.status == Status::Open
+        matches!(self.status, Status::Opening | Status::Open)
     }
 
     /// Returns true while dialog content should be rendered.
@@ -420,6 +430,7 @@ where
                 map(self::Message::Closed)
             }
         });
+        let on_opened = on_update.map(|map| map(self::Message::Opened));
         let on_closed = on_update.map(|map| map(self::Message::Closed));
 
         let (backdrop_target, panel) = Dialog::build_overlay_parts(
@@ -437,6 +448,7 @@ where
             backdrop_target,
             panel,
             open,
+            on_opened,
             on_close_intent: close_intent_message,
             on_closed,
             esc_close,
@@ -463,6 +475,7 @@ where
     backdrop_target: Element<'a, Message, Theme, Renderer>,
     panel: Element<'a, Message, Theme, Renderer>,
     open: bool,
+    on_opened: Option<Message>,
     on_close_intent: Option<Message>,
     on_closed: Option<Message>,
     esc_close: bool,
@@ -473,6 +486,7 @@ struct WidgetState {
     visibility: Animation<bool>,
     now: Instant,
     was_open: bool,
+    opened_emitted: bool,
     closed_emitted: bool,
 }
 
@@ -484,6 +498,7 @@ impl WidgetState {
                 .easing(animation::Easing::EaseInOutBack),
             now: Instant::now(),
             was_open: false,
+            opened_emitted: false,
             closed_emitted: false,
         }
     }
@@ -511,12 +526,23 @@ where
         progress > 0.0 || self.open || (self.animate && state.visibility.is_animating(state.now))
     }
 
+    fn is_transitioning(&self, state: &WidgetState) -> bool {
+        self.animate && state.visibility.is_animating(state.now)
+    }
+
     fn did_close(&self, state: &WidgetState) -> bool {
         self.animate
             && !self.open
             && state.was_open
             && !state.visibility.is_animating(state.now)
             && self.progress(state) <= f32::EPSILON
+    }
+
+    fn did_open(&self, state: &WidgetState) -> bool {
+        self.open
+            && (!self.animate
+                || (!state.visibility.is_animating(state.now)
+                    && self.progress(state) >= 1.0 - f32::EPSILON))
     }
 }
 
@@ -593,6 +619,8 @@ where
         if self.open {
             state.was_open = true;
             state.closed_emitted = false;
+        } else {
+            state.opened_emitted = false;
         }
 
         if let Event::Window(window::Event::RedrawRequested(now)) = event {
@@ -617,12 +645,20 @@ where
             }
         }
 
+        if self.did_open(state) && !state.opened_emitted {
+            if let Some(message) = &self.on_opened {
+                shell.publish(message.clone());
+            }
+            state.opened_emitted = true;
+        }
+
         if self.did_close(state) && !state.closed_emitted {
             if let Some(message) = &self.on_closed {
                 shell.publish(message.clone());
             }
             state.closed_emitted = true;
             state.was_open = false;
+            state.opened_emitted = false;
         }
 
         let mut children = layout.children();
@@ -637,49 +673,55 @@ where
         };
 
         if self.is_showing(state) {
+            let is_transitioning = self.is_transitioning(state);
             let panel_press = matches!(
                 event,
                 Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
                     | Event::Touch(touch::Event::FingerPressed { .. })
             ) && cursor.is_over(panel_layout.bounds());
 
-            if !panel_press {
-                self.backdrop_target.as_widget_mut().update(
-                    &mut tree.children[1],
+            if !is_transitioning {
+                if !panel_press {
+                    self.backdrop_target.as_widget_mut().update(
+                        &mut tree.children[1],
+                        event,
+                        backdrop_layout,
+                        cursor,
+                        renderer,
+                        shell,
+                        viewport,
+                    );
+                }
+
+                self.panel.as_widget_mut().update(
+                    &mut tree.children[2],
                     event,
-                    backdrop_layout,
+                    panel_layout,
                     cursor,
                     renderer,
                     shell,
                     viewport,
                 );
+
+                if self.esc_close
+                    && let Some(message) = &self.on_close_intent
+                    && let Event::Keyboard(keyboard::Event::KeyPressed { key, .. }) = event
+                    && matches!(
+                        key.as_ref(),
+                        keyboard::Key::Named(keyboard::key::Named::Escape)
+                    )
+                    && !shell.is_event_captured()
+                {
+                    shell.publish(message.clone());
+                    shell.capture_event();
+                }
             }
 
-            self.panel.as_widget_mut().update(
-                &mut tree.children[2],
+            if matches!(
                 event,
-                panel_layout,
-                cursor,
-                renderer,
-                shell,
-                viewport,
-            );
-
-            if self.esc_close
-                && let Some(message) = &self.on_close_intent
-                && let Event::Keyboard(keyboard::Event::KeyPressed { key, .. }) = event
-                && matches!(
-                    key.as_ref(),
-                    keyboard::Key::Named(keyboard::key::Named::Escape)
-                )
-                && !shell.is_event_captured()
-            {
-                shell.publish(message.clone());
-                shell.capture_event();
-            }
-
-            if matches!(event, Event::Mouse(mouse::Event::ButtonPressed(_)))
-                && !shell.is_event_captured()
+                Event::Mouse(mouse::Event::ButtonPressed(_))
+                    | Event::Touch(touch::Event::FingerPressed { .. })
+            ) && !shell.is_event_captured()
             {
                 shell.capture_event();
             }
@@ -784,6 +826,10 @@ where
         };
 
         if self.is_showing(state) {
+            if self.is_transitioning(state) {
+                return mouse::Interaction::None;
+            }
+
             let panel_interaction = self.panel.as_widget().mouse_interaction(
                 &tree.children[2],
                 panel_layout,
@@ -866,7 +912,7 @@ where
 
         let show_panel_overlay = {
             let state = tree.state.downcast_ref::<WidgetState>();
-            self.is_showing(state)
+            self.is_showing(state) && !self.is_transitioning(state)
         };
 
         let (base_and_backdrop, panel_tree) = tree.children.split_at_mut(2);
