@@ -263,7 +263,7 @@ where
     /// Whether the dialog should be shown.
     open: bool,
     /// Callback used to map dialog lifecycle events into app messages.
-    on_update: Option<fn(self::Message) -> Message>,
+    on_update: Option<Box<dyn Fn(self::Message) -> Message + 'a>>,
     /// Optional title shown in the dialog header.
     title: Option<String>,
     /// Optional close button label shown next to the close icon.
@@ -323,8 +323,8 @@ where
 
     /// Sets the app message mapper for dialog lifecycle events.
     #[must_use]
-    pub fn on_update(mut self, mapper: fn(self::Message) -> Message) -> Self {
-        self.on_update = Some(mapper);
+    pub fn on_update(mut self, mapper: impl Fn(self::Message) -> Message + 'a) -> Self {
+        self.on_update = Some(Box::new(mapper));
         self
     }
 
@@ -461,9 +461,9 @@ where
             ..
         } = dialog;
 
-        let close_intent_message = on_update.map(|map| map(self::Message::Close));
-        let on_opened = on_update.map(|map| map(self::Message::Opened));
-        let on_closed = on_update.map(|map| map(self::Message::Closed));
+        let close_intent_message = on_update.as_ref().map(|map| map(self::Message::Close));
+        let on_opened = on_update.as_ref().map(|map| map(self::Message::Opened));
+        let on_closed = on_update.as_ref().map(|map| map(self::Message::Closed));
 
         let (backdrop_target, panel) = Dialog::build_overlay_parts(
             content,
