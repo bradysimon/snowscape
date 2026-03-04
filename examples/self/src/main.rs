@@ -302,7 +302,6 @@ fn dialog_preview_builder(animated: bool) -> impl Preview {
     struct DialogDemo {
         counter: i32,
         flavor: Flavor,
-        animated: bool,
         dialog_state: widget::dialog::State,
         closed_count: u32,
     }
@@ -310,14 +309,13 @@ fn dialog_preview_builder(animated: bool) -> impl Preview {
     impl DialogDemo {
         fn update(&mut self, message: Message) {
             match message {
-                Message::Open => self.dialog_state.open_with_animation(self.animated),
+                Message::Open => self.dialog_state.open(),
                 Message::Increment => self.counter += 1,
                 Message::Decrement => self.counter -= 1,
                 Message::SelectFlavor(flavor) => self.flavor = flavor,
                 Message::Dialog(dialog_message) => {
-                    self.dialog_state.update(dialog_message);
-
-                    if matches!(dialog_message, widget::dialog::Message::Closed) {
+                    let action = self.dialog_state.update(dialog_message);
+                    if let Some(widget::dialog::Action::Closed) = action {
                         self.closed_count += 1;
                     }
                 }
@@ -367,7 +365,7 @@ fn dialog_preview_builder(animated: bool) -> impl Preview {
                 .width(500)
                 .push_action(
                     button("Confirm")
-                        .on_press(Message::Dialog(widget::dialog::Message::RequestClose)),
+                        .on_press(Message::Dialog(widget::dialog::Message::Close)),
                 )
             });
 
@@ -375,7 +373,6 @@ fn dialog_preview_builder(animated: bool) -> impl Preview {
                 .on_update(Message::Dialog)
                 .backdrop_close(true)
                 .esc_close(true)
-                .animate(self.animated)
                 .into()
         }
     }
@@ -389,8 +386,7 @@ fn dialog_preview_builder(animated: bool) -> impl Preview {
         move || DialogDemo {
             counter: 0,
             flavor: Flavor::default(),
-            animated,
-            dialog_state: widget::dialog::State::default(),
+            dialog_state: widget::dialog::State::default().animated(animated),
             closed_count: 0,
         },
         DialogDemo::update,

@@ -26,13 +26,21 @@ use iced::{
 pub const DEFAULT_WIDTH: Length = Length::Fixed(400.0);
 
 /// Dialog lifecycle message emitted by the dialog widget.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Message {
     /// The dialog has finished opening.
     Opened,
     /// The user requested the dialog to close.
-    RequestClose,
+    Close,
     /// The dialog has finished closing.
+    /// Primarily used for animated dialogs to signal the end of the closing animation.
+    Closed,
+}
+
+/// Actions that the dialog informs the main app about.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Action {
+    /// The dialog has been closed and the parent app should clean up any necessary state.
     Closed,
 }
 
@@ -51,59 +59,83 @@ pub enum Status {
 }
 
 /// External dialog state managed by the parent app.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct State {
+    /// The current visual status of the dialog.
+    /// Animated dialogs will use [`Status::Opening`] and [`Status::Closing`] states.
     status: Status,
+    /// Whether the dialog should animate when opening or closing.
+    is_animated: bool,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            status: Status::Closed,
+            is_animated: true,
+        }
+    }
 }
 
 impl State {
+    /// Sets whether the dialog should animate when opening or closing.
+    pub fn animated(mut self, animated: bool) -> Self {
+        self.is_animated = animated;
+        self
+    }
+
     /// Sets the dialog state to open.
     pub fn open(&mut self) {
-        self.status = Status::Opening;
+        self.status = if self.is_animated {
+            Status::Opening
+        } else {
+            Status::Open
+        };
     }
 
-    /// Opens the dialog, optionally skipping animation lifecycle.
-    ///
-    /// When `animated` is `false`, this immediately transitions to
-    /// [`Status::Open`] via [`State::update`] so callers do not need to
-    /// manually apply `Message::Opened`.
-    pub fn open_with_animation(&mut self, animated: bool) {
-        self.open();
-
-        if !animated {
-            self.update(Message::Opened);
-        }
-    }
-
-    /// Marks the dialog as fully open.
-    pub fn opened(&mut self) {
-        self.status = Status::Open;
-    }
-
-    /// Requests the dialog to start closing.
-    pub fn request_close(&mut self) {
-        if self.status != Status::Closed {
-            self.status = Status::Closing;
-        }
-    }
-
-    /// Marks the dialog as fully closed.
+    /// Closes the dialog, either immediately closing if not animated or starting the closing animation.
     pub fn close(&mut self) {
-        self.status = Status::Closed;
+        if self.is_animated {
+            self.status = Status::Closing;
+        } else {
+            self.status = Status::Closed;
+        }
     }
 
     /// Applies a dialog lifecycle message to this state.
-    pub fn update(&mut self, message: Message) {
+    #[must_use]
+    pub fn update(&mut self, message: Message) -> Option<Action> {
         match message {
-            Message::Opened => self.opened(),
-            Message::RequestClose => self.request_close(),
-            Message::Closed => self.close(),
+            Message::Opened => {
+                self.status = Status::Open;
+                None
+            }
+            Message::Close => {
+                if self.is_animated {
+                    if self.status != Status::Closing {
+                        self.status = Status::Closing;
+                    }
+                    None
+                } else {
+                    self.status = Status::Closed;
+                    Some(Action::Closed)
+                }
+            }
+            Message::Closed => {
+                self.status = Status::Closed;
+                Some(Action::Closed)
+            }
         }
     }
 
     /// Returns the current status.
     pub fn status(&self) -> Status {
         self.status
+    }
+
+    /// Returns whether this dialog state is configured to animate.
+    pub fn is_animated(&self) -> bool {
+        self.is_animated
     }
 
     /// Returns true when the dialog target state is open.
@@ -284,7 +316,7 @@ where
             width,
             backdrop_close: true,
             esc_close: true,
-            animate: true,
+            animate: state.is_animated(),
             actions,
         }
     }
@@ -307,13 +339,6 @@ where
     #[must_use]
     pub fn esc_close(mut self, enabled: bool) -> Self {
         self.esc_close = enabled;
-        self
-    }
-
-    /// Enables or disables dialog animations.
-    #[must_use]
-    pub fn animate(mut self, enabled: bool) -> Self {
-        self.animate = enabled;
         self
     }
 
@@ -436,13 +461,7 @@ where
             ..
         } = dialog;
 
-        let close_intent_message = on_update.map(|map| {
-            if animate {
-                map(self::Message::RequestClose)
-            } else {
-                map(self::Message::Closed)
-            }
-        });
+        let close_intent_message = on_update.map(|map| map(self::Message::Close));
         let on_opened = on_update.map(|map| map(self::Message::Opened));
         let on_closed = on_update.map(|map| map(self::Message::Closed));
 
@@ -957,5 +976,56 @@ where
         }
 
         (!overlays.is_empty()).then(|| overlay::Group::with_children(overlays).overlay())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Opening a non-animated dialog should immediately set its status to open.
+    #[test]
+    fn open_no_animation() {
+        let mut state = State::default();
+        state.open();
+        assert_eq!(state.status, Status::Open);
+    }
+
+    /// Opening an animated dialog should set its status to opening.
+    #[test]
+    fn open_animated() {
+        let mut state = State::default().animated(true);
+        state.open();
+        assert_eq!(state.status, Status::Opening);
+    }
+
+    /// Requesting the dialog to close should transition it to the closed state.
+    #[test]
+    fn update_close_no_animation() {
+        let mut state = State {
+            status: Status::Open,
+            is_animated: false,
+        };
+        let action = state.update(Message::Close);
+        assert_eq!(state.status, Status::Closed);
+        assert_eq!(action, None);
+    }
+
+    /// Closing an animated dialog should lead to [`Status::Closing`] state first,
+    /// then to [`Status::Closed`] once the closing animation is signaled
+    /// with [`Message::Closed`].
+    #[test]
+    fn update_close_animated() {
+        let mut state = State {
+            status: Status::Open,
+            is_animated: true,
+        };
+        let action = state.update(Message::Close);
+        assert_eq!(state.status, Status::Closing);
+        assert_eq!(action, None);
+
+        let action = state.update(Message::Closed);
+        assert_eq!(state.status, Status::Closed);
+        assert_eq!(action, Some(Action::Closed));
     }
 }

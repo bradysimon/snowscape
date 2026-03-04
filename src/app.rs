@@ -60,8 +60,8 @@ pub struct App {
     test: test::State,
     /// Pending delete confirmation dialog state.
     delete_test_dialog: Option<DeleteTestDialog>,
-    /// Explicit lifecycle state for the delete confirmation dialog.
-    delete_dialog_state: crate::widget::dialog::State,
+    /// State for the global dialog widget.
+    dialog: crate::widget::dialog::State,
 }
 
 impl Default for App {
@@ -80,7 +80,7 @@ impl Default for App {
             configure: None,
             test: test::State::default(),
             delete_test_dialog: None,
-            delete_dialog_state: crate::widget::dialog::State::default(),
+            dialog: crate::widget::dialog::State::default(),
         }
     }
 }
@@ -336,24 +336,23 @@ impl App {
                     .to_owned();
 
                 self.delete_test_dialog = Some(DeleteTestDialog { path, name });
-                self.delete_dialog_state.open();
+                self.dialog.open();
                 Task::none()
             }
             Message::Dialog(message) => {
-                self.delete_dialog_state.update(message);
-
-                if matches!(message, crate::widget::dialog::Message::Closed) {
+                let action = self.dialog.update(message);
+                if let Some(crate::widget::dialog::Action::Closed) = action {
                     self.delete_test_dialog = None;
                 }
 
                 Task::none()
             }
             Message::ConfirmDeleteTest => {
-                let Some(dialog) = self.delete_test_dialog.take() else {
+                let Some(dialog) = &self.delete_test_dialog else {
                     return Task::none();
                 };
 
-                self.delete_dialog_state.close();
+                self.dialog.close();
 
                 // Build context for test update if we have a selected preview
                 let ctx = self.selected_index.and_then(|index| {
@@ -367,7 +366,7 @@ impl App {
                 });
 
                 self.test
-                    .update(test::Message::Delete(dialog.path), ctx)
+                    .update(test::Message::Delete(dialog.path.clone()), ctx)
                     .map(Message::Test)
             }
         }
@@ -458,7 +457,7 @@ impl App {
         )
         .strategy(Strategy::Start);
 
-        let delete_config = if self.delete_dialog_state.is_visible() {
+        let delete_config = if self.dialog.is_visible() {
             self.delete_test_dialog.as_ref().map(|dialog| {
                 crate::widget::dialog::Config::new(
                     column![
@@ -475,9 +474,7 @@ impl App {
                 )
                 .push_action(
                     button("Cancel")
-                        .on_press(Message::Dialog(
-                            crate::widget::dialog::Message::RequestClose,
-                        ))
+                        .on_press(Message::Dialog(crate::widget::dialog::Message::Close))
                         .style(crate::style::button::ghost_subtle),
                 )
             })
@@ -485,10 +482,9 @@ impl App {
             None
         };
 
-        let page: Element<'_, Message> =
-            crate::widget::dialog(page, &self.delete_dialog_state, delete_config)
-                .on_update(Message::Dialog)
-                .into();
+        let page: Element<'_, Message> = crate::widget::dialog(page, &self.dialog, delete_config)
+            .on_update(Message::Dialog)
+            .into();
 
         if let Some(theme) = self.theme.as_ref() {
             Animation::new(theme, page)
