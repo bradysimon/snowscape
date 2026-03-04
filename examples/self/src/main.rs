@@ -26,6 +26,7 @@ pub fn previews(app: App) -> App {
         .preview(performance_pane())
         .preview(test_pane())
         .preview(dialog_preview())
+        .preview(dialog_preview_no_animation())
         .preview(app_preview())
 }
 
@@ -249,8 +250,10 @@ fn test_pane() -> impl Preview {
     )
 }
 
-/// Previews the dialog widget with open/close interactions.
-fn dialog_preview() -> impl Preview {
+/// Builds a dialog preview configured with optional animation.
+/// This is done this way instead of a preview with a param for now
+/// since we want the ability to have tests for this component.
+fn dialog_preview_builder(animated: bool) -> impl Preview {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     enum Flavor {
         #[default]
@@ -299,25 +302,15 @@ fn dialog_preview() -> impl Preview {
     struct DialogDemo {
         counter: i32,
         flavor: Flavor,
+        animated: bool,
         dialog_state: widget::dialog::State,
         closed_count: u32,
-    }
-
-    impl Default for DialogDemo {
-        fn default() -> Self {
-            Self {
-                counter: 0,
-                flavor: Flavor::default(),
-                dialog_state: widget::dialog::State::default(),
-                closed_count: 0,
-            }
-        }
     }
 
     impl DialogDemo {
         fn update(&mut self, message: Message) {
             match message {
-                Message::Open => self.dialog_state.open(),
+                Message::Open => self.dialog_state.open_with_animation(self.animated),
                 Message::Increment => self.counter += 1,
                 Message::Decrement => self.counter -= 1,
                 Message::SelectFlavor(flavor) => self.flavor = flavor,
@@ -382,18 +375,39 @@ fn dialog_preview() -> impl Preview {
                 .on_update(Message::Dialog)
                 .backdrop_close(true)
                 .esc_close(true)
-                .animate(true)
+                .animate(self.animated)
                 .into()
         }
     }
 
     stateful(
-        "Dialog",
-        DialogDemo::default,
+        if animated {
+            "Dialog"
+        } else {
+            "Dialog Without Animation"
+        },
+        move || DialogDemo {
+            counter: 0,
+            flavor: Flavor::default(),
+            animated,
+            dialog_state: widget::dialog::State::default(),
+            closed_count: 0,
+        },
         DialogDemo::update,
         DialogDemo::view,
     )
     .description("A stateful preview to validate opening and closing the dialog widget.")
+}
+
+/// Previews the dialog widget with animations enabled.
+fn dialog_preview() -> impl Preview {
+    dialog_preview_builder(true)
+}
+
+// TODO: Might be cool to make params configurable for tests, or utilize presets somehow.
+/// Previews the dialog widget with animations disabled for deterministic tests.
+fn dialog_preview_no_animation() -> impl Preview {
+    dialog_preview_builder(false)
 }
 
 /// Previews the entire Snowscape application itself as a nested preview.
@@ -411,6 +425,7 @@ fn app_preview() -> impl Preview {
                 .preview(performance_pane())
                 .preview(test_pane())
                 .preview(dialog_preview())
+                .preview(dialog_preview_no_animation())
         },
         App::internal_update,
         App::internal_view,
@@ -420,10 +435,12 @@ fn app_preview() -> impl Preview {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn passes_visual_tests() -> Result<(), snowscape::test::Error> {
-        snowscape::test::run(previews, format!("{}/tests", env!("CARGO_MANIFEST_DIR")))
+        snowscape::test::run(
+            super::previews,
+            format!("{}/tests", env!("CARGO_MANIFEST_DIR")),
+        )
     }
 }

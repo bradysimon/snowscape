@@ -62,6 +62,19 @@ impl State {
         self.status = Status::Opening;
     }
 
+    /// Opens the dialog, optionally skipping animation lifecycle.
+    ///
+    /// When `animated` is `false`, this immediately transitions to
+    /// [`Status::Open`] via [`State::update`] so callers do not need to
+    /// manually apply `Message::Opened`.
+    pub fn open_with_animation(&mut self, animated: bool) {
+        self.open();
+
+        if !animated {
+            self.update(Message::Opened);
+        }
+    }
+
     /// Marks the dialog as fully open.
     pub fn opened(&mut self) {
         self.status = Status::Open;

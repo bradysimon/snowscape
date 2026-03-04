@@ -340,17 +340,10 @@ impl App {
                 Task::none()
             }
             Message::Dialog(message) => {
-                match message {
-                    crate::widget::dialog::Message::Opened => {
-                        self.delete_dialog_state.opened();
-                    }
-                    crate::widget::dialog::Message::RequestClose => {
-                        self.delete_dialog_state.request_close();
-                    }
-                    crate::widget::dialog::Message::Closed => {
-                        self.delete_dialog_state.close();
-                        self.delete_test_dialog = None;
-                    }
+                self.delete_dialog_state.update(message);
+
+                if matches!(message, crate::widget::dialog::Message::Closed) {
+                    self.delete_test_dialog = None;
                 }
 
                 Task::none()
