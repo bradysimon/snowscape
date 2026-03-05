@@ -189,12 +189,15 @@ pub mod container {
     }
 
     pub fn dialog_panel(theme: &Theme) -> container::Style {
-        let pair = theme.extended_palette().background.base;
+        let pair = theme.extended_palette().background.weakest;
 
         container::Style {
             text_color: Some(pair.text),
             background: Some(pair.color.into()),
-            border: Border::default().rounded(8),
+            border: Border::default()
+                .rounded(8)
+                .width(1)
+                .color(theme.extended_palette().background.weaker.color),
             shadow: Shadow {
                 color: Color::BLACK.scale_alpha(0.35),
                 offset: Vector::new(0.0, 8.0),
