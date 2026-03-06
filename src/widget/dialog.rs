@@ -749,12 +749,17 @@ where
                 }
             }
 
-            if matches!(
-                event,
-                Event::Mouse(mouse::Event::ButtonPressed(_))
-                    | Event::Touch(touch::Event::FingerPressed { .. })
-            ) && !shell.is_event_captured()
-            {
+            let in_bounds = match event {
+                Event::Mouse(mouse::Event::ButtonPressed(_)) => {
+                    cursor.is_over(backdrop_layout.bounds())
+                }
+                Event::Touch(touch::Event::FingerPressed { position, .. }) => {
+                    backdrop_layout.bounds().contains(*position)
+                }
+                _ => false,
+            };
+
+            if in_bounds && !shell.is_event_captured() {
                 shell.capture_event();
             }
 
