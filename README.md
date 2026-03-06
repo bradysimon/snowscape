@@ -5,9 +5,18 @@ inspired by Storybook and SwiftUI previews.
 
 Snowscape makes it easy to preview specific Iced elements in isolation while
 developing your application. It provides an API for you to run an Iced app that
-displays your elements, allowing you to quickly iterate on specific components
-without having to navigate through your entire app. Snowscape also supports
-capturing screenshots of your previews from the command line.
+displays your elements, allowing you to quickly iterate and test specific 
+components without having to navigate through your entire app. Snowscape 
+supports:
+
+- Documenting how components work and how you can use them in a searchable,
+  interactive environment
+- Adjusting dynamic parameters for your preview that adjusts the preview in
+  real time
+- Seeing all the messages a preview emits
+- Tracking view/update performance of each preview
+- Recording, managing, and running tests for previews
+- Capturing screenshots of your previews from the command line
 
 ## Quick Start
 
