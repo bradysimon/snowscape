@@ -100,6 +100,33 @@ cargo run --example preview
 cargo run --bin preview
 ```
 
+## Creating preview tests
+
+You can create tests for previews either manually or from within Snowscape.
+These are `.ice` test files that run against one of your previews, perform
+some interactions, then assert that certain parts of the UI are how you expect.
+You can choose a test name and window dimensions and then begin recording a
+test, which will open a new window with only your preview. Interactions with
+the preview are recorded into a `.ice` file, and you can add text that you
+expect to see from within the main window.
+
+These tests are then saved at a location of your choosing (configurable using
+`with_tests_dir` function when building your previews) and can be re-run both
+from within Snowscape or via the command line to act as automation tests.
+Refer to the `counter` example for a simple example to follow.
+
+```rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn passes_visual_tests() -> Result<(), snowscape::test::Error> {
+        snowscape::test::run(previews, format!("{}/tests", env!("CARGO_MANIFEST_DIR")))
+    }
+}
+```
+
 ## Running the examples
 
 You can do `cargo run -p {package_name}` to run any of the included examples.
