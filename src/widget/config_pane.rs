@@ -39,7 +39,7 @@ pub fn config_pane<'a>(
             ConfigTab::Tests => test_pane::test_pane(app),
         };
 
-        let is_horizontal_layout = size.width >= 675.0;
+        let is_horizontal_layout = size.width >= 750.0;
 
         // Trailing element shown on the right of the config tabs
         let trailing = match tab {
