@@ -70,7 +70,7 @@ fn preview_list() -> impl Preview {
             stateless("Item 3", || -> Element<'static, ()> { space().into() }).into(),
         ],
         |items| {
-            container(widget::preview_list(items.into_iter().enumerate(), Some(1)))
+            container(widget::preview_list(items.iter().enumerate(), Some(1)))
                 .max_width(200)
                 .into()
         },
@@ -92,7 +92,7 @@ fn about_pane() -> impl Preview {
             group: Some(String::from("Group Name")),
             tags: vec![String::from("tag1"), String::from("tag2")],
         },
-        |metadata| widget::config_pane::about_pane::about_pane(&metadata),
+        widget::config_pane::about_pane::about_pane,
     )
     .description(
         "Shows metadata information that has been associated with the preview. These \
@@ -128,13 +128,10 @@ fn parameter_pane() -> impl Preview {
         }
 
         fn update(&mut self, message: snowscape::Message) {
-            match message {
-                snowscape::Message::ChangeParam(index, value) => {
-                    if let Some(param) = self.params.get_mut(index) {
-                        param.value = value;
-                    }
-                }
-                _ => {}
+            if let snowscape::Message::ChangeParam(index, value) = message
+                && let Some(param) = self.params.get_mut(index)
+            {
+                param.value = value;
             }
         }
     }
@@ -211,31 +208,33 @@ fn test_pane() -> impl Preview {
         "Test Pane",
         || {
             // Create sample test state with discovered tests
-            let mut test_state = test::State::default();
-            test_state.discovered_tests = vec![
-                TestInfo {
-                    name: "basic-increment".to_string(),
-                    path: std::path::PathBuf::from("tests/counter/basic-increment.ice"),
-                    preview: "counter".to_string(),
-                    has_snapshot: true,
-                },
-                TestInfo {
-                    name: "increment-and-decrement".to_string(),
-                    path: std::path::PathBuf::from("tests/counter/increment-and-decrement.ice"),
-                    preview: "counter".to_string(),
-                    has_snapshot: true,
-                },
-                TestInfo {
-                    name: "edge-cases".to_string(),
-                    path: std::path::PathBuf::from("tests/counter/edge-cases.ice"),
-                    preview: "counter".to_string(),
-                    has_snapshot: false,
-                },
-            ];
-            test_state.last_run_results = Some(vec![
-                test::Outcome::passed("basic-increment"),
-                test::Outcome::failed("increment-and-decrement", "Snapshot mismatch at step 3"),
-            ]);
+            let test_state = test::State {
+                discovered_tests: vec![
+                    TestInfo {
+                        name: "basic-increment".to_string(),
+                        path: std::path::PathBuf::from("tests/counter/basic-increment.ice"),
+                        preview: "counter".to_string(),
+                        has_snapshot: true,
+                    },
+                    TestInfo {
+                        name: "increment-and-decrement".to_string(),
+                        path: std::path::PathBuf::from("tests/counter/increment-and-decrement.ice"),
+                        preview: "counter".to_string(),
+                        has_snapshot: true,
+                    },
+                    TestInfo {
+                        name: "edge-cases".to_string(),
+                        path: std::path::PathBuf::from("tests/counter/edge-cases.ice"),
+                        preview: "counter".to_string(),
+                        has_snapshot: false,
+                    },
+                ],
+                last_run_results: Some(vec![
+                    test::Outcome::passed("basic-increment"),
+                    test::Outcome::failed("increment-and-decrement", "Snapshot mismatch at step 3"),
+                ]),
+                ..test::State::default()
+            };
 
             App::default()
                 .title("Test Pane Preview")
@@ -344,12 +343,9 @@ fn dialog_preview_builder(animated: bool) -> impl Preview {
                                 text!("{}", self.counter).width(40).line_height(1.0).center(),
                                 button("+").on_press(Message::Increment),
                                 space::horizontal(),
-                                pick_list(
-                                    &Flavor::ALL[..],
-                                    Some(self.flavor),
-                                    Message::SelectFlavor
-                                )
-                                .placeholder("Select flavor")
+                                pick_list(Some(self.flavor), Flavor::ALL, Flavor::to_string)
+                                    .on_select(Message::SelectFlavor)
+                                    .placeholder("Select flavor")
                             ]
                             .spacing(4)
                             .align_y(Center),

@@ -104,26 +104,27 @@ where
 
         // Only record from widget if there's no overlay
         if !self.has_overlay
-            && let Some(on_record) = &self.on_record {
-                let state = tree.state.downcast_mut::<State>();
+            && let Some(on_record) = &self.on_record
+        {
+            let state = tree.state.downcast_mut::<State>();
 
-                record(
-                    event,
-                    cursor,
-                    shell,
-                    layout.bounds(),
-                    &mut state.last_hovered,
-                    on_record,
-                    |operation| {
-                        self.content.as_widget_mut().operate(
-                            &mut tree.children[0],
-                            layout,
-                            renderer,
-                            operation,
-                        );
-                    },
-                );
-            }
+            record(
+                event,
+                cursor,
+                shell,
+                layout.bounds(),
+                &mut state.last_hovered,
+                on_record,
+                |operation| {
+                    self.content.as_widget_mut().operate(
+                        &mut tree.children[0],
+                        layout,
+                        renderer,
+                        operation,
+                    );
+                },
+            );
+        }
 
         self.content.as_widget_mut().update(
             &mut tree.children[0],
@@ -391,9 +392,10 @@ fn record<Message>(
 ) {
     // Only process mouse events if cursor is over bounds
     if let Event::Mouse(_) = event
-        && !cursor.is_over(bounds) {
-            return;
-        }
+        && !cursor.is_over(bounds)
+    {
+        return;
+    }
 
     // Convert cursor position to be relative to content bounds
     let interaction = if let Event::Mouse(mouse::Event::CursorMoved { position }) = event {
@@ -460,11 +462,11 @@ fn record<Message>(
         return;
     };
 
-    // Try to find text at the position for more robust targeting
-    if let Some((content, visible_bounds)) =
-        find_text(position + (bounds.position() - Point::ORIGIN), operate)
+    // Prefer widget ids, then unique text, for more robust targeting.
+    if let Some((better_target, visible_bounds)) =
+        find_target(position + (bounds.position() - Point::ORIGIN), operate)
     {
-        *target = Target::Text(content);
+        *target = better_target;
         *last_hovered = visible_bounds;
     } else {
         *last_hovered = None;
@@ -473,17 +475,23 @@ fn record<Message>(
     shell.publish(on_record(interaction));
 }
 
-/// Finds text at a given position using widget operations.
-fn find_text(
+/// Finds a stable target at a given position using widget operations.
+fn find_target(
     position: Point,
     mut operate: impl FnMut(&mut dyn widget::Operation),
-) -> Option<(String, Option<Rectangle>)> {
+) -> Option<(Target, Option<Rectangle>)> {
     let mut by_position = position.find_all();
     operate(&mut operation::black_box(&mut by_position));
 
     let operation::Outcome::Some(targets) = by_position.finish() else {
         return None;
     };
+
+    if let Some((id, visible_bounds)) = targets.iter().rev().find_map(|target| {
+        target_id(target).map(|id| (Target::Id(id), target_visible_bounds(target)))
+    }) {
+        return Some((id, visible_bounds));
+    }
 
     let (content, visible_bounds) = targets.into_iter().rev().find_map(|target| {
         if let selector::Target::Text {
@@ -516,7 +524,40 @@ fn find_text(
         return None;
     }
 
-    Some((content, visible_bounds))
+    Some((Target::Text(content), visible_bounds))
+}
+
+fn target_id(target: &selector::Target) -> Option<String> {
+    match target {
+        selector::Target::Container { id, .. }
+        | selector::Target::Focusable { id, .. }
+        | selector::Target::Scrollable { id, .. }
+        | selector::Target::TextInput { id, .. }
+        | selector::Target::Text { id, .. }
+        | selector::Target::Custom { id, .. } => id.as_ref().and_then(custom_widget_id),
+    }
+}
+
+fn custom_widget_id(id: &iced::widget::Id) -> Option<String> {
+    let debug = format!("{id:?}");
+    let prefix = "Id(Custom(\"";
+    let suffix = "\"))";
+
+    debug
+        .strip_prefix(prefix)
+        .and_then(|value| value.strip_suffix(suffix))
+        .map(str::to_owned)
+}
+
+fn target_visible_bounds(target: &selector::Target) -> Option<Rectangle> {
+    match target {
+        selector::Target::Container { visible_bounds, .. }
+        | selector::Target::Focusable { visible_bounds, .. }
+        | selector::Target::Scrollable { visible_bounds, .. }
+        | selector::Target::TextInput { visible_bounds, .. }
+        | selector::Target::Text { visible_bounds, .. }
+        | selector::Target::Custom { visible_bounds, .. } => *visible_bounds,
+    }
 }
 
 /// Returns the highlight color for hovered elements.

@@ -122,17 +122,18 @@ pub fn field(param: &Param, index: usize) -> Element<'_, Message> {
         Value::Select(selected_index, options) => {
             let options_clone = options.clone();
             let selected = options.get(*selected_index).cloned();
-            pick_list(options.clone(), selected, move |selected_value| {
-                let new_index = options_clone
-                    .iter()
-                    .position(|o| *o == selected_value)
-                    .unwrap_or(0);
-                Message::ChangeParam(index, Value::Select(new_index, options_clone.clone()))
-            })
-            .style(crate::style::pick_list::default)
-            .menu_style(crate::style::pick_list::menu)
-            .text_size(14)
-            .into()
+            pick_list(selected, options.clone(), String::to_string)
+                .on_select(move |selected_value| {
+                    let new_index = options_clone
+                        .iter()
+                        .position(|o| *o == selected_value)
+                        .unwrap_or(0);
+                    Message::ChangeParam(index, Value::Select(new_index, options_clone.clone()))
+                })
+                .style(crate::style::pick_list::default)
+                .menu_style(crate::style::pick_list::menu)
+                .text_size(14)
+                .into()
         }
         Value::Slider(value, range) => row![
             slider(range.clone(), *value, move |v| {

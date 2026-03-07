@@ -364,8 +364,10 @@ mod tests {
     /// The record button requires a non-empty name and valid size inputs.
     #[test]
     fn can_record_requires_valid_sizes() {
-        let mut state = State::default();
-        state.name_input = "test-name".to_string();
+        let mut state = State {
+            name_input: "test-name".to_string(),
+            ..State::default()
+        };
 
         state.width_input.update("".to_string());
         assert!(!state.can_record());
@@ -374,8 +376,10 @@ mod tests {
     /// The record button accepts positive size inputs.
     #[test]
     fn can_record_accepts_positive_sizes() {
-        let mut state = State::default();
-        state.name_input = "test-name".to_string();
+        let mut state = State {
+            name_input: "test-name".to_string(),
+            ..State::default()
+        };
         state.width_input.update("800".to_string());
         state.height_input.update("600".to_string());
 
@@ -385,8 +389,10 @@ mod tests {
     /// The record button remains disabled when the name is empty.
     #[test]
     fn can_record_requires_name() {
-        let mut state = State::default();
-        state.name_input = "".to_string();
+        let mut state = State {
+            name_input: "".to_string(),
+            ..State::default()
+        };
         state.width_input.update("800".to_string());
         state.height_input.update("600".to_string());
 
@@ -396,8 +402,10 @@ mod tests {
     /// The record button stays disabled when the entered name conflicts after sanitization.
     #[test]
     fn can_record_rejects_sanitized_name_conflict() {
-        let mut state = State::default();
-        state.name_input = "some test".to_string();
+        let mut state = State {
+            name_input: "some test".to_string(),
+            ..State::default()
+        };
         state.width_input.update("800".to_string());
         state.height_input.update("600".to_string());
         state.discovered_tests = vec![TestInfo {
@@ -413,13 +421,15 @@ mod tests {
     /// Existing test detection compares names by their sanitized form.
     #[test]
     fn is_existing_test_uses_sanitized_names() {
-        let mut state = State::default();
-        state.discovered_tests = vec![TestInfo {
-            name: "some-test".to_string(),
-            path: PathBuf::from("./tests/counter/some-test.ice"),
-            preview: "counter".to_string(),
-            has_snapshot: false,
-        }];
+        let state = State {
+            discovered_tests: vec![TestInfo {
+                name: "some-test".to_string(),
+                path: PathBuf::from("./tests/counter/some-test.ice"),
+                preview: "counter".to_string(),
+                has_snapshot: false,
+            }],
+            ..State::default()
+        };
 
         assert!(state.is_existing_test("some test"));
         assert!(state.is_existing_test("  SOME TEST  "));
@@ -429,13 +439,15 @@ mod tests {
     /// Existing test detection also handles hyphens and spaces consistently.
     #[test]
     fn is_existing_test_matches_hyphen_and_space_variants() {
-        let mut state = State::default();
-        state.discovered_tests = vec![TestInfo {
-            name: "some-test".to_string(),
-            path: PathBuf::from("./tests/counter/some-test.ice"),
-            preview: "counter".to_string(),
-            has_snapshot: false,
-        }];
+        let state = State {
+            discovered_tests: vec![TestInfo {
+                name: "some-test".to_string(),
+                path: PathBuf::from("./tests/counter/some-test.ice"),
+                preview: "counter".to_string(),
+                has_snapshot: false,
+            }],
+            ..State::default()
+        };
 
         assert!(state.is_existing_test("some-test"));
         assert!(state.is_existing_test("some test"));
@@ -444,11 +456,13 @@ mod tests {
     /// We should be able to remove test results by name.
     #[test]
     fn remove_test_result() {
-        let mut state = State::default();
-        state.last_run_results = Some(vec![
-            test::Outcome::passed("test1"),
-            test::Outcome::failed("test2", "Error message"),
-        ]);
+        let mut state = State {
+            last_run_results: Some(vec![
+                test::Outcome::passed("test1"),
+                test::Outcome::failed("test2", "Error message"),
+            ]),
+            ..State::default()
+        };
 
         state.remove_test_result("test1");
         assert_eq!(

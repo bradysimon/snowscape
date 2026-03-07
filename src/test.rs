@@ -15,6 +15,7 @@ mod snapshot;
 pub mod state;
 
 use iced::keyboard;
+use iced_test::selector;
 
 pub use config::Config;
 pub use discovery::TestInfo;
@@ -406,30 +407,18 @@ fn replay_test(
     for instruction in &ice.instructions {
         match instruction {
             Instruction::Interact(interaction) => {
-                let events = interaction.events(|target| match target {
-                    Target::Point(p) => Some(*p),
-                    Target::Text(_) => None,
-                });
+                if !simulate_selector_interaction(&mut simulator, interaction) {
+                    let events = interaction
+                        .events(|target| target_to_simulator_point(&mut simulator, target));
 
-                match events {
-                    Some(event_list) => {
-                        simulator.simulate(event_list);
-                    }
-                    None => {
-                        match interaction {
-                            Interaction::Mouse(Mouse::Click { target, .. }) => {
-                                if let Some(Target::Text(text)) = target {
-                                    let _ = simulator.click(text.as_str());
-                                }
-                            }
-                            Interaction::Keyboard(Keyboard::Typewrite(text)) => {
-                                simulator.typewrite(text);
-                            }
-                            _ => {
-                                // Fallback to event conversion for other cases
-                                let events = interaction_to_events(interaction);
-                                simulator.simulate(events);
-                            }
+                    match events {
+                        Some(event_list) => {
+                            simulator.simulate(event_list);
+                        }
+                        None => {
+                            // Fallback to raw event conversion for any unresolved target.
+                            let events = interaction_to_events(interaction);
+                            simulator.simulate(events);
                         }
                     }
                 }
@@ -459,6 +448,48 @@ fn replay_test(
     }
 
     Ok(())
+}
+
+fn simulate_selector_interaction(
+    simulator: &mut iced_test::Simulator<crate::message::Message>,
+    interaction: &Interaction,
+) -> bool {
+    match interaction {
+        Interaction::Mouse(Mouse::Click {
+            button: iced::mouse::Button::Left,
+            target: Some(Target::Text(text)),
+        }) => {
+            let _ = simulator.click(text.as_str());
+            true
+        }
+        Interaction::Mouse(Mouse::Click {
+            button: iced::mouse::Button::Left,
+            target: Some(Target::Id(id)),
+        }) => {
+            let _ = simulator.click(selector::id(id.clone()));
+            true
+        }
+        _ => false,
+    }
+}
+
+fn target_to_simulator_point(
+    simulator: &mut iced_test::Simulator<crate::message::Message>,
+    target: &Target,
+) -> Option<iced::Point> {
+    match target {
+        Target::Point(point) => Some(*point),
+        Target::Text(text) => simulator
+            .find(text.clone())
+            .ok()
+            .and_then(|target| target.visible_bounds())
+            .map(|bounds| bounds.center()),
+        Target::Id(id) => simulator
+            .find(selector::id(id.clone()))
+            .ok()
+            .and_then(|target| target.visible_bounds())
+            .map(|bounds| bounds.center()),
+    }
 }
 
 /// Finds the most recent renderer-suffixed snapshot matching a base path.
@@ -792,9 +823,9 @@ fn interaction_to_events(interaction: &Interaction) -> Vec<iced::Event> {
 fn target_to_point(target: &Target) -> iced::Point {
     match target {
         Target::Point(p) => *p,
-        Target::Text(_) => {
+        Target::Text(_) | Target::Id(_) => {
             // For text targets, we'd need to look up the element's position
-            // For now, default to origin - the Simulator.find() handles text targets
+            // For now, default to origin - the simulator resolves text/id targets separately.
             iced::Point::ORIGIN
         }
     }

@@ -113,9 +113,7 @@ impl iced::widget::text::Catalog for CustomTheme {
 impl iced::widget::button::Catalog for CustomTheme {
     type Class<'a> = ();
 
-    fn default<'a>() -> Self::Class<'a> {
-        ()
-    }
+    fn default<'a>() -> Self::Class<'a> {}
 
     fn style(
         &self,

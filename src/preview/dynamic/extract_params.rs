@@ -145,7 +145,7 @@ mod tests {
         let extracted = params.extract();
         assert_eq!(extracted.0, "Alice");
         assert_eq!(extracted.1, 35);
-        assert_eq!(extracted.2, true);
+        assert!(extracted.2);
     }
 
     #[test]

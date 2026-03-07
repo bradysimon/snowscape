@@ -405,14 +405,14 @@ mod tests {
     fn bool_param_basic() {
         let param = boolean("my_bool", true);
         assert_eq!(param.name(), "my_bool");
-        assert_eq!(param.value(), true);
+        assert!(param.value());
     }
 
     #[test]
     fn bool_param_update() {
         let mut param = boolean("my_bool", true);
         param.update(Value::Bool(false));
-        assert_eq!(param.value(), false);
+        assert!(!param.value());
     }
 
     #[derive(Debug, Clone, PartialEq)]

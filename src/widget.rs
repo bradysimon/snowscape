@@ -22,14 +22,13 @@ pub const SEARCH_INPUT_ID: &str = "search_input";
 
 /// The theme picker dropdown shown in the header.
 pub fn theme_picker<'a>(theme: Option<Theme>) -> Element<'a, Message> {
-    pick_list(Theme::ALL, theme, |theme| {
-        Message::UpdateTheme(theme.into())
-    })
-    .text_size(14)
-    .placeholder("System theme")
-    .style(crate::style::pick_list::default)
-    .menu_style(crate::style::pick_list::menu)
-    .into()
+    pick_list(theme, Theme::ALL, Theme::to_string)
+        .text_size(14)
+        .placeholder("System theme")
+        .on_select(|theme| Message::UpdateTheme(theme.into()))
+        .style(crate::style::pick_list::default)
+        .menu_style(crate::style::pick_list::menu)
+        .into()
 }
 
 /// The header shown above the preview area.
