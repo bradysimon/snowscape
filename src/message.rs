@@ -1,11 +1,9 @@
+use std::path::PathBuf;
 use std::{any::Any, fmt::Debug};
 
-use iced::{Theme, theme};
+use iced::{Theme, theme, window};
 
-use crate::{
-    config_tab::ConfigTab,
-    dynamic::{self},
-};
+use crate::{config_tab::ConfigTab, dynamic, test, widget::dialog};
 
 /// Supertrait for messages that can be used in the preview system.
 /// - `Any`: Previews support any type of message via downcasting
@@ -71,6 +69,16 @@ pub enum Message {
     ChangeThemeMode(theme::Mode),
     /// Message from a stateful component (type-erased).
     Component(Box<dyn AnyClone>),
+    /// A window was closed.
+    WindowClosed(window::Id),
+    /// Test-related messages.
+    Test(test::Message),
+    /// Opens a confirmation dialog before deleting a test at the given path.
+    OpenDeleteTestDialog(PathBuf),
+    /// Dialog lifecycle messages.
+    Dialog(dialog::Message),
+    /// Confirms deletion of the test currently selected in the dialog.
+    ConfirmDeleteTest,
 }
 
 impl std::fmt::Debug for Message {
@@ -89,48 +97,61 @@ impl std::fmt::Debug for Message {
             Self::ResetParams => write!(f, "ResetParams"),
             Self::TimeTravel(arg0) => f.debug_tuple("TimeTravel").field(arg0).finish(),
             Self::JumpToPresent => write!(f, "JumpToPresent"),
-            Self::ResizeSidebar(arg0) => f.debug_tuple("ResizePreviewPane").field(arg0).finish(),
+            Self::ResizeSidebar(arg0) => f.debug_tuple("ResizeSidebar").field(arg0).finish(),
             Self::ResizeConfigPane(arg0) => f.debug_tuple("ResizeConfigPane").field(arg0).finish(),
             Self::ChangeConfigTab(arg0) => f.debug_tuple("ChangeConfigTab").field(arg0).finish(),
             Self::UpdateTheme(event) => write!(f, "UpdateTheme({event:?})"),
             Self::ChangeThemeMode(arg0) => f.debug_tuple("ChangeThemeMode").field(arg0).finish(),
             Self::Component(_) => write!(f, "Component(..)"),
+            Self::WindowClosed(id) => f.debug_tuple("WindowClosed").field(id).finish(),
+            Self::Test(msg) => f.debug_tuple("Test").field(msg).finish(),
+            Self::OpenDeleteTestDialog(path) => {
+                f.debug_tuple("OpenDeleteTestDialog").field(path).finish()
+            }
+            Self::Dialog(msg) => f.debug_tuple("Dialog").field(msg).finish(),
+            Self::ConfirmDeleteTest => write!(f, "ConfirmDeleteTest"),
         }
     }
 }
 
 impl Clone for Message {
     fn clone(&self) -> Self {
-        match self {
-            Message::Noop => Message::Noop,
-            Message::FocusInput => Message::FocusInput,
-            Message::SelectPreview(i) => Message::SelectPreview(*i),
-            Message::ResetPreview => Message::ResetPreview,
-            Message::ChangeSearch(s) => Message::ChangeSearch(s.clone()),
-            Message::ChangeParam(i, v) => Message::ChangeParam(*i, v.clone()),
-            Message::ResetParams => Message::ResetParams,
-            Message::TimeTravel(t) => Message::TimeTravel(*t),
-            Message::JumpToPresent => Message::JumpToPresent,
-            Message::ResizeSidebar(f) => Message::ResizeSidebar(*f),
-            Message::ResizeConfigPane(f) => Message::ResizeConfigPane(*f),
-            Message::ChangeConfigTab(tab) => Message::ChangeConfigTab(*tab),
-            Message::UpdateTheme(ev) => Message::UpdateTheme(ev.clone()),
-            Message::ChangeThemeMode(mode) => Message::ChangeThemeMode(*mode),
-            Message::Component(inner) => {
-                // Avoid infinite clone recursion when the payload itself is a `Message`.
-                // Instead of calling `inner.clone()` (which invokes `clone_box`, which
-                // calls `T::clone`, which re-enters here), we downcast and clone directly.
-                // Note: we must deref twice to get the trait object, not the Box.
-                if let Some(msg) = (**inner).as_any().downcast_ref::<Message>() {
-                    // Clone the inner Message using this same impl (safe recursion).
-                    let cloned = msg.clone();
-                    Message::Component(Box::new(cloned))
-                } else {
-                    // Payload is not a Message; safe to use clone_box.
-                    Message::Component(inner.clone_box())
-                }
+        /// Recursively clones a component payload, ensuring that nested `Message::Component`
+        /// instances are properly cloned without causing stack overflow.
+        fn clone_component_payload(payload: &dyn AnyClone) -> Box<dyn AnyClone> {
+            if let Some(message) = payload.as_any().downcast_ref::<Message>() {
+                Box::new(clone_message(message))
+            } else {
+                payload.clone_box()
             }
         }
+
+        fn clone_message(message: &Message) -> Message {
+            match message {
+                Message::Noop => Message::Noop,
+                Message::FocusInput => Message::FocusInput,
+                Message::SelectPreview(i) => Message::SelectPreview(*i),
+                Message::ResetPreview => Message::ResetPreview,
+                Message::ChangeSearch(s) => Message::ChangeSearch(s.clone()),
+                Message::ChangeParam(i, v) => Message::ChangeParam(*i, v.clone()),
+                Message::ResetParams => Message::ResetParams,
+                Message::TimeTravel(t) => Message::TimeTravel(*t),
+                Message::JumpToPresent => Message::JumpToPresent,
+                Message::ResizeSidebar(f) => Message::ResizeSidebar(*f),
+                Message::ResizeConfigPane(f) => Message::ResizeConfigPane(*f),
+                Message::ChangeConfigTab(tab) => Message::ChangeConfigTab(*tab),
+                Message::UpdateTheme(ev) => Message::UpdateTheme(ev.clone()),
+                Message::ChangeThemeMode(mode) => Message::ChangeThemeMode(*mode),
+                Message::Component(inner) => Message::Component(clone_component_payload(&**inner)),
+                Message::WindowClosed(id) => Message::WindowClosed(*id),
+                Message::Test(msg) => Message::Test(msg.clone()),
+                Message::OpenDeleteTestDialog(path) => Message::OpenDeleteTestDialog(path.clone()),
+                Message::Dialog(msg) => Message::Dialog(*msg),
+                Message::ConfirmDeleteTest => Message::ConfirmDeleteTest,
+            }
+        }
+
+        clone_message(self)
     }
 }
 
@@ -144,6 +165,12 @@ impl Message {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Clone, Debug)]
+    enum DialogMessage {
+        Open,
+        Close,
+    }
 
     /// Cloning a Component containing a simple Message should not overflow.
     #[test]
@@ -191,5 +218,36 @@ mod tests {
     fn clone_deeply_nested_component_does_not_overflow() {
         let deep = Message::component(Message::component(Message::component(Message::Noop)));
         _ = deep.clone();
+    }
+
+    /// Cloning nested Components with a foreign leaf message should preserve shape.
+    /// Helps avoid stack overflows when cloning nested messages in the app preview.
+    #[test]
+    fn clone_nested_component_with_foreign_leaf_preserves_structure() {
+        let nested = Message::component(Message::component(DialogMessage::Open));
+        let cloned = nested.clone();
+
+        let Message::Component(level1) = cloned else {
+            panic!("Expected first-level Component");
+        };
+
+        let inner_message = (*level1)
+            .as_any()
+            .downcast_ref::<Message>()
+            .unwrap()
+            .clone();
+        let Message::Component(level2) = inner_message else {
+            panic!("Expected second-level Component");
+        };
+
+        let leaf = (*level2).as_any().downcast_ref::<DialogMessage>().unwrap();
+        assert!(matches!(leaf, DialogMessage::Open));
+    }
+
+    /// Shouldn't stack overflow when cloning nested components with a foreign leaf message.
+    #[test]
+    fn clone_foreign_leaf_close_variant_does_not_overflow() {
+        let nested = Message::component(Message::component(DialogMessage::Close));
+        _ = nested.clone();
     }
 }

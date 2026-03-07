@@ -83,6 +83,84 @@ pub fn channel_slider_backgrounds(
     )
 }
 
+pub mod button {
+    use iced::widget::button;
+    use iced::{Theme, border};
+
+    pub const BORDER_RADIUS: f32 = 4.0;
+
+    pub fn danger(theme: &Theme, status: button::Status) -> button::Style {
+        let danger = iced::widget::button::danger(theme, status);
+        button::Style {
+            border: danger.border.rounded(BORDER_RADIUS),
+            ..danger
+        }
+    }
+
+    /// Subtle button style for secondary actions.
+    pub fn subtle(theme: &Theme, status: button::Status) -> button::Style {
+        let palette = theme.extended_palette();
+        match status {
+            button::Status::Active => button::Style {
+                background: Some(palette.background.weak.color.into()),
+                text_color: palette.background.base.text,
+                border: border::rounded(BORDER_RADIUS),
+                ..Default::default()
+            },
+            button::Status::Hovered => button::Style {
+                background: Some(palette.background.strong.color.into()),
+                text_color: palette.background.base.text,
+                border: border::rounded(BORDER_RADIUS),
+                ..Default::default()
+            },
+            button::Status::Pressed => button::Style {
+                background: Some(palette.background.stronger.color.into()),
+                text_color: palette.background.stronger.text,
+                border: border::rounded(BORDER_RADIUS),
+                ..Default::default()
+            },
+            button::Status::Disabled => button::Style {
+                background: Some(palette.background.weak.color.scale_alpha(0.5).into()),
+                text_color: palette.background.base.text.scale_alpha(0.5),
+                border: border::rounded(BORDER_RADIUS),
+                ..Default::default()
+            },
+        }
+    }
+
+    /// Ghost button style: transparent at rest with subtle hover/press background.
+    pub fn ghost_subtle(theme: &Theme, status: button::Status) -> button::Style {
+        let palette = theme.extended_palette();
+
+        match status {
+            button::Status::Active => button::Style {
+                background: None,
+                text_color: palette.background.base.text,
+                border: border::rounded(BORDER_RADIUS),
+                ..Default::default()
+            },
+            button::Status::Hovered => button::Style {
+                background: Some(palette.background.weak.color.into()),
+                text_color: palette.background.base.text,
+                border: border::rounded(BORDER_RADIUS),
+                ..Default::default()
+            },
+            button::Status::Pressed => button::Style {
+                background: Some(palette.background.strong.color.into()),
+                text_color: palette.background.strong.text,
+                border: border::rounded(BORDER_RADIUS),
+                ..Default::default()
+            },
+            button::Status::Disabled => button::Style {
+                background: None,
+                text_color: palette.background.base.text.scale_alpha(0.5),
+                border: border::rounded(BORDER_RADIUS),
+                ..Default::default()
+            },
+        }
+    }
+}
+
 pub mod container {
     use iced::widget::container;
     use iced::{Border, Color, Shadow, Theme, Vector};
@@ -96,6 +174,34 @@ pub mod container {
                 color: Color::BLACK.scale_alpha(0.3),
                 offset: Vector::new(0.0, 2.0),
                 blur_radius: 4.0,
+            },
+            ..Default::default()
+        }
+    }
+
+    pub fn dialog_backdrop(theme: &Theme, animate: bool) -> container::Style {
+        let alpha = if animate { 0.5 } else { 0.6 };
+
+        container::Style {
+            background: Some(theme.palette().text.scale_alpha(alpha).into()),
+            ..Default::default()
+        }
+    }
+
+    pub fn dialog_panel(theme: &Theme) -> container::Style {
+        let pair = theme.extended_palette().background.weakest;
+
+        container::Style {
+            text_color: Some(pair.text),
+            background: Some(pair.color.into()),
+            border: Border::default()
+                .rounded(8)
+                .width(1)
+                .color(theme.extended_palette().background.weaker.color),
+            shadow: Shadow {
+                color: Color::BLACK.scale_alpha(0.35),
+                offset: Vector::new(0.0, 8.0),
+                blur_radius: 24.0,
             },
             ..Default::default()
         }
@@ -181,6 +287,65 @@ pub mod text {
                     .text
                     .scale_alpha(0.8),
             ),
+        }
+    }
+
+    pub fn danger(theme: &Theme) -> text::Style {
+        text::Style {
+            color: Some(theme.extended_palette().danger.strong.color),
+        }
+    }
+}
+
+pub mod text_input {
+    use iced::Theme;
+    use iced::widget::text_input;
+
+    pub fn default(theme: &Theme, status: text_input::Status) -> text_input::Style {
+        let default = text_input::default(theme, status);
+        text_input::Style {
+            border: default.border.rounded(4),
+            ..default
+        }
+    }
+
+    /// A text input with a danger border when the content is invalid.
+    pub fn validated(theme: &Theme, status: text_input::Status, valid: bool) -> text_input::Style {
+        let mut style = default(theme, status);
+        if !valid {
+            style.border = style
+                .border
+                .color(theme.extended_palette().danger.strong.color);
+        }
+        style
+    }
+}
+
+pub mod svg {
+    use iced::Theme;
+    use iced::widget::svg;
+
+    pub fn text(theme: &Theme, _status: svg::Status) -> svg::Style {
+        svg::Style {
+            color: Some(theme.palette().text),
+        }
+    }
+
+    pub fn strong_background(theme: &Theme, _status: svg::Status) -> svg::Style {
+        svg::Style {
+            color: Some(theme.extended_palette().background.strong.color),
+        }
+    }
+
+    pub fn success(theme: &Theme, _status: svg::Status) -> svg::Style {
+        svg::Style {
+            color: Some(theme.extended_palette().success.strong.color),
+        }
+    }
+
+    pub fn danger(theme: &Theme, _status: svg::Status) -> svg::Style {
+        svg::Style {
+            color: Some(theme.extended_palette().danger.strong.color),
         }
     }
 }

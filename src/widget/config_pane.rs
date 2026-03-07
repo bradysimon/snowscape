@@ -2,6 +2,7 @@ pub mod about_pane;
 pub mod message_pane;
 pub mod parameter_pane;
 pub mod performance_pane;
+pub mod test_pane;
 
 use iced::{
     Alignment::Center,
@@ -12,14 +13,18 @@ use iced::{
 };
 
 use crate::{
-    app::Message,
+    app::{App, Message},
     config_tab::ConfigTab,
     preview::{Descriptor, Timeline, performance::Indicator},
     widget::{mini_badge, round_badge},
 };
 
 /// The configuration pane shown underneath the preview area.
-pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Message> {
+pub fn config_pane<'a>(
+    descriptor: &'a Descriptor,
+    tab: ConfigTab,
+    app: &'a App,
+) -> Element<'a, Message> {
     responsive(move |size| {
         // The main content of the config pane
         let content = match tab {
@@ -31,13 +36,17 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
             ConfigTab::Performance => {
                 performance_pane::performance_pane(descriptor.preview.performance())
             }
+            ConfigTab::Tests => test_pane::test_pane(app),
         };
 
-        let is_horizontal_layout = size.width >= 675.0;
+        let is_horizontal_layout = size.width >= 750.0;
 
         // Trailing element shown on the right of the config tabs
         let trailing = match tab {
-            ConfigTab::About | ConfigTab::Parameters | ConfigTab::Performance => None,
+            ConfigTab::About
+            | ConfigTab::Parameters
+            | ConfigTab::Performance
+            | ConfigTab::Tests => None,
             ConfigTab::Messages => descriptor
                 .preview
                 .timeline()
@@ -58,6 +67,7 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
                     tab,
                     descriptor.preview.params().len(),
                     descriptor.preview.message_count(),
+                    app.test_state().discovered_tests.len(),
                     performance_status,
                 ),
                 space::horizontal(),
@@ -72,6 +82,7 @@ pub fn config_pane(descriptor: &Descriptor, tab: ConfigTab) -> Element<'_, Messa
                     tab,
                     descriptor.preview.params().len(),
                     descriptor.preview.message_count(),
+                    app.test_state().discovered_tests.len(),
                     performance_status,
                 ),
                 trailing,
@@ -151,11 +162,12 @@ pub fn config_tabs<'a>(
     selected_tab: ConfigTab,
     params: usize,
     messages: usize,
+    tests: usize,
     indicator: Indicator,
 ) -> Element<'a, Message> {
     row(ConfigTab::ALL.iter().map(|&variant| {
         let is_selected = variant == selected_tab;
-        config_tab(variant, is_selected, params, messages, indicator)
+        config_tab(variant, is_selected, params, messages, tests, indicator)
     }))
     .into()
 }
@@ -166,11 +178,13 @@ fn config_tab<'a>(
     selected: bool,
     params: usize,
     messages: usize,
+    tests: usize,
     performance_status: Indicator,
 ) -> Element<'a, Message> {
     let badge_info = match tab {
         ConfigTab::Messages if messages > 0 => Some((messages, true)),
         ConfigTab::Parameters if params > 0 => Some((params, false)),
+        ConfigTab::Tests if tests > 0 => Some((tests, false)),
         _ => None,
     };
 

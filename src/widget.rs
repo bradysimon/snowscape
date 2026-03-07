@@ -1,9 +1,13 @@
 pub mod badge;
 pub mod config_pane;
+pub mod dialog;
+pub mod recorder;
 pub mod split;
 
 pub use badge::*;
 pub use config_pane::*;
+pub use dialog::dialog;
+pub use recorder::recorder;
 
 use iced::theme;
 use iced::widget::{Column, button, container, pick_list, row, space, svg, text, text_input};
@@ -11,7 +15,7 @@ use iced::{Alignment::Center, Element, Length::Fill, Theme, border};
 use iced_anim::Animated;
 
 use crate::preview::Descriptor;
-use crate::{message::Message, preview::Preview};
+use crate::{message::Message, preview::Preview, test};
 
 /// The ID of the search input field.
 pub const SEARCH_INPUT_ID: &str = "search_input";
@@ -95,6 +99,38 @@ pub fn reset_button<'a>() -> Element<'a, Message> {
     .into()
 }
 
+/// A button to stop recording and save the test.
+pub fn stop_recording_button<'a>() -> Element<'a, Message> {
+    #[inline]
+    fn square<'a>() -> Element<'a, Message> {
+        container(space().width(10).height(10))
+            .style(|theme: &Theme| container::background(theme.palette().text))
+            .into()
+    }
+
+    button(
+        row![square(), text("Stop Recording").size(14)]
+            .spacing(6)
+            .align_y(Center),
+    )
+    .on_press(Message::Test(test::Message::StopRecording))
+    .style(|theme: &Theme, status| {
+        let pair = match status {
+            button::Status::Hovered => theme.extended_palette().danger.weak,
+            button::Status::Pressed => theme.extended_palette().danger.strong,
+            button::Status::Disabled => theme.extended_palette().background.weakest,
+            _ => theme.extended_palette().danger.base,
+        };
+        button::Style {
+            background: Some(pair.color.into()),
+            text_color: pair.text,
+            border: border::rounded(4),
+            ..button::primary(theme, status)
+        }
+    })
+    .into()
+}
+
 /// The main preview area showing the selected `preview`.
 pub fn preview_area(preview: Option<&dyn Preview>) -> Element<'_, Message> {
     container(if let Some(preview) = preview {
@@ -108,19 +144,18 @@ pub fn preview_area(preview: Option<&dyn Preview>) -> Element<'_, Message> {
 
 /// A list of available previews the user can select from to view.
 pub fn preview_list<'a>(
-    previews: impl IntoIterator<Item = &'a Descriptor>,
+    previews: impl IntoIterator<Item = (usize, &'a Descriptor)>,
     selected_index: Option<usize>,
 ) -> Element<'a, Message> {
-    let previews: Vec<&Descriptor> = previews.into_iter().collect();
+    let previews: Vec<(usize, &Descriptor)> = previews.into_iter().collect();
     if previews.is_empty() {
         text("No previews available").size(14).into()
     } else {
         previews
             .iter()
-            .enumerate()
             .fold(Column::new(), |column, (index, descriptor)| {
-                let is_selected = Some(index) == selected_index;
-                column.push(preview_list_item(descriptor, index, is_selected))
+                let is_selected = Some(*index) == selected_index;
+                column.push(preview_list_item(descriptor, *index, is_selected))
             })
             .into()
     }
