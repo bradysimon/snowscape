@@ -1,8 +1,10 @@
 use iced::{
     Alignment::Center,
     Element,
-    widget::{button, column, text, text::IntoFragment},
+    widget::{button, column, container, text, text::IntoFragment},
 };
+
+pub const INCREMENT_BUTTON_ID: &str = "increment-button";
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -33,7 +35,9 @@ impl App {
 }
 
 pub fn add_button<'a>() -> Element<'a, Message> {
-    button("Increment").on_press(Message::Increment).into()
+    container(button("Increment").on_press(Message::Increment))
+        .id(INCREMENT_BUTTON_ID)
+        .into()
 }
 
 pub fn minus_button<'a>() -> Element<'a, Message> {
