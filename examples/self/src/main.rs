@@ -70,7 +70,7 @@ fn preview_list() -> impl Preview {
             stateless("Item 3", || -> Element<'static, ()> { space().into() }).into(),
         ],
         |items| {
-            container(widget::preview_list(items, Some(1)))
+            container(widget::preview_list(items.into_iter().enumerate(), Some(1)))
                 .max_width(200)
                 .into()
         },

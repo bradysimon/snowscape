@@ -519,11 +519,12 @@ impl App {
     }
 
     /// Returns an iterator over the previews that match the current search query.
-    fn visible_previews(&self) -> impl Iterator<Item = &Descriptor> {
+    fn visible_previews(&self) -> impl Iterator<Item = (usize, &Descriptor)> {
         let query = self.search.trim().to_lowercase();
         self.descriptors
             .iter()
-            .filter(move |descriptor| descriptor.metadata().matches(&query))
+            .enumerate()
+            .filter(move |(_, descriptor)| descriptor.metadata().matches(&query))
     }
 
     /// Returns the title for a given window.

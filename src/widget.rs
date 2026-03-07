@@ -144,19 +144,18 @@ pub fn preview_area(preview: Option<&dyn Preview>) -> Element<'_, Message> {
 
 /// A list of available previews the user can select from to view.
 pub fn preview_list<'a>(
-    previews: impl IntoIterator<Item = &'a Descriptor>,
+    previews: impl IntoIterator<Item = (usize, &'a Descriptor)>,
     selected_index: Option<usize>,
 ) -> Element<'a, Message> {
-    let previews: Vec<&Descriptor> = previews.into_iter().collect();
+    let previews: Vec<(usize, &Descriptor)> = previews.into_iter().collect();
     if previews.is_empty() {
         text("No previews available").size(14).into()
     } else {
         previews
             .iter()
-            .enumerate()
             .fold(Column::new(), |column, (index, descriptor)| {
-                let is_selected = Some(index) == selected_index;
-                column.push(preview_list_item(descriptor, index, is_selected))
+                let is_selected = Some(*index) == selected_index;
+                column.push(preview_list_item(descriptor, *index, is_selected))
             })
             .into()
     }
