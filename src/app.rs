@@ -491,7 +491,7 @@ impl App {
                 .on_update(Message::UpdateTheme)
                 .into()
         } else {
-            page.into()
+            page
         }
     }
 
