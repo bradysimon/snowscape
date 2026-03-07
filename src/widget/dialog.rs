@@ -991,7 +991,7 @@ mod tests {
     /// Opening a non-animated dialog should immediately set its status to open.
     #[test]
     fn open_no_animation() {
-        let mut state = State::default();
+        let mut state = State::default().animated(false);
         state.open();
         assert_eq!(state.status, Status::Open);
     }
@@ -1013,7 +1013,7 @@ mod tests {
         };
         let action = state.update(Message::Close);
         assert_eq!(state.status, Status::Closed);
-        assert_eq!(action, None);
+        assert_eq!(action, Some(Action::Closed));
     }
 
     /// Closing an animated dialog should lead to [`Status::Closing`] state first,
