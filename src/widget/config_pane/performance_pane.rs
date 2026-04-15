@@ -154,13 +154,7 @@ fn timing_range_bar<'a>(stats: Stats) -> Element<'a, Message> {
                     .height(6)
                     .style(|theme: &Theme| container::Style {
                         background: Some(
-                            theme
-                                .extended_palette()
-                                .primary
-                                .weak
-                                .color
-                                .scale_alpha(0.5)
-                                .into()
+                            theme.palette().primary.weak.color.scale_alpha(0.5).into()
                         ),
                         border: border::rounded(border::left(2)),
                         ..Default::default()
@@ -170,7 +164,7 @@ fn timing_range_bar<'a>(stats: Stats) -> Element<'a, Message> {
                     .width(3)
                     .height(12)
                     .style(|theme: &Theme| container::Style {
-                        background: Some(theme.extended_palette().primary.base.color.into()),
+                        background: Some(theme.palette().primary.base.color.into()),
                         border: border::rounded(1),
                         ..Default::default()
                     }),
@@ -180,13 +174,7 @@ fn timing_range_bar<'a>(stats: Stats) -> Element<'a, Message> {
                     .height(6)
                     .style(|theme: &Theme| container::Style {
                         background: Some(
-                            theme
-                                .extended_palette()
-                                .primary
-                                .weak
-                                .color
-                                .scale_alpha(0.5)
-                                .into()
+                            theme.palette().primary.weak.color.scale_alpha(0.5).into()
                         ),
                         border: border::rounded(border::right(2)),
                         ..Default::default()
@@ -252,7 +240,7 @@ fn percentile_bar_row<'a>(
                     .width(Length::FillPortion(fill_portion.max(1)))
                     .height(Fill)
                     .style(|theme: &Theme| container::Style {
-                        background: Some(theme.extended_palette().primary.weak.color.into()),
+                        background: Some(theme.palette().primary.weak.color.into()),
                         border: border::rounded(2),
                         ..Default::default()
                     }),
@@ -265,7 +253,7 @@ fn percentile_bar_row<'a>(
         .style(|theme: &Theme| container::Style {
             background: Some(
                 theme
-                    .extended_palette()
+                    .palette()
                     .background
                     .weak
                     .color
@@ -363,12 +351,10 @@ pub fn indicator_dot<'a>(status: Indicator) -> Element<'a, Message> {
         .height(8)
         .style(move |theme: &Theme| container::Style {
             background: match status {
-                Indicator::Healthy => Some(theme.extended_palette().success.strong.color.into()),
-                Indicator::Degraded => Some(theme.palette().warning.into()),
-                Indicator::Severe => Some(theme.palette().danger.into()),
-                Indicator::Unknown => {
-                    Some(theme.extended_palette().background.neutral.color.into())
-                }
+                Indicator::Healthy => Some(theme.palette().success.strong.color.into()),
+                Indicator::Degraded => Some(theme.seed().warning.into()),
+                Indicator::Severe => Some(theme.seed().danger.into()),
+                Indicator::Unknown => Some(theme.palette().background.neutral.color.into()),
             },
             border: border::rounded(4),
             ..Default::default()

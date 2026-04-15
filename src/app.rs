@@ -414,7 +414,7 @@ impl App {
             .width(Fill)
             .height(Fill)
             .style(|theme: &Theme| container::Style {
-                background: Some(theme.extended_palette().background.weaker.color.into()),
+                background: Some(theme.palette().background.weaker.color.into()),
                 ..Default::default()
             });
 

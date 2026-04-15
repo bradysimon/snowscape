@@ -50,7 +50,7 @@ pub fn search_input(search: &str) -> Element<'_, Message> {
         .on_input(Message::ChangeSearch)
         .style(|theme: &Theme, status| {
             let default = text_input::default(theme, status);
-            let pair = theme.extended_palette().background.strong;
+            let pair = theme.palette().background.strong;
             text_input::Style {
                 border: match status {
                     text_input::Status::Active => default.border.rounded(4).color(pair.color),
@@ -73,7 +73,7 @@ pub fn reset_button<'a>() -> Element<'a, Message> {
                 .width(16)
                 .height(16)
                 .style(|theme, _status| svg::Style {
-                    color: Some(theme.palette().text),
+                    color: Some(theme.seed().text),
                 }),
             text("Reset").size(14),
         ]
@@ -83,10 +83,10 @@ pub fn reset_button<'a>() -> Element<'a, Message> {
     .on_press(Message::ResetPreview)
     .style(|theme: &Theme, status| {
         let pair = match status {
-            button::Status::Hovered => theme.extended_palette().background.weaker,
-            button::Status::Pressed => theme.extended_palette().background.weak,
-            button::Status::Disabled => theme.extended_palette().background.weakest,
-            _ => theme.extended_palette().background.base,
+            button::Status::Hovered => theme.palette().background.weaker,
+            button::Status::Pressed => theme.palette().background.weak,
+            button::Status::Disabled => theme.palette().background.weakest,
+            _ => theme.palette().background.base,
         };
         button::Style {
             background: Some(pair.color.into()),
@@ -103,7 +103,7 @@ pub fn stop_recording_button<'a>() -> Element<'a, Message> {
     #[inline]
     fn square<'a>() -> Element<'a, Message> {
         container(space().width(10).height(10))
-            .style(|theme: &Theme| container::background(theme.palette().text))
+            .style(|theme: &Theme| container::background(theme.seed().text))
             .into()
     }
 
@@ -115,10 +115,10 @@ pub fn stop_recording_button<'a>() -> Element<'a, Message> {
     .on_press(Message::Test(test::Message::StopRecording))
     .style(|theme: &Theme, status| {
         let pair = match status {
-            button::Status::Hovered => theme.extended_palette().danger.weak,
-            button::Status::Pressed => theme.extended_palette().danger.strong,
-            button::Status::Disabled => theme.extended_palette().background.weakest,
-            _ => theme.extended_palette().danger.base,
+            button::Status::Hovered => theme.palette().danger.weak,
+            button::Status::Pressed => theme.palette().danger.strong,
+            button::Status::Disabled => theme.palette().background.weakest,
+            _ => theme.palette().danger.base,
         };
         button::Style {
             background: Some(pair.color.into()),
@@ -173,16 +173,16 @@ fn preview_list_item(
             let base = button::primary(theme, status);
             if is_selected {
                 button::Style {
-                    background: Some(theme.extended_palette().primary.base.color.into()),
-                    text_color: theme.extended_palette().primary.base.text,
+                    background: Some(theme.palette().primary.base.color.into()),
+                    text_color: theme.palette().primary.base.text,
                     border: border::rounded(4),
                     ..base
                 }
             } else {
                 let default = button::text(theme, status);
                 let pair: Option<theme::palette::Pair> = match status {
-                    button::Status::Hovered => Some(theme.extended_palette().background.strong),
-                    button::Status::Pressed => Some(theme.extended_palette().background.stronger),
+                    button::Status::Hovered => Some(theme.palette().background.strong),
+                    button::Status::Pressed => Some(theme.palette().background.stronger),
                     _ => None,
                 };
                 button::Style {

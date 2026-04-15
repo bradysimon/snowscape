@@ -670,7 +670,7 @@ impl Catalog for Theme {
 
 #[must_use]
 pub fn default(theme: &Theme) -> Style {
-    let palette = theme.extended_palette();
+    let palette = theme.palette();
 
     Style {
         unfocused: Styled {

@@ -10,7 +10,7 @@ pub fn badge<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
     container(text(content).size(14))
         .padding([2, 6])
         .style(|theme: &Theme| container::Style {
-            background: Some(theme.extended_palette().background.weak.color.into()),
+            background: Some(theme.palette().background.weak.color.into()),
             border: border::rounded(4),
             ..container::Style::default()
         })
@@ -23,9 +23,9 @@ pub fn round_badge<'a>(content: impl IntoFragment<'a>, is_primary: bool) -> Elem
         .padding([2, 6])
         .style(move |theme: &Theme| {
             let pair = if is_primary {
-                theme.extended_palette().primary.base
+                theme.palette().primary.base
             } else {
-                theme.extended_palette().background.neutral
+                theme.palette().background.neutral
             };
             container::Style {
                 background: Some(pair.color.into()),
@@ -42,7 +42,7 @@ pub fn mini_badge<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
     container(text(content).size(12))
         .center_x(32)
         .style(|theme: &Theme| {
-            let pair = theme.extended_palette().background.weak;
+            let pair = theme.palette().background.weak;
             container::Style {
                 background: Some(pair.color.into()),
                 text_color: Some(pair.text),

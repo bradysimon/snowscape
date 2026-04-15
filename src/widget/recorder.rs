@@ -563,7 +563,7 @@ fn target_visible_bounds(target: &selector::Target) -> Option<Rectangle> {
 /// Returns the highlight color for hovered elements.
 fn highlight(theme: &impl theme::Base) -> Color {
     theme
-        .palette()
+        .seed()
         .map(|palette| palette.primary)
         .unwrap_or(Color::from_rgb(0.0, 0.0, 1.0))
 }

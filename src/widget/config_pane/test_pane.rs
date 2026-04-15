@@ -228,7 +228,7 @@ fn existing_tests_section<'a>(test_state: &'a test::State) -> Element<'a, Messag
         .style(|theme: &iced::Theme| container::Style {
             border: border::rounded(6)
                 .width(1)
-                .color(theme.extended_palette().background.weak.color),
+                .color(theme.palette().background.weak.color),
             ..Default::default()
         })
         .into()
@@ -372,7 +372,7 @@ fn test_row<'a>(
             let background = if alternate {
                 Some(
                     theme
-                        .extended_palette()
+                        .palette()
                         .background
                         .weak
                         .color
@@ -387,7 +387,7 @@ fn test_row<'a>(
                 container::Style {
                     text_color: Some(
                         theme
-                            .extended_palette()
+                            .palette()
                             .background
                             .weakest
                             .text
@@ -396,7 +396,7 @@ fn test_row<'a>(
                     background: background.or_else(|| {
                         Some(
                             theme
-                                .extended_palette()
+                                .palette()
                                 .background
                                 .weak
                                 .color
@@ -429,7 +429,7 @@ fn running_status_icon<'a>() -> Element<'a, Message> {
 
 /// Icon button style for action buttons in rows.
 fn icon_button_style(theme: &iced::Theme, status: button::Status) -> button::Style {
-    let palette = theme.extended_palette();
+    let palette = theme.palette();
     match status {
         button::Status::Active => button::Style {
             background: None,
@@ -460,7 +460,7 @@ fn icon_button_style(theme: &iced::Theme, status: button::Status) -> button::Sty
 
 /// Delete button style with danger color on hover.
 fn delete_button_style(theme: &iced::Theme, status: button::Status) -> button::Style {
-    let palette = theme.extended_palette();
+    let palette = theme.palette();
     match status {
         button::Status::Active => button::Style {
             background: None,
@@ -493,10 +493,10 @@ fn delete_button_style(theme: &iced::Theme, status: button::Status) -> button::S
 fn record_button<'a>(enabled: bool) -> Element<'a, Message> {
     let btn = button(text("Record").size(14)).style(|theme: &iced::Theme, status| {
         let pair = match status {
-            button::Status::Hovered => theme.extended_palette().danger.weak,
-            button::Status::Pressed => theme.extended_palette().danger.strong,
-            button::Status::Disabled => theme.extended_palette().danger.weak,
-            _ => theme.extended_palette().danger.base,
+            button::Status::Hovered => theme.palette().danger.weak,
+            button::Status::Pressed => theme.palette().danger.strong,
+            button::Status::Disabled => theme.palette().danger.weak,
+            _ => theme.palette().danger.base,
         };
 
         let opacity = if status == button::Status::Disabled {

@@ -69,8 +69,8 @@ impl iced::theme::Base for CustomTheme {
         "Retro 80's Synthwave"
     }
 
-    fn palette(&self) -> Option<iced::theme::Palette> {
-        Some(iced::theme::Palette {
+    fn seed(&self) -> Option<iced::theme::palette::Seed> {
+        Some(iced::theme::palette::Seed {
             background: self.background,
             text: self.text_primary,
             primary: self.accent,

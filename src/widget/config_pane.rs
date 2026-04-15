@@ -94,9 +94,7 @@ pub fn config_pane<'a>(
             .padding(4)
             .width(Fill)
             .height(Fill)
-            .style(|theme: &Theme| {
-                container::background(theme.extended_palette().background.weakest.color)
-            })
+            .style(|theme: &Theme| container::background(theme.palette().background.weakest.color))
             .into()
     })
     .into()
@@ -140,9 +138,9 @@ fn live_button<'a>(is_live: bool) -> Element<'a, Message> {
                 .height(SIZE)
                 .style(move |theme: &Theme| container::Style {
                     background: if is_live {
-                        Some(theme.extended_palette().danger.base.color.into())
+                        Some(theme.palette().danger.base.color.into())
                     } else {
-                        Some(theme.extended_palette().background.neutral.color.into())
+                        Some(theme.palette().background.neutral.color.into())
                     },
                     border: border::rounded(SIZE / 2),
                     ..Default::default()
@@ -211,7 +209,7 @@ fn config_tab<'a>(
                 .style(move |theme: &Theme| if selected {
                     container::Style {
                         border: border::rounded(1),
-                        ..container::background(theme.palette().primary)
+                        ..container::background(theme.seed().primary)
                     }
                 } else {
                     container::Style::default()
@@ -224,7 +222,7 @@ fn config_tab<'a>(
     .style(move |theme: &Theme, status| {
         if selected {
             button::Style {
-                text_color: theme.palette().text,
+                text_color: theme.seed().text,
                 ..button::text(theme, status)
             }
         } else {
@@ -234,7 +232,7 @@ fn config_tab<'a>(
                 0.6
             };
             button::Style {
-                text_color: theme.palette().text.scale_alpha(alpha),
+                text_color: theme.seed().text.scale_alpha(alpha),
                 ..button::text(theme, status)
             }
         }

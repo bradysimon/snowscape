@@ -36,7 +36,7 @@ pub fn parameter_pane(params: &[Param]) -> Element<'_, Message> {
 /// Displays the parameters in a table layout, typically for larger widths.
 pub fn table_view(params: &[Param]) -> Element<'_, Message> {
     let header_style = |theme: &Theme| text::Style {
-        color: Some(theme.palette().text.scale_alpha(0.75)),
+        color: Some(theme.seed().text.scale_alpha(0.75)),
     };
 
     let columns = [
@@ -69,7 +69,7 @@ pub fn undo_button<'a>() -> Element<'a, Message> {
                 .width(14)
                 .height(14)
                 .style(|theme: &Theme, _status| svg::Style {
-                    color: Some(theme.palette().text),
+                    color: Some(theme.seed().text),
                 }),
             text("Undo").size(14),
         ]
@@ -173,10 +173,10 @@ fn boolean_toggle<'a, Message: Clone + 'a>(
     message: impl Fn(bool) -> Message,
 ) -> Element<'a, Message> {
     let button_style = |theme: &Theme, status: button::Status, active: bool| {
-        let active_pair = if theme.extended_palette().is_dark {
-            theme.extended_palette().background.strongest
+        let active_pair = if theme.palette().is_dark {
+            theme.palette().background.strongest
         } else {
-            theme.extended_palette().background.weakest
+            theme.palette().background.weakest
         };
         button::Style {
             background: active.then(|| active_pair.color.into()),
@@ -184,7 +184,7 @@ fn boolean_toggle<'a, Message: Clone + 'a>(
             text_color: if active {
                 active_pair.text
             } else {
-                theme.palette().text
+                theme.seed().text
             },
             ..button::text(theme, status)
         }
@@ -210,7 +210,7 @@ fn boolean_toggle<'a, Message: Clone + 'a>(
         .padding(2),
     )
     .style(|theme: &Theme| container::Style {
-        background: Some(theme.extended_palette().background.weak.color.into()),
+        background: Some(theme.palette().background.weak.color.into()),
         border: border::rounded(10),
         ..Default::default()
     })
@@ -228,7 +228,7 @@ fn color_picker<'a>(index: usize, color: Color) -> Element<'a, Message> {
             background: Some(color.into()),
             border: border::rounded(4)
                 .width(1)
-                .color(theme.extended_palette().background.neutral.color),
+                .color(theme.palette().background.neutral.color),
             ..Default::default()
         });
 
@@ -251,14 +251,14 @@ fn color_picker<'a>(index: usize, color: Color) -> Element<'a, Message> {
                     backgrounds,
                     border: border::rounded(4)
                         .width(1)
-                        .color(theme.extended_palette().background.weak.color),
+                        .color(theme.palette().background.weak.color),
                     width: 6.0,
                 },
                 handle: slider::Handle {
                     shape: slider::HandleShape::Circle { radius: 8.0 },
-                    background: theme.extended_palette().secondary.base.color.into(),
+                    background: theme.palette().secondary.base.color.into(),
                     border_width: 1.0,
-                    border_color: theme.extended_palette().secondary.strong.color,
+                    border_color: theme.palette().secondary.strong.color,
                 },
             })
             .width(Length::Fill),

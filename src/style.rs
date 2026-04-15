@@ -99,7 +99,7 @@ pub mod button {
 
     /// Subtle button style for secondary actions.
     pub fn subtle(theme: &Theme, status: button::Status) -> button::Style {
-        let palette = theme.extended_palette();
+        let palette = theme.palette();
         match status {
             button::Status::Active => button::Style {
                 background: Some(palette.background.weak.color.into()),
@@ -130,7 +130,7 @@ pub mod button {
 
     /// Ghost button style: transparent at rest with subtle hover/press background.
     pub fn ghost_subtle(theme: &Theme, status: button::Status) -> button::Style {
-        let palette = theme.extended_palette();
+        let palette = theme.palette();
 
         match status {
             button::Status::Active => button::Style {
@@ -167,8 +167,8 @@ pub mod container {
 
     pub fn tooltip_background(theme: &Theme) -> container::Style {
         container::Style {
-            text_color: Some(theme.extended_palette().background.weak.text),
-            background: Some(theme.extended_palette().background.weak.color.into()),
+            text_color: Some(theme.palette().background.weak.text),
+            background: Some(theme.palette().background.weak.color.into()),
             border: Border::default().rounded(4),
             shadow: Shadow {
                 color: Color::BLACK.scale_alpha(0.3),
@@ -183,13 +183,13 @@ pub mod container {
         let alpha = if animate { 0.5 } else { 0.6 };
 
         container::Style {
-            background: Some(theme.palette().text.scale_alpha(alpha).into()),
+            background: Some(theme.seed().text.scale_alpha(alpha).into()),
             ..Default::default()
         }
     }
 
     pub fn dialog_panel(theme: &Theme) -> container::Style {
-        let pair = theme.extended_palette().background.weakest;
+        let pair = theme.palette().background.weakest;
 
         container::Style {
             text_color: Some(pair.text),
@@ -197,7 +197,7 @@ pub mod container {
             border: Border::default()
                 .rounded(8)
                 .width(1)
-                .color(theme.extended_palette().background.weaker.color),
+                .color(theme.palette().background.weaker.color),
             shadow: Shadow {
                 color: Color::BLACK.scale_alpha(0.35),
                 offset: Vector::new(0.0, 8.0),
@@ -237,62 +237,34 @@ pub mod text {
     /// Faded text style (50% alpha) using background weakest text color.
     pub fn faded(theme: &Theme) -> text::Style {
         text::Style {
-            color: Some(
-                theme
-                    .extended_palette()
-                    .background
-                    .weakest
-                    .text
-                    .scale_alpha(0.5),
-            ),
+            color: Some(theme.palette().background.weakest.text.scale_alpha(0.5)),
         }
     }
 
     /// Secondary text style (60% alpha) using background weakest text color.
     pub fn secondary(theme: &Theme) -> text::Style {
         text::Style {
-            color: Some(
-                theme
-                    .extended_palette()
-                    .background
-                    .weakest
-                    .text
-                    .scale_alpha(0.6),
-            ),
+            color: Some(theme.palette().background.weakest.text.scale_alpha(0.6)),
         }
     }
 
     /// Muted text style (70% alpha) using background weakest text color.
     pub fn muted(theme: &Theme) -> text::Style {
         text::Style {
-            color: Some(
-                theme
-                    .extended_palette()
-                    .background
-                    .weakest
-                    .text
-                    .scale_alpha(0.7),
-            ),
+            color: Some(theme.palette().background.weakest.text.scale_alpha(0.7)),
         }
     }
 
     /// Subdued text style (80% alpha) using background weakest text color.
     pub fn subdued(theme: &Theme) -> text::Style {
         text::Style {
-            color: Some(
-                theme
-                    .extended_palette()
-                    .background
-                    .weakest
-                    .text
-                    .scale_alpha(0.8),
-            ),
+            color: Some(theme.palette().background.weakest.text.scale_alpha(0.8)),
         }
     }
 
     pub fn danger(theme: &Theme) -> text::Style {
         text::Style {
-            color: Some(theme.extended_palette().danger.strong.color),
+            color: Some(theme.palette().danger.strong.color),
         }
     }
 }
@@ -313,9 +285,7 @@ pub mod text_input {
     pub fn validated(theme: &Theme, status: text_input::Status, valid: bool) -> text_input::Style {
         let mut style = default(theme, status);
         if !valid {
-            style.border = style
-                .border
-                .color(theme.extended_palette().danger.strong.color);
+            style.border = style.border.color(theme.palette().danger.strong.color);
         }
         style
     }
@@ -327,25 +297,25 @@ pub mod svg {
 
     pub fn text(theme: &Theme, _status: svg::Status) -> svg::Style {
         svg::Style {
-            color: Some(theme.palette().text),
+            color: Some(theme.seed().text),
         }
     }
 
     pub fn strong_background(theme: &Theme, _status: svg::Status) -> svg::Style {
         svg::Style {
-            color: Some(theme.extended_palette().background.strong.color),
+            color: Some(theme.palette().background.strong.color),
         }
     }
 
     pub fn success(theme: &Theme, _status: svg::Status) -> svg::Style {
         svg::Style {
-            color: Some(theme.extended_palette().success.strong.color),
+            color: Some(theme.palette().success.strong.color),
         }
     }
 
     pub fn danger(theme: &Theme, _status: svg::Status) -> svg::Style {
         svg::Style {
-            color: Some(theme.extended_palette().danger.strong.color),
+            color: Some(theme.palette().danger.strong.color),
         }
     }
 }
