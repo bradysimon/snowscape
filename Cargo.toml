@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-iced = { workspace = true, features = ["advanced", "svg", "fira-sans", "tokio"] }
+iced = { workspace = true, features = ["advanced", "svg", "tokio"] }
 iced_anim.workspace = true
 iced_test.workspace = true
 image = { workspace = true, default-features = false, features = ["png"] }
