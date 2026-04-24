@@ -133,6 +133,45 @@ You can do `cargo run -p {package_name}` to run any of the included examples.
 You can run the `self` example with `cargo run -p self` to see Snowscape's 
 own previews.
 
+## Automation tests
+
+In addition to `.ice` tests, Snowscape provides `snowscape::test::Emulator`: 
+a Playwright-style wrapper around `iced_test::Emulator` that lets you write
+tests against any `iced::Program` using plain `#[test]` functions just like
+any other Rust tests.
+
+```rs
+use std::time::Duration;
+use snowscape::test::{automation, Emulator};
+
+#[test]
+fn increment_button_increases_counter() -> automation::Result {
+    let mut emulator = Emulator::new(my_app::program())?;
+
+    emulator.click("Increment")?;
+    emulator.wait_for_text_with_timeout("Count: 1", Duration::from_secs(1))?;
+    Ok(())
+}
+```
+
+The `Emulator` runs the program with its real executor, so subscriptions and
+tasks fire normally. The API includes:
+
+- `click(target)` / `right_click` / `middle_click` / `hover` / `move_cursor`
+- `type_text`, `tap_key`, `press_key`, `release_key`
+- `press_button` / `release_button`
+- `wait(Duration)` to advance real time
+- `wait_for(selector)` / `wait_for_text(text)` for poll-until conditions
+  (with `_with_timeout` variants)
+- `find` / `exists` / `contains_text` / `get_text` for inspecting the view
+- `Emulator::builder(program)` to configure size, mode, preset, and
+  the default polling timeout
+
+Selector helpers live under `snowscape::test::automation::select` (re-exports
+of `iced_test::selector`). Use `Id::new("widget-id")` to click by widget id.
+
+See `examples/counter/tests/automation.rs` for working examples.
+
 ## Capture screenshots of previews
 
 Snowscape can capture screenshots of your previews from the command line

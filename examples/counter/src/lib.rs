@@ -1,15 +1,19 @@
+use std::time::Duration;
+
 use iced::{
     Alignment::Center,
-    Element,
+    Element, Task,
     widget::{button, column, container, text, text::IntoFragment},
 };
 
 pub const INCREMENT_BUTTON_ID: &str = "increment-button";
+pub const COUNT_TEXT_ID: &str = "count-text";
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Increment,
     Decrement,
+    DelayedIncrement,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -22,10 +26,20 @@ impl App {
         Self { count }
     }
 
-    pub fn update(&mut self, message: Message) {
+    pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Increment => self.count += 1,
-            Message::Decrement => self.count -= 1,
+            Message::Increment => {
+                self.count += 1;
+                Task::none()
+            }
+            Message::Decrement => {
+                self.count -= 1;
+                Task::none()
+            }
+            Message::DelayedIncrement => Task::perform(
+                async { tokio::time::sleep(Duration::from_millis(150)).await },
+                |()| Message::Increment,
+            ),
         }
     }
 
@@ -44,13 +58,21 @@ pub fn minus_button<'a>() -> Element<'a, Message> {
     button("Decrement").on_press(Message::Decrement).into()
 }
 
+pub fn delayed_button<'a>() -> Element<'a, Message> {
+    button("Delayed Increment")
+        .on_press(Message::DelayedIncrement)
+        .into()
+}
+
 pub fn label<'a>(content: impl IntoFragment<'a>) -> Element<'a, Message> {
-    text!("Count: {}", content.into_fragment()).size(32).into()
+    container(text!("Count: {}", content.into_fragment()).size(32))
+        .id(COUNT_TEXT_ID)
+        .into()
 }
 
 // Stateless preview returning a more complex layout
 pub fn counter<'a>(count: i32) -> Element<'a, Message> {
-    column![label(count), add_button(), minus_button()]
+    column![label(count), add_button(), minus_button(), delayed_button()]
         .align_x(Center)
         .spacing(10)
         .padding(20)
@@ -72,4 +94,11 @@ pub fn adjustable_counter<'a>(
     .spacing(10)
     .padding(20)
     .into()
+}
+
+/// Builds the counter as a standalone [`iced::Program`] for use in
+/// `snowscape::test::Emulator`-driven automation tests as well as for
+/// standalone running.
+pub fn program() -> impl iced::Program<State = App, Message = Message, Theme = iced::Theme> {
+    iced::application(App::default, App::update, App::view).title("Counter")
 }
