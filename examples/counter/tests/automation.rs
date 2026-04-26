@@ -43,11 +43,17 @@ fn decrement_restores_count() -> automation::Result {
 /// `wait_for_text` polls the UI until an asynchronously-updated value appears.
 #[test]
 fn wait_for_text_after_delayed_increment() -> automation::Result {
-    let mut emulator = Emulator::new(program())?;
+    // let mut emulator = Emulator::new(program())?;
+    let mut emulator = Emulator::builder(program())
+        .mode(snowscape::test::Mode::Immediate)
+        .build()?;
 
     emulator.click("Delayed Increment")?;
-
+    // The count shouldn't be immediately updated since we used Immediate mode with the delayed increment.
+    emulator.assert_not_exists("Count: 1")?;
+    // Waiting for "Count: 1" should succeed once the delayed increment finishes and updates the UI.
     emulator.wait_for_text_with_timeout("Count: 1", Duration::from_secs(2))?;
+
     Ok(())
 }
 
