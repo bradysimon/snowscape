@@ -99,13 +99,3 @@ fn time_travel_filters_visible_messages() -> automation::Result {
 
     Ok(())
 }
-
-// MARK: - Formatting (temporary)
-
-/// Temporary test to verify that assertion failures render with readable
-/// multi-line output instead of escaped `\n` characters. Delete after confirming.
-#[test]
-fn assert_exists_shows_readable_tree_on_failure() -> automation::Result {
-    let mut emulator = Emulator::new(program())?;
-    emulator.assert_exists("this text does not exist anywhere")
-}
