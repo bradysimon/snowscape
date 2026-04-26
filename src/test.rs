@@ -28,6 +28,7 @@ pub use outcome::Outcome;
 pub use session::Session;
 pub use state::State;
 // Re-export iced_test types for convenience
+pub use iced_test::emulator::Mode;
 pub use iced_test::instruction::{Expectation, Interaction, Keyboard, Mouse, Target};
 pub use iced_test::{Ice, Instruction};
 
