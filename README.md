@@ -1,13 +1,17 @@
 # Snowscape
 
 A preview system for [Iced](https://github.com/iced-rs/iced) UI components,
-inspired by Storybook and SwiftUI previews.
+inspired by Storybook and SwiftUI previews. 
 
 Snowscape makes it easy to preview specific Iced elements in isolation while
 developing your application. It provides an API for you to run an Iced app that
 displays your elements, allowing you to quickly iterate and test specific 
-components without having to navigate through your entire app. Snowscape 
-supports:
+components without having to navigate through your entire app. Snowscape can
+even preview itself!
+
+![Snowscape UI](ui.png)
+
+Snowscape supports:
 
 - Documenting how components work and how you can use them in a searchable,
   interactive environment
@@ -17,6 +21,7 @@ supports:
 - Tracking view/update performance of each preview
 - Recording, managing, and running tests for previews
 - Capturing screenshots of your previews from the command line
+- Creating automation tests for your app using a Playwright-style API
 
 ## Quick Start
 
