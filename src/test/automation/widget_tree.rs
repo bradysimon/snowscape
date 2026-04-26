@@ -9,6 +9,7 @@
 //! but for now this will do. For now, we have to infer layout types like `Column` and
 //! `Row` from the geometry of child widgets since iced doesn't report them directly.
 
+use std::cmp::Ordering;
 use std::fmt;
 
 use iced_test::core::{Rectangle, widget};
@@ -78,19 +79,23 @@ pub struct WidgetNode {
 
 impl WidgetNode {
     /// Returns `true` if this node or any descendant matches `predicate`.
-    pub fn contains(&self, predicate: &dyn Fn(&WidgetNode) -> bool) -> bool {
-        predicate(self) || self.children.iter().any(|c| c.contains(predicate))
+    pub fn contains(&self, predicate: impl Fn(&WidgetNode) -> bool) -> bool {
+        fn go(node: &WidgetNode, predicate: &impl Fn(&WidgetNode) -> bool) -> bool {
+            predicate(node) || node.children.iter().any(|c| go(c, predicate))
+        }
+        go(self, &predicate)
     }
 
     /// Counts nodes (including this one) that satisfy `predicate`.
-    pub fn count(&self, predicate: &dyn Fn(&WidgetNode) -> bool) -> usize {
-        let self_count = if predicate(self) { 1 } else { 0 };
-        self_count
-            + self
-                .children
-                .iter()
-                .map(|c| c.count(predicate))
-                .sum::<usize>()
+    pub fn count(&self, predicate: impl Fn(&WidgetNode) -> bool) -> usize {
+        fn go(node: &WidgetNode, predicate: &impl Fn(&WidgetNode) -> bool) -> usize {
+            let mut total = if predicate(node) { 1 } else { 0 };
+            for child in &node.children {
+                total += go(child, predicate);
+            }
+            total
+        }
+        go(self, &predicate)
     }
 
     fn fmt_tree(
@@ -111,13 +116,14 @@ impl WidgetNode {
             write!(f, " #{id}")?;
         }
         if let Some(text) = &self.text {
-            // Truncate long text for readability.
-            let display = if text.len() > 40 {
-                format!("{:.37}...", text)
+            // Truncate long text for readability (counted in chars, not bytes).
+            let char_count = text.chars().count();
+            if char_count > 40 {
+                let truncated: String = text.chars().take(37).collect();
+                write!(f, " \"{truncated}...\"")?;
             } else {
-                text.clone()
-            };
-            write!(f, " \"{display}\"")?;
+                write!(f, " \"{text}\"")?;
+            }
         }
         if self.focused {
             write!(f, " [focused]")?;
@@ -154,9 +160,9 @@ impl fmt::Display for WidgetNode {
 /// An [`Operation`](widget::Operation) that collects the full widget tree
 /// into a [`WidgetNode`] hierarchy.
 pub(super) struct TreeCollector {
-    /// Stack of (parent node, viewport) pairs. The last entry is the current
-    /// parent being populated.
-    stack: Vec<(WidgetNode, Rectangle)>,
+    /// Stack of parent nodes. The last entry is the current parent being
+    /// populated by emit calls (`container`, `text`, etc.).
+    stack: Vec<WidgetNode>,
     viewport: Rectangle,
 }
 
@@ -173,13 +179,13 @@ impl TreeCollector {
             children: Vec::new(),
         };
         Self {
-            stack: vec![(root, viewport)],
+            stack: vec![root],
             viewport,
         }
     }
 
     fn push_node(&mut self, node: WidgetNode) {
-        if let Some((parent, _)) = self.stack.last_mut() {
+        if let Some(parent) = self.stack.last_mut() {
             parent.children.push(node);
         }
     }
@@ -200,52 +206,59 @@ impl TreeCollector {
     }
 
     pub fn into_root(mut self) -> WidgetNode {
-        // Flatten the stack down to the root.
+        // Flatten any unfinished frames back onto the root.
         while self.stack.len() > 1 {
-            let (child, _) = self.stack.pop().unwrap();
-            if let Some((parent, _)) = self.stack.last_mut() {
+            let child = self.stack.pop().unwrap();
+            if let Some(parent) = self.stack.last_mut() {
                 parent.children.push(child);
             }
         }
-        self.stack
-            .pop()
-            .map(|(node, _)| node)
-            .unwrap_or_else(|| WidgetNode {
-                kind: WidgetKind::Container,
-                id: None,
-                bounds: self.viewport,
-                text: None,
-                focused: false,
-                visible: true,
-                children: Vec::new(),
-            })
+        self.stack.pop().unwrap_or_else(|| WidgetNode {
+            kind: WidgetKind::Container,
+            id: None,
+            bounds: self.viewport,
+            text: None,
+            focused: false,
+            visible: true,
+            children: Vec::new(),
+        })
     }
 }
 
 impl widget::Operation for TreeCollector {
     fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn widget::Operation)) {
-        // Push a new container frame for children.
-        // The last node we pushed becomes the parent. We need to pop it off
-        // and push it onto the stack so children accumulate inside it.
-        let parent = if let Some((current_parent, _)) = self.stack.last_mut() {
-            if let Some(last_child) = current_parent.children.pop() {
-                let saved_viewport = self.viewport;
-                self.stack.push((last_child, saved_viewport));
-                true
-            } else {
+        // Iced calls one of the emit methods (e.g. `container`) for the
+        // current widget *before* `traverse`, so that node is the last child
+        // of the current parent. Move it onto the stack so descendants
+        // accumulate inside it. If for some reason no node was emitted
+        // (e.g. a transparent wrapper), push a synthetic Container so the
+        // hierarchy depth is preserved.
+        let synthetic = match self.stack.last_mut().and_then(|p| p.children.pop()) {
+            Some(last_child) => {
+                self.stack.push(last_child);
                 false
             }
-        } else {
-            false
+            None => {
+                self.stack.push(WidgetNode {
+                    kind: WidgetKind::Container,
+                    id: None,
+                    bounds: self.viewport,
+                    text: None,
+                    focused: false,
+                    visible: true,
+                    children: Vec::new(),
+                });
+                true
+            }
         };
 
         operate(self);
 
-        if parent {
-            let (child, saved_viewport) = self.stack.pop().unwrap();
-            self.viewport = saved_viewport;
-            if let Some((p, _)) = self.stack.last_mut() {
-                p.children.push(child);
+        let frame = self.stack.pop().expect("traverse pushed a frame");
+        if let Some(parent) = self.stack.last_mut() {
+            // Drop empty synthetic frames so the tree stays clean.
+            if !(synthetic && frame.children.is_empty()) {
+                parent.children.push(frame);
             }
         }
     }
@@ -372,11 +385,18 @@ pub(super) fn deduplicate_focusables(node: &mut WidgetNode) {
         let focusable_id = node.children[i].id.clone();
         let focusable_bounds = node.children[i].bounds;
         let focusable_focused = node.children[i].focused;
-        // Look for a TextInput sibling with matching id or bounds.
+        // Look for a TextInput sibling with matching id or bounds. We require
+        // an explicit id match when both sides have ids; otherwise we fall
+        // back to bounds equality so unidentified focusables are not merged
+        // with arbitrary unidentified text inputs.
         let partner = node.children.iter_mut().enumerate().find(|(j, sibling)| {
-            *j != i
-                && sibling.kind == WidgetKind::TextInput
-                && (sibling.id == focusable_id || sibling.bounds == focusable_bounds)
+            if *j == i || sibling.kind != WidgetKind::TextInput {
+                return false;
+            }
+            match (&focusable_id, &sibling.id) {
+                (Some(a), Some(b)) => a == b,
+                _ => sibling.bounds == focusable_bounds,
+            }
         });
         if let Some((_j, text_input)) = partner {
             // Merge focus state into the TextInput.
@@ -429,7 +449,7 @@ fn infer_layout_kind(children: &[WidgetNode]) -> WidgetKind {
     // Check for a pure column: children are non-overlapping vertically
     // (in any order).
     let mut ys: Vec<(f32, f32)> = bounds.iter().map(|b| (b.y, b.y + b.height)).collect();
-    ys.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    ys.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
 
     if ys.windows(2).all(|pair| pair[1].0 >= pair[0].1 - TOLERANCE) {
         return WidgetKind::Column;
@@ -438,7 +458,7 @@ fn infer_layout_kind(children: &[WidgetNode]) -> WidgetKind {
     // Check for a pure row: children are non-overlapping horizontally
     // (in any order, supporting both LTR and RTL).
     let mut xs: Vec<(f32, f32)> = bounds.iter().map(|b| (b.x, b.x + b.width)).collect();
-    xs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    xs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
 
     if xs.windows(2).all(|pair| pair[1].0 >= pair[0].1 - TOLERANCE) {
         return WidgetKind::Row;
@@ -465,8 +485,8 @@ fn detect_wrapped_row(bounds: &[Rectangle], tolerance: f32) -> Option<WidgetKind
     let mut sorted: Vec<&Rectangle> = bounds.iter().collect();
     sorted.sort_by(|a, b| {
         a.y.partial_cmp(&b.y)
-            .unwrap()
-            .then(a.x.partial_cmp(&b.x).unwrap())
+            .unwrap_or(Ordering::Equal)
+            .then(a.x.partial_cmp(&b.x).unwrap_or(Ordering::Equal))
     });
 
     // Group into rows: a child starts a new row when its top edge is
@@ -494,7 +514,7 @@ fn detect_wrapped_row(bounds: &[Rectangle], tolerance: f32) -> Option<WidgetKind
     for row in &rows {
         if row.len() >= 2 {
             let mut xs: Vec<(f32, f32)> = row.iter().map(|b| (b.x, b.x + b.width)).collect();
-            xs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            xs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
             if !xs.windows(2).all(|pair| pair[1].0 >= pair[0].1 - tolerance) {
                 return None;
             }

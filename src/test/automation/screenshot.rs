@@ -33,7 +33,7 @@ impl Screenshot {
             self.height,
             image::ColorType::Rgba8.into(),
         )
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| Error::Io(std::io::Error::other(e)))?;
         Ok(())
     }
 }
@@ -82,8 +82,7 @@ impl<P: iced_test::program::Program + 'static> Emulator<P> {
             Err(err) => {
                 if let Some(dir) = &self.screenshot_dir {
                     let path = dir.join(format!("{label}.png"));
-                    // Best-effort: don't mask the original error.
-                    let _ = self.save_screenshot(&path, 2.0);
+                    let _ = self.save_screenshot(&path, 1.0);
                     eprintln!("screenshot saved to {}", path.display());
                 }
                 Err(err)

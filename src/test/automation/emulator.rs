@@ -6,12 +6,14 @@ use super::{Builder, Error, Result};
 
 use iced_test::Instruction;
 use iced_test::core::renderer as core_renderer;
-use iced_test::core::{Settings, Size, mouse};
+use iced_test::core::{Settings, Size, mouse, widget};
 use iced_test::emulator::{Action, Event, Mode};
 use iced_test::futures::futures::channel::mpsc;
 use iced_test::futures::futures::executor;
 use iced_test::instruction::{Interaction, Mouse as MouseInteraction, Target as InstrTarget};
 use iced_test::program::Program;
+use iced_test::runtime::UserInterface;
+use iced_test::runtime::user_interface::Cache;
 
 /// A Playwright-style headless test driver for any [`iced::Program`].
 ///
@@ -34,6 +36,9 @@ pub struct Emulator<P: Program> {
     pub(super) cursor: mouse::Cursor,
     pub(super) default_timeout: Duration,
     pub(super) screenshot_dir: Option<PathBuf>,
+    /// Cached layout from the last [`UserInterface`] build. Reused across
+    /// query operations and invalidated whenever an action mutates state.
+    pub(super) cache: Cache,
 }
 
 impl<P: Program + 'static> Emulator<P> {
@@ -87,6 +92,7 @@ impl<P: Program + 'static> Emulator<P> {
             cursor: mouse::Cursor::Unavailable,
             default_timeout,
             screenshot_dir,
+            cache: Cache::default(),
         };
 
         // Drain the initial `Ready` event produced during boot.
@@ -140,6 +146,9 @@ impl<P: Program + 'static> Emulator<P> {
 
     fn dispatch(&mut self, action: Action<P>) {
         self.inner.perform(&self.program, action);
+        // The action may have mutated program state, invalidating the
+        // cached layout we keep for query operations.
+        self.cache = Cache::default();
     }
 
     /// Drains any actions queued by background tasks/subscriptions without
@@ -168,6 +177,28 @@ impl<P: Program + 'static> Emulator<P> {
         }
         self.inner.run(&self.program, &instruction);
         self.pump_until_ready()
+    }
+
+    /// Runs a [`widget::Operation`] against a freshly built (or cached)
+    /// [`UserInterface`] and returns the operation's [`Outcome`].
+    ///
+    /// The cache produced by `UserInterface::into_cache` is preserved on
+    /// the emulator so subsequent operations skip re-layout when state
+    /// hasn't changed. State-mutating actions clear the cache via
+    /// [`dispatch`](Self::dispatch).
+    pub(super) fn run_operation<T, O>(&mut self, mut operation: O) -> widget::operation::Outcome<T>
+    where
+        O: widget::Operation<T>,
+    {
+        let element = self.inner.view(&self.program);
+        let cache = std::mem::take(&mut self.cache);
+        let mut ui = UserInterface::build(element, self.size, cache, &mut self.renderer);
+        ui.operate(
+            &self.renderer,
+            &mut widget::operation::black_box(&mut operation),
+        );
+        self.cache = ui.into_cache();
+        operation.finish()
     }
 }
 

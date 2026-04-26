@@ -2,8 +2,6 @@
 
 use iced_test::Selector;
 use iced_test::core::{Rectangle, widget};
-use iced_test::runtime::UserInterface;
-use iced_test::runtime::user_interface::Cache;
 
 use super::widget_tree::{
     TreeCollector, WidgetNode, deduplicate_focusables, reclassify_containers,
@@ -61,19 +59,7 @@ impl<P: iced_test::program::Program + 'static> Emulator<P> {
         S: Selector + Send,
         S::Output: Clone + Send,
     {
-        use widget::Operation;
-
-        let element = self.inner.view(&self.program);
-        let mut ui = UserInterface::build(element, self.size, Cache::default(), &mut self.renderer);
-
-        let mut operation = selector.find();
-        ui.operate(
-            &self.renderer,
-            &mut widget::operation::black_box(&mut operation),
-        );
-        let _ = ui.into_cache();
-
-        match operation.finish() {
+        match self.run_operation(selector.find()) {
             widget::operation::Outcome::Some(output) => output,
             _ => None,
         }
@@ -84,19 +70,7 @@ impl<P: iced_test::program::Program + 'static> Emulator<P> {
         S: Selector + Send,
         S::Output: Clone + Send,
     {
-        use widget::Operation;
-
-        let element = self.inner.view(&self.program);
-        let mut ui = UserInterface::build(element, self.size, Cache::default(), &mut self.renderer);
-
-        let mut operation = selector.find_all();
-        ui.operate(
-            &self.renderer,
-            &mut widget::operation::black_box(&mut operation),
-        );
-        let _ = ui.into_cache();
-
-        match operation.finish() {
+        match self.run_operation(selector.find_all()) {
             widget::operation::Outcome::Some(outputs) => outputs,
             _ => Vec::new(),
         }
@@ -137,21 +111,28 @@ impl<P: iced_test::program::Program + 'static> Emulator<P> {
     /// The returned [`WidgetNode`] can be printed with `Display` to produce
     /// a compact, indented representation.
     pub fn widget_tree(&mut self) -> WidgetNode {
-        let element = self.inner.view(&self.program);
-        let mut ui = UserInterface::build(element, self.size, Cache::default(), &mut self.renderer);
-
-        let mut op = TreeCollector::new(Rectangle {
+        let viewport = Rectangle {
             x: 0.0,
             y: 0.0,
             width: self.size.width,
             height: self.size.height,
-        });
-        ui.operate(&self.renderer, &mut widget::operation::black_box(&mut op));
-        let _ = ui.into_cache();
-        let mut root = op.into_root();
+        };
+        let mut collector = TreeCollector::new(viewport);
+        self.run_with_collector(&mut collector);
+        let mut root = collector.into_root();
         deduplicate_focusables(&mut root);
         reclassify_containers(&mut root);
         root
+    }
+
+    fn run_with_collector(&mut self, collector: &mut TreeCollector) {
+        use iced_test::runtime::UserInterface;
+
+        let element = self.inner.view(&self.program);
+        let cache = std::mem::take(&mut self.cache);
+        let mut ui = UserInterface::build(element, self.size, cache, &mut self.renderer);
+        ui.operate(&self.renderer, &mut widget::operation::black_box(collector));
+        self.cache = ui.into_cache();
     }
 
     // MARK: - Assertions

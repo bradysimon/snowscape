@@ -7,8 +7,6 @@ use iced_test::core::{mouse, widget};
 use iced_test::instruction::{
     Interaction, Key, Keyboard, Mouse as MouseInteraction, Target as InstrTarget,
 };
-use iced_test::runtime::UserInterface;
-use iced_test::runtime::user_interface::Cache;
 
 use super::{Emulator, Result};
 
@@ -162,46 +160,59 @@ impl<P: iced_test::program::Program + 'static> Emulator<P> {
     pub fn scroll(&mut self, id: impl Into<widget::Id>, delta_x: f32, delta_y: f32) -> Result {
         use iced_test::core::widget::operation::scrollable;
 
-        let element = self.inner.view(&self.program);
-        let mut ui = UserInterface::build(element, self.size, Cache::default(), &mut self.renderer);
-
-        let mut operation = scrollable::scroll_by::<()>(
+        let operation = scrollable::scroll_by::<()>(
             id.into(),
             scrollable::AbsoluteOffset {
                 x: delta_x,
                 y: delta_y,
             },
         );
-        ui.operate(
-            &self.renderer,
-            &mut widget::operation::black_box(&mut operation),
-        );
-        let _ = ui.into_cache();
+        let _ = self.run_operation(operation);
+        // Scrolling mutates layout state; invalidate the cache so the next
+        // query observes the new translation.
+        self.cache = iced_test::runtime::user_interface::Cache::default();
         Ok(())
     }
 
-    /// Clicks a text input, selects all existing text, and types `text`.
+    /// Clicks a text input, clears its existing content, and types `text`.
     ///
-    /// This is a common pattern for filling form fields. It selects-all
-    /// first so the new text replaces any existing content.
+    /// This is a common pattern for filling form fields. The current
+    /// content is read from the focused [`TextInput`](super::WidgetKind::TextInput)
+    /// in the widget tree and erased with `Backspace` key taps before the
+    /// new text is typed.
     pub fn fill(&mut self, selector: impl IntoSelector, text: impl Into<String>) -> Result {
         let target = selector.into_instr_target();
-        // Click to focus the input
+        // Click to focus the input.
         self.run_instruction(Instruction::Interact(Interaction::Mouse(
             MouseInteraction::Click {
                 button: mouse::Button::Left,
                 target: Some(target),
             },
         )))?;
-        // Select all via Ctrl+A / Cmd+A keyboard shortcut.
-        // Iced's instruction set doesn't have a shortcut command, so we
-        // simulate it by pressing Backspace to clear, then typing the new text.
-        // A more targeted approach: type the new text character-by-character,
-        // but first clear with Backspace presses. Instead, use the operation
-        // system if we have an id, or just type directly.
+        // Read the focused text input's current contents and clear them.
+        let existing_chars = self
+            .focused_text_input_content()
+            .map(|content| content.chars().count())
+            .unwrap_or(0);
+        for _ in 0..existing_chars {
+            self.run_instruction(Instruction::Interact(Interaction::Keyboard(
+                Keyboard::Type(Key::Backspace),
+            )))?;
+        }
         self.run_instruction(Instruction::Interact(Interaction::Keyboard(
             Keyboard::Typewrite(text.into()),
         )))
+    }
+
+    fn focused_text_input_content(&mut self) -> Option<String> {
+        fn walk(node: &super::WidgetNode) -> Option<String> {
+            if node.kind == super::WidgetKind::TextInput && node.focused {
+                return node.text.clone();
+            }
+            node.children.iter().find_map(walk)
+        }
+        let tree = self.widget_tree();
+        walk(&tree)
     }
 
     // MARK: - Time and waiting
