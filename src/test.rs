@@ -3,6 +3,7 @@
 //! This module provides functionality to record and run visual tests against
 //! previews using Iced's `.ice` test file format.
 
+pub mod automation;
 mod config;
 pub mod discovery;
 mod error;
@@ -13,6 +14,8 @@ mod session;
 mod size_input;
 mod snapshot;
 pub mod state;
+
+pub use automation::{DEFAULT_TIMEOUT, Emulator};
 
 use iced::keyboard;
 use iced_test::selector;
@@ -25,6 +28,7 @@ pub use outcome::Outcome;
 pub use session::Session;
 pub use state::State;
 // Re-export iced_test types for convenience
+pub use iced_test::emulator::Mode;
 pub use iced_test::instruction::{Expectation, Interaction, Keyboard, Mouse, Target};
 pub use iced_test::{Ice, Instruction};
 

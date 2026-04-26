@@ -385,14 +385,7 @@ fn test_row<'a>(
 
             if is_running {
                 container::Style {
-                    text_color: Some(
-                        theme
-                            .palette()
-                            .background
-                            .weakest
-                            .text
-                            .scale_alpha(0.55),
-                    ),
+                    text_color: Some(theme.palette().background.weakest.text.scale_alpha(0.55)),
                     background: background.or_else(|| {
                         Some(
                             theme
