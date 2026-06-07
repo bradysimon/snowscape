@@ -45,29 +45,31 @@ pub fn performance_pane(performance: Option<&Performance>) -> Element<'_, Messag
         };
 
         if size.width >= 576.0 {
-            row![
-                section("View", view_section).width(FillPortion(1)),
-                container(space::vertical())
-                    .width(1)
-                    .height(Fill)
-                    .style(container::rounded_box),
-                section("Update", update_section).width(FillPortion(1)),
-            ]
-            .spacing(8)
-            .width(Fill)
-            .into()
+            Element::from(
+                row![
+                    section("View", view_section).width(FillPortion(1)),
+                    container(space::vertical())
+                        .width(1)
+                        .height(Fill)
+                        .style(container::rounded_box),
+                    section("Update", update_section).width(FillPortion(1)),
+                ]
+                .spacing(8)
+                .width(Fill),
+            )
         } else {
-            column![
-                section("View", view_section),
-                container(space::horizontal())
-                    .height(1)
-                    .width(Fill)
-                    .style(container::rounded_box),
-                section("Update", update_section),
-            ]
-            .spacing(8)
-            .width(Fill)
-            .into()
+            Element::from(
+                column![
+                    section("View", view_section),
+                    container(space::horizontal())
+                        .height(1)
+                        .width(Fill)
+                        .style(container::rounded_box),
+                    section("Update", update_section),
+                ]
+                .spacing(8)
+                .width(Fill),
+            )
         }
     }))
     .spacing(2)

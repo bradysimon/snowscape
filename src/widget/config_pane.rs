@@ -95,7 +95,6 @@ pub fn config_pane<'a>(
             .width(Fill)
             .height(Fill)
             .style(|theme: &Theme| container::background(theme.palette().background.weakest.color))
-            .into()
     })
     .into()
 }

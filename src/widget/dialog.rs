@@ -592,24 +592,12 @@ where
         tree::State::new(WidgetState::new())
     }
 
-    fn children(&self) -> Vec<Tree> {
-        vec![
-            Tree::new(&self.base),
-            Tree::new(&self.backdrop_target),
-            Tree::new(&self.panel),
-        ]
-    }
-
-    fn diff(&self, tree: &mut Tree) {
-        tree.diff_children(&[&self.base, &self.backdrop_target, &self.panel]);
+    fn diff(&mut self, tree: &mut Tree) {
+        tree.diff_children(&mut [&mut self.base, &mut self.backdrop_target, &mut self.panel]);
     }
 
     fn size(&self) -> Size<iced::Length> {
         self.base.as_widget().size()
-    }
-
-    fn size_hint(&self) -> Size<iced::Length> {
-        self.base.as_widget().size_hint()
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> Node {
