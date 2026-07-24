@@ -1,5 +1,5 @@
 use iced::Alignment::Center;
-use iced::Length::{FillPortion, Shrink};
+use iced::Length::{FillPortion, Fit, Shrink};
 use iced::widget::{
     button, column, container, pick_list, responsive, right, row, scrollable, slider, space, svg,
     table, text, text_input,
@@ -263,7 +263,7 @@ fn color_picker<'a>(index: usize, color: Color) -> Element<'a, Message> {
             })
             .width(Length::Fill),
         )
-        .max_width(400);
+        .width(Fit.max(400));
 
         let rgb_input = text_input("", &value.to_string())
             .on_input(move |v| {

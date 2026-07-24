@@ -2,7 +2,7 @@ pub mod theme;
 
 use iced::{
     Element,
-    Length::Fill,
+    Length::{Fill, Fit},
     widget::{Button, Text, column, container, row, space, text::IntoFragment, themer},
 };
 use snowscape::dynamic;
@@ -87,6 +87,6 @@ fn product_card<'a>(
         ]
         .spacing(4),
     )
-    .max_width(250)
+    .width(Fit.max(250))
     .into()
 }

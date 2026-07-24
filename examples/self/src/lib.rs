@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use iced::Alignment::Center;
-use iced::Length::Fill;
+use iced::Length::{Fill, Fit};
 use iced::widget::{button, column, container, pick_list, row, space, text};
 use iced::{Color, Element};
 use snowscape::preview::{Performance, Preview};
@@ -85,7 +85,7 @@ fn preview_list() -> impl Preview {
         ],
         |items| {
             container(widget::preview_list(items.iter().enumerate(), Some(1)))
-                .max_width(200)
+                .width(Fit.max(200))
                 .into()
         },
     )

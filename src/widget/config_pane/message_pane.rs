@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use iced::Alignment::Center;
 use iced::Element;
-use iced::Length::Fill;
+use iced::Length::{Fill, Fit};
 use iced::widget::{column, container, row, scrollable, text, tooltip};
 
 use crate::app::Message;
@@ -37,7 +37,7 @@ fn message_item(message: &str, index: usize) -> Element<'_, Message> {
         ]
         .spacing(4)
         .align_y(Center),
-        container(message).max_width(768),
+        container(message).width(Fit.max(768)),
         tooltip::Position::Top,
     )
     .delay(Duration::from_secs(1))
